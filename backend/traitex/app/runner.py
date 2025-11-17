@@ -2,7 +2,7 @@ import asyncio
 import logging
 import signal
 import sys
-from app.core.containers import ApplicationContainer
+from app.core.containers.ApplicationContainer import ApplicationContainer
 
 logger = logging.getLogger(__name__)
 

@@ -1,7 +1,9 @@
 from dependency_injector import containers, providers
 
+from app.consumers.MockConsumer import MockConsumer
 
-class Consumers(containers.DeclarativeContainer):
+
+class ConsumerContainer(containers.DeclarativeContainer):
     config = providers.Configuration()
 
     message_consumer = providers.Singleton(
