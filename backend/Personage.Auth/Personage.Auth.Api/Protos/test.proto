@@ -4,7 +4,7 @@ import "google/protobuf/timestamp.proto";
 
 option csharp_namespace = "Personage.Auth.Api.Grpc";
 
-package ping;
+package test;
 
 service TestService {
   rpc Ping (PingRequest) returns (PingResponse);

@@ -7,19 +7,40 @@ public class Program
     public static void Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
-        builder.WebHost.ConfigureKestrel(options =>
+        builder.Services.AddGrpc(options =>
         {
-            options.ConfigureEndpointDefaults(lo => lo.Protocols = Microsoft.AspNetCore.Server.Kestrel.Core.HttpProtocols.Http2);
+            options.EnableDetailedErrors = true;
         });
-        builder.Services.AddGrpc();
-
+        builder.Services.AddGrpcReflection();
+        
+        builder.Services.AddEndpointsApiExplorer();
+        builder.Services.AddSwaggerGen(c =>
+        {
+            c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
+            {
+                Title = "Personage.Auth API",
+                Version = "v1",
+                Description = "Authentication API with gRPC and REST endpoints"
+            });
+        });
         builder.Services.AddControllers();
         var app = builder.Build();
+
+        app.UseSwagger();
+        app.UseSwaggerUI(c =>
+        {
+            c.SwaggerEndpoint("/swagger/v1/swagger.json", "Personage.Auth API v1");
+            
+            c.DisplayOperationId();
+            c.DisplayRequestDuration();
+        });
         
+        app.MapGrpcReflectionService();
         app.MapControllers();
         
-        app.MapGrpcService<TestGrpcService>();
-
+        app.UseGrpcWeb();
+        app.MapGrpcService<TestGrpcService>().EnableGrpcWeb();
+        
         app.Run();
     }
 }

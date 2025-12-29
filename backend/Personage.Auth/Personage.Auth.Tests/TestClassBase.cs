@@ -19,7 +19,7 @@ public abstract class TestClassBase : IDisposable
     protected ITestApi TestApi { get; private set; } = null!;
     
     //gRPC API
-    protected TestService.TestServiceClient TestGrpcClient { get; set; } = null;
+    protected TestService.TestServiceClient TestGrpcClient { get; private set; } = null!;
 
     [TestInitialize]
     public virtual void TestInitialize()
@@ -28,7 +28,6 @@ public abstract class TestClassBase : IDisposable
         HttpClient = Factory.CreateClient();
         TestApi = RestClient.For<ITestApi>(HttpClient);
         
-        // Create gRPC channel using the same HttpClient
         GrpcChannel = GrpcChannel.ForAddress("http://localhost", new GrpcChannelOptions
         {
             HttpClient = HttpClient
