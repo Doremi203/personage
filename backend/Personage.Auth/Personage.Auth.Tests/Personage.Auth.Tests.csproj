@@ -1,0 +1,43 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net9.0</TargetFramework>
+        <IsPackable>false</IsPackable>
+        <RootNamespace>Personage.Auth.Tests</RootNamespace>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="FluentAssertions" Version="8.8.0" />
+        <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="9.0.11" />
+        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
+        <!-- MSTest packages -->
+        <PackageReference Include="MSTest.TestAdapter" Version="3.1.1" />
+        <PackageReference Include="MSTest.TestFramework" Version="3.1.1" />
+        <!-- Optional mocking framework -->
+        <PackageReference Include="Moq" Version="4.20.70" />
+        <PackageReference Include="RestEase.HttpClientFactory" Version="1.6.4" />
+        <PackageReference Include="RestEase.SourceGenerator" Version="1.6.4">
+          <PrivateAssets>all</PrivateAssets>
+          <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+
+        <!-- gRPC packages -->
+        <PackageReference Include="Grpc.Net.Client" Version="2.57.0" />
+        <PackageReference Include="Google.Protobuf" Version="3.25.0" />
+        <PackageReference Include="Grpc.Tools" Version="2.57.0">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Personage.Auth.Api\Personage.Auth.Api.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Protobuf
+                Include="..\Personage.Auth.Api\Protos\test.proto"
+                GrpcServices="Client"
+                Link="Protos\test.proto" />
+    </ItemGroup>
+</Project>
