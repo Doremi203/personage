@@ -4,6 +4,7 @@
         <IsPackable>false</IsPackable>
         <RootNamespace>Personage.Auth.Tests</RootNamespace>
         <Nullable>enable</Nullable>
+        <WarningsAsErrors>nullable</WarningsAsErrors>
     </PropertyGroup>
 
     <ItemGroup>
