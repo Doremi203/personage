@@ -1,20 +1,26 @@
 using Personage.Auth.GrpcServices;
+using Personage.Auth.Migrations.Runner;
 
 namespace Personage.Auth;
 
 public class Program
 {
-    public static void Main(string[] args)
+    public static async Task Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
         builder.Services.AddGrpc(options =>
         {
             options.EnableDetailedErrors = true;
         });
-        builder.Services.AddGrpcReflection();
+
+        var services = builder.Services;
+        AddRepositories(services);
+        AddBllServices(services);
+        services.AddScoped<IMigrationRunner, MigrationRunner>();
         
-        builder.Services.AddEndpointsApiExplorer();
-        builder.Services.AddSwaggerGen(c =>
+        services.AddGrpcReflection();
+        services.AddEndpointsApiExplorer();
+        services.AddSwaggerGen(c =>
         {
             c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
             {
@@ -23,8 +29,29 @@ public class Program
                 Description = "Authentication API with gRPC and REST endpoints"
             });
         });
-        builder.Services.AddControllers();
+        services.AddControllers();
         var app = builder.Build();
+        var logger = app.Logger;
+        
+        if (args.Contains("migrate"))
+        {
+            logger.LogInformation("Running database migrations...");
+    
+            using var scope = app.Services.CreateScope();
+            var migrationRunner = scope.ServiceProvider.GetRequiredService<IMigrationRunner>();
+    
+            try
+            {
+                await migrationRunner.RunMigrations();
+                logger.LogInformation("Migrations completed successfully!");
+                return;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Migrations failed");
+                return;
+            }
+        }
 
         app.UseSwagger();
         app.UseSwaggerUI(c =>
@@ -41,6 +68,17 @@ public class Program
         app.UseGrpcWeb();
         app.MapGrpcService<TestGrpcService>().EnableGrpcWeb();
         
-        app.Run();
+        await app.RunAsync();
+    }
+
+    private static void AddRepositories(IServiceCollection services)
+    {
+        //services.AddScoped<IUserRepository, UserRepository>();
+        //services.AddScoped<IGmailTokenRepository, GmailTokenRepository>();
+    }
+
+    private static void AddBllServices(IServiceCollection services)
+    {
+        //services.AddScoped<IAuthService, AuthService>();
     }
 }

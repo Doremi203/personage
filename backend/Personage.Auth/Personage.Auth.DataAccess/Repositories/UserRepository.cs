@@ -12,13 +12,15 @@ public class UserRepository(IDbConnectionFactory connectionFactory) : IUserRepos
         var connection = await connectionFactory.CreateConnection(ct);
         
         return await connection.QueryFirstOrDefaultAsync<User>(
-            @"SELECT 
-                    id, 
-                    email, 
-                    created_at as CreatedAt, 
-                    updated_at as UpdatedAt 
-              FROM user 
-              WHERE id = @userId",
+            """
+            SELECT 
+                id, 
+                email, 
+                created_at as CreatedAt, 
+                updated_at as UpdatedAt 
+            FROM "user" 
+            WHERE id = @userId
+            """,
             new { userId });
     }
 
@@ -26,14 +28,16 @@ public class UserRepository(IDbConnectionFactory connectionFactory) : IUserRepos
     {
         var connection = await connectionFactory.CreateConnection(ct);
         
-        return await connection.QueryFirstOrDefaultAsync<User>(
-            @"SELECT 
-                    id, 
-                    email, 
-                    created_at as CreatedAt, 
-                    updated_at as UpdatedAt 
-              FROM user 
-              WHERE id = @userId",
+        return await connection.QueryFirstAsync<User>(
+            """
+            SELECT 
+                id, 
+                email, 
+                created_at as CreatedAt, 
+                updated_at as UpdatedAt 
+            FROM "user" 
+            WHERE id = @userId
+            """,
             new { userId });
     }
 }

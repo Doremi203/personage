@@ -1,19 +1,21 @@
-using System.Security.Cryptography;
-using System.Text;
+using System.Reflection;
 using Dapper;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Npgsql;
+using Personage.Auth.Migrations.Runner.Models;
 
-namespace Personage.Auth.Migrations;
+namespace Personage.Auth.Migrations.Runner;
 
 public interface IMigrationRunner
 {
     Task RunMigrations();
 }
 
-public class MigrationRunner(IConfiguration configuration, ILogger<MigrationRunner> logger)
-    : IMigrationRunner
+public class MigrationRunner(
+    IConfiguration configuration,
+    ILogger<MigrationRunner> logger
+) : IMigrationRunner
 {
     private readonly string _connectionString =
         configuration.GetConnectionString("AuthDb")
@@ -26,19 +28,16 @@ public class MigrationRunner(IConfiguration configuration, ILogger<MigrationRunn
         await using var connection = new NpgsqlConnection(_connectionString);
         await connection.OpenAsync();
          
-        await EnsureMigrationsTableExistsAsync(connection);
-        var migrationFiles = await GetMigrationFilesAsync();
+        await EnsureMigrationsTableExists(connection);
+        var migrationFiles = await GetMigrationFiles();
+        var appliedMigrations = await GetAppliedMigrations(connection);
         
-        // Get already applied migrations
-        var appliedMigrations = await GetAppliedMigrationsAsync(connection);
-        
-        // Apply migrations in order
         foreach (var migration in migrationFiles.OrderBy(m => m.Name))
         {
             if (!appliedMigrations.Contains(migration.Name))
             {
                 logger.LogInformation("Applying migration: {MigrationName}", migration.Name);
-                await ApplyMigrationAsync(connection, migration);
+                await ApplyMigration(connection, migration);
                 logger.LogInformation("Applied migration: {MigrationName}", migration.Name);
             }
             else
@@ -50,7 +49,7 @@ public class MigrationRunner(IConfiguration configuration, ILogger<MigrationRunn
         logger.LogInformation("Database migrations completed successfully");
     }
     
-    private async Task EnsureMigrationsTableExistsAsync(NpgsqlConnection connection)
+    private async Task EnsureMigrationsTableExists(NpgsqlConnection connection)
     {
         try
         {
@@ -59,8 +58,7 @@ public class MigrationRunner(IConfiguration configuration, ILogger<MigrationRunn
                 CREATE TABLE IF NOT EXISTS migrations (
                     id SERIAL PRIMARY KEY,
                     name VARCHAR(255) UNIQUE NOT NULL,
-                    applied_at TIMESTAMPTZ DEFAULT NOW(),
-                    checksum VARCHAR(64)
+                    applied_at TIMESTAMPTZ DEFAULT NOW()
                 )
                 """);
         }
@@ -70,40 +68,49 @@ public class MigrationRunner(IConfiguration configuration, ILogger<MigrationRunn
         }
     }
     
-    private async Task<List<MigrationFile>> GetMigrationFilesAsync()
+    private async Task<List<MigrationFile>> GetMigrationFiles()
     {
         var migrations = new List<MigrationFile>();
-        var migrationsPath = Directory.GetCurrentDirectory();
+        var assembly = Assembly.GetExecutingAssembly();
+        var resourceNames = assembly
+            .GetManifestResourceNames()
+            .Where(name => name.EndsWith(".sql", StringComparison.OrdinalIgnoreCase))
+            .OrderBy(name => name)
+            .ToList();
         
-        if (!Directory.Exists(migrationsPath))
+        if (resourceNames.Count == 0)
         {
-            logger.LogError("Migrations directory not found: {MigrationsPath}", migrationsPath);
+            logger.LogError("No SQL migration files found in assembly");
             return migrations;
         }
         
-        var files = Directory.GetFiles(migrationsPath, "*.sql")
-            .OrderBy(Path.GetFileName)
-            .ToList();
-        
-        foreach (var filePath in files)
+        foreach (var resourceName in resourceNames)
         {
-            var fileName = Path.GetFileName(filePath);
-            var content = await File.ReadAllTextAsync(filePath);
-            var checksum = CalculateChecksum(content);
+            await using var stream = assembly.GetManifestResourceStream(resourceName);
+            if (stream == null) continue;
             
+            using var reader = new StreamReader(stream);
+            var content = await reader.ReadToEndAsync();
+
+            var migrationName =
+                resourceName
+                    .Split('.')
+                    .TakeLast(2)
+                    .First();
             migrations.Add(new MigrationFile
             {
-                Name = fileName,
-                Path = filePath,
-                Content = content,
-                Checksum = checksum
+                Name = migrationName,
+                Content = content
             });
+            
+            logger.LogDebug("Loaded migration: {MigrationName}", migrationName);
         }
         
+        logger.LogInformation("Found {Count} migration files", migrations.Count);
         return migrations;
     }
     
-    private async Task<HashSet<string>> GetAppliedMigrationsAsync(NpgsqlConnection connection)
+    private async Task<HashSet<string>> GetAppliedMigrations(NpgsqlConnection connection)
     {
         try
         {
@@ -114,23 +121,21 @@ public class MigrationRunner(IConfiguration configuration, ILogger<MigrationRunn
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Could not query applied migrations. Returning empty set.");
-            return new HashSet<string>();
+            return [];
         }
     }
     
-    private async Task ApplyMigrationAsync(NpgsqlConnection connection, MigrationFile migration)
+    private async Task ApplyMigration(NpgsqlConnection connection, MigrationFile migration)
     {
-        using var transaction = await connection.BeginTransactionAsync();
+        await using var transaction = await connection.BeginTransactionAsync();
         
         try
         {
-            // Execute the migration SQL
             await connection.ExecuteAsync(migration.Content, transaction: transaction);
             
-            // Record the migration
             await connection.ExecuteAsync(
-                @"INSERT INTO migrations (name, checksum) VALUES (@name, @checksum)",
-                new { name = migration.Name, checksum = migration.Checksum },
+                "INSERT INTO migrations (name) VALUES (@name)",
+                new { name = migration.Name },
                 transaction: transaction);
             
             await transaction.CommitAsync();
@@ -141,21 +146,5 @@ public class MigrationRunner(IConfiguration configuration, ILogger<MigrationRunn
             logger.LogError(ex, "Failed to apply migration: {MigrationName}", migration.Name);
             throw;
         }
-    }
-    
-    private string CalculateChecksum(string content)
-    {
-        using var sha256 = SHA256.Create();
-        var bytes = Encoding.UTF8.GetBytes(content);
-        var hash = sha256.ComputeHash(bytes);
-        return BitConverter.ToString(hash).Replace("-", "").ToLower();
-    }
-    
-    private class MigrationFile
-    {
-        public string Name { get; set; } = string.Empty;
-        public string Path { get; set; } = string.Empty;
-        public string Content { get; set; } = string.Empty;
-        public string Checksum { get; set; } = string.Empty;
     }
 }
