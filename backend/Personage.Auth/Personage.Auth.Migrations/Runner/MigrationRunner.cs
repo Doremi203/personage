@@ -56,9 +56,9 @@ public class MigrationRunner(
             await connection.ExecuteAsync(
                 """
                 CREATE TABLE IF NOT EXISTS migrations (
-                    id SERIAL PRIMARY KEY,
-                    name VARCHAR(255) UNIQUE NOT NULL,
-                    applied_at TIMESTAMPTZ DEFAULT NOW()
+                    id          SERIAL PRIMARY KEY,
+                    name        TEXT UNIQUE NOT NULL,
+                    applied_at  TIMESTAMPTZ DEFAULT NOW()
                 )
                 """);
         }

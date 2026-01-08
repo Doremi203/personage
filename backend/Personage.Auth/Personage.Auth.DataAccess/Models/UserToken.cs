@@ -7,5 +7,4 @@ public class UserToken
     public ServiceType ServiceType { get; set; }
     public string AccessToken { get; set; } = null!;
     public string RefreshToken { get; set; } = null!;
-    
 }
