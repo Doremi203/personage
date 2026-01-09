@@ -7,37 +7,35 @@ namespace Personage.Auth.DataAccess.Repositories;
 
 public class UserRepository(IDbConnectionFactory connectionFactory) : IUserRepository
 {
-    public async Task<User?> GetUserAsync(string userId, CancellationToken ct)
+    public async Task<User?> GetUserByEmail(string email, CancellationToken ct)
     {
-        var connection = await connectionFactory.CreateConnection(ct);
+        using var connection = await connectionFactory.CreateConnection(ct);
         
         return await connection.QueryFirstOrDefaultAsync<User>(
             """
             SELECT 
                 id, 
                 email, 
-                created_at as CreatedAt, 
-                updated_at as UpdatedAt 
+                created_at as CreatedAt
             FROM "User" 
-            WHERE id = @userId
+            WHERE email = @email;
             """,
-            new { userId });
+            new { email });
     }
 
-    public async Task<User> CreateOrUpdateUserAsync(string userId, string email, CancellationToken ct)
+    public async Task<User> CreateUser(string email, CancellationToken ct)
     {
-        var connection = await connectionFactory.CreateConnection(ct);
+        using var connection = await connectionFactory.CreateConnection(ct);
         
-        return await connection.QueryFirstAsync<User>(
+        return await connection.QuerySingleAsync<User>(
             """
-            SELECT 
-                id, 
-                email, 
-                created_at as CreatedAt, 
-                updated_at as UpdatedAt 
-            FROM "user" 
-            WHERE id = @userId
+            INSERT INTO "user" (email) 
+            VALUES (@email) 
+            RETURNING 
+                id,
+                email,
+                created_at as CreatedAt;
             """,
-            new { userId });
+            new { email });
     }
 }

@@ -1,3 +1,10 @@
+using Personage.Auth.DataAccess;
+using Personage.Auth.DataAccess.Interfaces;
+using Personage.Auth.DataAccess.Interfaces.Repositories;
+using Personage.Auth.DataAccess.Repositories;
+using Personage.Auth.Domain.Configuration;
+using Personage.Auth.Domain.Interfaces;
+using Personage.Auth.Domain.Services;
 using Personage.Auth.GrpcServices;
 using Personage.Auth.Migrations.Runner;
 
@@ -14,6 +21,10 @@ public class Program
         });
 
         var services = builder.Services;
+        var configuration = builder.Configuration;
+        services.AddScoped<IDbConnectionFactory, DbConnectionFactory>();
+        
+        ConfigureSettings(services, configuration);
         AddRepositories(services);
         AddBllServices(services);
         services.AddScoped<IMigrationRunner, MigrationRunner>();
@@ -73,12 +84,20 @@ public class Program
 
     private static void AddRepositories(IServiceCollection services)
     {
-        //services.AddScoped<IUserRepository, UserRepository>();
-        //services.AddScoped<IGmailTokenRepository, GmailTokenRepository>();
+        services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IGmailTokenRepository, GmailTokenRepository>();
+        services.AddScoped<IOAuthStateRepository, OAuthStateRepository>();
     }
 
     private static void AddBllServices(IServiceCollection services)
     {
-        //services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<IGoogleOAuthService, GoogleOAuthService>();
+        services.AddHttpClient<GoogleOAuthService>();
+    }
+
+    private static void ConfigureSettings(IServiceCollection services, IConfiguration configuration)
+    {
+        services.Configure<OAuthSettings>(configuration.GetSection("OAuthSettings:Gmail"));
     }
 }

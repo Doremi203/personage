@@ -1,4 +1,4 @@
-CREATE TABLE gmail_token (
+CREATE TABLE IF NOT EXISTS gmail_token (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id         UUID NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
     access_token    TEXT NOT NULL,

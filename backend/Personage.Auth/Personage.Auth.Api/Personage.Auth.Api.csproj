@@ -22,6 +22,7 @@
         <Protobuf Include="Protos\*.proto" GrpcServices="Both" />
     </ItemGroup>
     <ItemGroup>
+      <ProjectReference Include="..\Personage.Auth.Domain\Personage.Auth.Domain.csproj" />
       <ProjectReference Include="..\Personage.Auth.Migrations\Personage.Auth.Migrations.csproj" />
     </ItemGroup>
 </Project>
