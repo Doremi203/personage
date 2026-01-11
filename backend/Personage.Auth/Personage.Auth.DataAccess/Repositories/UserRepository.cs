@@ -17,7 +17,7 @@ public class UserRepository(IDbConnectionFactory connectionFactory) : IUserRepos
                 id, 
                 email, 
                 created_at as CreatedAt
-            FROM "User" 
+            FROM "user" 
             WHERE email = @email;
             """,
             new { email });

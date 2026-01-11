@@ -13,7 +13,7 @@ public class GmailAuthController(
     ILogger<GmailAuthController> logger
 ) : ControllerBase
 {
-    [HttpPost("gmail/authorize")]
+    [HttpPost("authorize")]
     public async Task<IActionResult> StartGmailAuth([FromBody] StartAuthRequest request, CancellationToken ct)
     {
         try
@@ -33,7 +33,7 @@ public class GmailAuthController(
         }
     }
     
-    [HttpPost("gmail/callback")]
+    [HttpPost("callback")]
     public async Task<IActionResult> HandleGmailCallback([FromBody] AuthCallbackRequest request, CancellationToken ct)
     {
         try

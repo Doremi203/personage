@@ -7,7 +7,7 @@ using Personage.Auth.Domain.Configuration;
 using Personage.Auth.Domain.Interfaces;
 using Personage.Auth.Domain.Models.Responses;
 
-namespace Personage.Auth.Domain.Services;
+namespace Personage.Auth.Bll.Services;
 
 public class GoogleOAuthService(
     HttpClient httpClient,

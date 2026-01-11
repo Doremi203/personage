@@ -5,7 +5,7 @@ using Personage.Auth.Domain.Exceptions;
 using Personage.Auth.Domain.Interfaces;
 using Personage.Auth.Domain.Models.Requests;
 
-namespace Personage.Auth.Domain.Services;
+namespace Personage.Auth.Bll.Services;
 
 public class AuthService(
     IUserRepository userRepository,

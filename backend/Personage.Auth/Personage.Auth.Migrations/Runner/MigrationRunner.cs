@@ -1,8 +1,9 @@
 using System.Reflection;
 using Dapper;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Npgsql;
+using Personage.Auth.Domain.Configuration;
 using Personage.Auth.Migrations.Runner.Models;
 
 namespace Personage.Auth.Migrations.Runner;
@@ -13,13 +14,11 @@ public interface IMigrationRunner
 }
 
 public class MigrationRunner(
-    IConfiguration configuration,
+    IOptions<ConnectionFactorySettings> connectionFactorySettings,
     ILogger<MigrationRunner> logger
 ) : IMigrationRunner
 {
-    private readonly string _connectionString =
-        configuration.GetConnectionString("AuthDb")
-        ?? throw new ArgumentNullException(nameof(configuration));
+    private readonly string _connectionString = connectionFactorySettings.Value.ConnectionString;
 
     public async Task RunMigrations()
     {

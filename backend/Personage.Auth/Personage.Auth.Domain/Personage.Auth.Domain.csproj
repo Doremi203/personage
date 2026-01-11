@@ -14,8 +14,4 @@
       <PackageReference Include="Microsoft.Extensions.Options" Version="9.0.11" />
     </ItemGroup>
 
-    <ItemGroup>
-      <ProjectReference Include="..\Personage.Auth.DataAccess\Personage.Auth.DataAccess.csproj" />
-    </ItemGroup>
-
 </Project>
