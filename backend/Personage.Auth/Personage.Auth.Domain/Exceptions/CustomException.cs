@@ -10,5 +10,5 @@ public abstract class CustomException : Exception
     {
     }
 
-    public ErrorCode ErrorCode { get; set; }
+    public abstract ErrorCode ErrorCode { get; }
 }

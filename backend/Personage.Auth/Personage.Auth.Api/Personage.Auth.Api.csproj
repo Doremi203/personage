@@ -4,7 +4,7 @@
         <TargetFramework>net9.0</TargetFramework>
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
-        <RootNamespace>Personage.Auth</RootNamespace>
+        <RootNamespace>Personage.Auth.Api</RootNamespace>
         <WarningsAsErrors>nullable</WarningsAsErrors>
         <IsPublishable>true</IsPublishable>
     </PropertyGroup>

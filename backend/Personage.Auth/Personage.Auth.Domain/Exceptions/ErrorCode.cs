@@ -6,5 +6,6 @@ namespace Personage.Auth.Domain.Exceptions;
 public enum ErrorCode
 {
     Unknown = 0,
-    OAuthError = 1
+    OAuthError = 1,
+    TokenNotFound = 2,
 }

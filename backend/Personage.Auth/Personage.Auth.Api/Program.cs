@@ -1,4 +1,6 @@
 using DotNetEnv;
+using Personage.Auth.Api.GrpcServices;
+using Personage.Auth.Api.Middleware;
 using Personage.Auth.Bll.Services;
 using Personage.Auth.DataAccess;
 using Personage.Auth.DataAccess.Interfaces;
@@ -6,10 +8,9 @@ using Personage.Auth.DataAccess.Interfaces.Repositories;
 using Personage.Auth.DataAccess.Repositories;
 using Personage.Auth.Domain.Configuration;
 using Personage.Auth.Domain.Interfaces;
-using Personage.Auth.GrpcServices;
 using Personage.Auth.Migrations.Runner;
 
-namespace Personage.Auth;
+namespace Personage.Auth.Api;
 
 public class Program
 {
@@ -19,6 +20,7 @@ public class Program
         builder.Services.AddGrpc(options =>
         {
             options.EnableDetailedErrors = true;
+            options.Interceptors.Add<ExceptionInterceptor>();
         });
 
         var services = builder.Services;
@@ -46,6 +48,7 @@ public class Program
         IWebHostEnvironment environment)
     {
         services.AddScoped<IDbConnectionFactory, DbConnectionFactory>();
+        services.AddSingleton<ExceptionInterceptor>();
         
         ConfigureSettings(services, configuration, environment);
         AddRepositories(services);
