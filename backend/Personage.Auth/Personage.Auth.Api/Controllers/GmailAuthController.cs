@@ -1,10 +1,11 @@
 using Microsoft.AspNetCore.Mvc;
-using Personage.Auth.Contracts.Auth.Gmail.Requests;
+using Personage.Auth.Api.Contracts.Auth.Gmail.Requests;
+using Personage.Auth.Api.Contracts.Auth.Gmail.Responses;
 using Personage.Auth.Domain.Exceptions;
 using Personage.Auth.Domain.Interfaces;
 using Personage.Auth.Domain.Models.Requests;
 
-namespace Personage.Auth.Controllers;
+namespace Personage.Auth.Api.Controllers;
 
 [ApiController]
 [Route("auth/gmail")]
@@ -14,17 +15,17 @@ public class GmailAuthController(
 ) : ControllerBase
 {
     [HttpPost("authorize")]
-    public async Task<IActionResult> StartGmailAuth([FromBody] StartAuthRequest request, CancellationToken ct)
+    public async Task<ActionResult<StartAuthResponse>> StartGmailAuth([FromBody] StartAuthRequest request, CancellationToken ct)
     {
         try
         {
-            var (url, state) = await authService.StartGmailAuth(request.UserEmail, request.RedirectUri, ct);
-            
-            return Ok(new
+            var res = await authService.StartGmailAuth(request.UserEmail, request.RedirectUri, ct);
+
+            return new StartAuthResponse
             {
-                AuthorizationUrl = url,
-                State = state
-            });
+                AuthorizationUrl = res.Uri,
+                State = res.State,
+            };
         }
         catch (Exception ex)
         {
@@ -34,7 +35,7 @@ public class GmailAuthController(
     }
     
     [HttpPost("callback")]
-    public async Task<IActionResult> HandleGmailCallback([FromBody] AuthCallbackRequest request, CancellationToken ct)
+    public async Task<ActionResult<AuthCallbackResponse>> HandleGmailCallback([FromBody] AuthCallbackRequest request, CancellationToken ct)
     {
         try
         {
@@ -47,11 +48,10 @@ public class GmailAuthController(
                     RedirectUri = request.RedirectUri
                 }, ct);
 
-            return Ok(new
+            return new AuthCallbackResponse
             {
-                Success = true,
                 GmailEmail = gmailEmail
-            });
+            };
         }
         catch (OAuthException ex)
         {

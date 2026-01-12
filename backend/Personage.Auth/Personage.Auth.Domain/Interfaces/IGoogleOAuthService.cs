@@ -5,5 +5,5 @@ namespace Personage.Auth.Domain.Interfaces;
 public interface IGoogleOAuthService
 {
     string GetAuthorizationUrl(string redirectUri, string state);
-    Task<TokenExchangeResultModel> ExchangeCode(string code, string redirectUri, CancellationToken ct);
+    Task<GmailTokenModel> ExchangeCode(string code, string redirectUri, CancellationToken ct);
 }

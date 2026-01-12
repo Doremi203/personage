@@ -4,55 +4,19 @@ package auth;
 
 option csharp_namespace = "Personage.Auth.Api.Grpc";
 
+import "google/protobuf/timestamp.proto";
+
 service AuthService {
-  rpc GetGoogleAuthUrl(GetGoogleAuthUrlRequest) returns (GoogleAuthUrl) {}
-  rpc HandleGoogleAuthCallback(GoogleAuthCallbackRequest) returns (AuthResponse) {}
   rpc GetGmailTokens(GetGmailTokensRequest) returns (GmailTokens) {}
-  rpc HasGmailAccess(HasGmailAccessRequest) returns (HasGmailAccessResponse) {}
-}
-
-
-message GetGoogleAuthUrlRequest {
-  string user_id = 1;
-  string redirect_uri = 2;
-}
-
-message GoogleAuthCallbackRequest {
-  string user_id = 1;
-  string code = 2;
-  string state = 3;
-  string redirect_uri = 4;
 }
 
 message GetGmailTokensRequest {
-  string user_id = 1;
+  string user_email = 1;
 }
 
-message HasGmailAccessRequest {
-  string user_id = 1;
-}
-
-
-message GoogleAuthUrl {
-  string url = 1;
-  string state = 2;
-}
-
-message AuthResponse {
-  bool success = 1;
-  string error_message = 2;
-  string user_email = 3;
-}
 
 message GmailTokens {
   string access_token = 1;
   string refresh_token = 2;
-  int64 expires_at = 3;
-  string user_email = 4;
-  repeated string scopes = 5;
-}
-
-message HasGmailAccessResponse {
-  bool has_access = 1;
-  string user_email = 2;
+  google.protobuf.Timestamp expires_at = 3;
 }

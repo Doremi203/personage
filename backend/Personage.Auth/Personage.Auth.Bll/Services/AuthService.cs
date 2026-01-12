@@ -4,6 +4,7 @@ using Personage.Auth.DataAccess.Models;
 using Personage.Auth.Domain.Exceptions;
 using Personage.Auth.Domain.Interfaces;
 using Personage.Auth.Domain.Models.Requests;
+using Personage.Auth.Domain.Models.Responses;
 
 namespace Personage.Auth.Bll.Services;
 
@@ -15,8 +16,9 @@ public class AuthService(
     ILogger<AuthService> logger
 ) : IAuthService
 {
-    public async Task<(string Url, string State)> StartGmailAuth(string userEmail, string redirectUri, CancellationToken ct)
+    public async Task<StartGmailAuthResponseModel> StartGmailAuth(string userEmail, string redirectUri, CancellationToken ct)
     {
+        //TODO: validate whether email is valid https://tracker.yandex.ru/PERSONAGE-59
         if (await userRepository.GetUserByEmail(userEmail, ct) is null)
         {
             logger.LogWarning("User with email {Email} not found, creating new user", userEmail);
@@ -37,7 +39,11 @@ public class AuthService(
         var url = googleOAuthService.GetAuthorizationUrl(redirectUri, state);
         logger.LogDebug("Started Gmail auth for {UserEmail} with state {State}", userEmail, state);
         
-        return (url, state);
+        return new StartGmailAuthResponseModel
+        {
+            Uri = url,
+            State = state
+        };
     }
     
     public async Task<string> HandleGmailCallbackAsync(HandleGmailCallbackRequestModel request, CancellationToken ct)
@@ -75,7 +81,21 @@ public class AuthService(
         
         return tokenExchangeResult.GmailEmail;
     }
-    
+
+    public async Task<GmailTokenModel> GetUserGmailToken(string userEmail, CancellationToken ct)
+    {
+        var userToken = await gmailTokenRepository.GetTokenByUserEmail(userEmail, ct);
+        if (userToken is null)
+            throw new TokenNotFoundException($"Token for user with email {userEmail} not found");
+        return new GmailTokenModel
+        {
+            AccessToken = userToken.AccessToken,
+            RefreshToken = userToken.RefreshToken,
+            ExpiresAt = userToken.ExpiresAt,
+            GmailEmail = userToken.GmailEmail
+        };
+    }
+
     private static string GenerateState()
     {
         using var rng = System.Security.Cryptography.RandomNumberGenerator.Create();

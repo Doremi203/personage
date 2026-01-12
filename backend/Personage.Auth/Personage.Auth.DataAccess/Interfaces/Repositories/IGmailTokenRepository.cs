@@ -4,6 +4,6 @@ namespace Personage.Auth.DataAccess.Interfaces.Repositories;
 
 public interface IGmailTokenRepository
 {
-    Task<GmailToken?> GetToken(Guid userId, CancellationToken ct);
+    Task<GmailToken?> GetTokenByUserEmail(string userEmail, CancellationToken ct);
     Task SaveToken(GmailToken token, CancellationToken ct);
 }

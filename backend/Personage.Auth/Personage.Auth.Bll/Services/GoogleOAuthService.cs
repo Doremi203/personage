@@ -34,7 +34,7 @@ public class GoogleOAuthService(
         return $"https://accounts.google.com/o/oauth2/auth?{queryString}";
     }
     
-    public async Task<TokenExchangeResultModel> ExchangeCode(string code, string redirectUri, CancellationToken ct)
+    public async Task<GmailTokenModel> ExchangeCode(string code, string redirectUri, CancellationToken ct)
     {
         var requestBody = new Dictionary<string, string>
         {
@@ -64,7 +64,7 @@ public class GoogleOAuthService(
         
         var email = await GetUserEmailAsync(tokenResponse.AccessToken);
         
-        return new TokenExchangeResultModel{
+        return new GmailTokenModel{
             AccessToken = tokenResponse.AccessToken,
             RefreshToken = tokenResponse.RefreshToken,
             ExpiresAt = DateTime.UtcNow.AddSeconds(tokenResponse.ExpiresIn),

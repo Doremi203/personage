@@ -3,6 +3,7 @@ using System.Net.Http;
 using Grpc.Net.Client;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Personage.Auth.Api;
 using Personage.Auth.Api.Grpc;
 using Personage.Auth.Tests.Api;
 using RestEase;

@@ -1,6 +1,6 @@
 namespace Personage.Auth.Domain.Models.Responses;
 
-public class TokenExchangeResultModel
+public class GmailTokenModel
 {
     public string AccessToken { get; init; } = null!;
     public string RefreshToken { get; init; } = null!;

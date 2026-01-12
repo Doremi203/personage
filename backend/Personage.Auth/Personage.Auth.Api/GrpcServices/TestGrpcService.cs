@@ -2,7 +2,7 @@ using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
 using Personage.Auth.Api.Grpc;
 
-namespace Personage.Auth.GrpcServices;
+namespace Personage.Auth.Api.GrpcServices;
 
 public class TestGrpcService : TestService.TestServiceBase
 {

@@ -1,27 +1,20 @@
+using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
 using Personage.Auth.Api.Grpc;
+using Personage.Auth.Domain.Interfaces;
 
-namespace Personage.Auth.GrpcServices;
+namespace Personage.Auth.Api.GrpcServices;
 
-public class AuthGrpcService : AuthService.AuthServiceBase
+public class AuthGrpcService(IAuthService authService) : AuthService.AuthServiceBase
 {
-    public override Task<GmailTokens> GetGmailTokens(GetGmailTokensRequest request, ServerCallContext context)
+    public override async Task<GmailTokens> GetGmailTokens(GetGmailTokensRequest request, ServerCallContext context)
     {
-        throw new NotImplementedException();
-    }
-
-    public override Task<HasGmailAccessResponse> HasGmailAccess(HasGmailAccessRequest request, ServerCallContext context)
-    {
-        throw new NotImplementedException();
-    }
-
-    public override Task<GoogleAuthUrl> GetGoogleAuthUrl(GetGoogleAuthUrlRequest request, ServerCallContext context)
-    {
-        throw new NotImplementedException();
-    }
-
-    public override Task<AuthResponse> HandleGoogleAuthCallback(GoogleAuthCallbackRequest request, ServerCallContext context)
-    {
-        throw new NotImplementedException();
+        var res = await authService.GetUserGmailToken(request.UserEmail, context.CancellationToken);
+        return new GmailTokens
+        {
+            AccessToken = res.AccessToken,
+            RefreshToken = res.RefreshToken,
+            ExpiresAt = Timestamp.FromDateTime(res.ExpiresAt)
+        };
     }
 }

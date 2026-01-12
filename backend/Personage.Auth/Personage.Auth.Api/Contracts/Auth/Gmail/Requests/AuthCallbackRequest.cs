@@ -1,4 +1,4 @@
-namespace Personage.Auth.Contracts.Auth.Gmail.Requests;
+namespace Personage.Auth.Api.Contracts.Auth.Gmail.Requests;
 
 public class AuthCallbackRequest
 {
