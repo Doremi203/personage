@@ -1,34 +1,37 @@
 using System;
 using System.Net.Http;
+using System.Threading.Tasks;
 using AutoFixture;
 using Grpc.Net.Client;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Personage.Auth.Api;
 using Personage.Auth.Api.Grpc;
 using Personage.Auth.Tests.Api;
 using RestEase;
 
-namespace Personage.Auth.Tests;
+namespace Personage.Auth.Tests.Infrastructure;
 
 public abstract class TestClassBase : IDisposable
 {
-    private WebApplicationFactory<Program> Factory { get; set; } = null!;
-    private HttpClient HttpClient { get; set; } = null!;
-    private GrpcChannel GrpcChannel { get; set; } = null!;
+    protected WebApplicationFactory<Program> Factory { get; }
+    private HttpClient HttpClient { get; }
+    private GrpcChannel GrpcChannel { get; }
     protected Fixture Fixture { get; } = new();
+    protected Cleaner Cleaner { get; }
     
     //REST API
-    protected ITestApi TestApi { get; private set; } = null!;
+    protected ITestApi TestApi { get; private set; }
     
     //gRPC API
-    protected TestService.TestServiceClient TestGrpcClient { get; private set; } = null!;
-    protected AuthService.AuthServiceClient AuthGrpcClient { get; private set; } = null!;
+    protected TestService.TestServiceClient TestGrpcClient { get; }
+    protected AuthService.AuthServiceClient AuthGrpcClient { get; }
 
-    [TestInitialize]
-    public virtual void TestInitialize()
+    protected TestClassBase()
+
     {
-        Factory = new WebApplicationFactory<Program>();
+        Factory = new TestApplicationFactory(OverrideServices);
         HttpClient = Factory.CreateClient();
         TestApi = RestClient.For<ITestApi>(HttpClient);
         
@@ -39,6 +42,13 @@ public abstract class TestClassBase : IDisposable
         
         TestGrpcClient = new TestService.TestServiceClient(GrpcChannel);
         AuthGrpcClient = new AuthService.AuthServiceClient(GrpcChannel);
+
+        Cleaner = Factory.Services.GetRequiredService<Cleaner>();
+    }
+    
+    protected virtual void OverrideServices(IServiceCollection services)
+    {
+        services.AddSingleton<Cleaner>();
     }
     
     public void Dispose()
@@ -47,5 +57,11 @@ public abstract class TestClassBase : IDisposable
         Factory.Dispose();
         GrpcChannel.Dispose();
         GC.SuppressFinalize(this);
+    }
+    
+    [TestCleanup]
+    public async Task Cleanup()
+    {
+        await Cleaner.CleanCreatedObjects();
     }
 }

@@ -42,8 +42,4 @@
                 GrpcServices="Client"
                 Link="Protos\%(Filename).proto" />
     </ItemGroup>
-
-    <ItemGroup>
-      <Folder Include="Infrastrcture\Repositories\" />
-    </ItemGroup>
 </Project>
