@@ -1,5 +1,6 @@
 using System;
 using System.Net.Http;
+using AutoFixture;
 using Grpc.Net.Client;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -15,12 +16,14 @@ public abstract class TestClassBase : IDisposable
     private WebApplicationFactory<Program> Factory { get; set; } = null!;
     private HttpClient HttpClient { get; set; } = null!;
     private GrpcChannel GrpcChannel { get; set; } = null!;
+    protected Fixture Fixture { get; } = new();
     
     //REST API
     protected ITestApi TestApi { get; private set; } = null!;
     
     //gRPC API
     protected TestService.TestServiceClient TestGrpcClient { get; private set; } = null!;
+    protected AuthService.AuthServiceClient AuthGrpcClient { get; private set; } = null!;
 
     [TestInitialize]
     public virtual void TestInitialize()
@@ -35,6 +38,7 @@ public abstract class TestClassBase : IDisposable
         });
         
         TestGrpcClient = new TestService.TestServiceClient(GrpcChannel);
+        AuthGrpcClient = new AuthService.AuthServiceClient(GrpcChannel);
     }
     
     public void Dispose()
