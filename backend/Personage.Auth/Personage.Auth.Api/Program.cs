@@ -25,13 +25,78 @@ public class Program
         var configuration = builder.Configuration;
         var environment = builder.Environment;
         
+        ConfigureServices(services, configuration, environment);
+        
+        var app = builder.Build();
+        
+        if (args.Contains("migrate"))
+        {
+            await MigrateDatabase(app);
+            return;
+        }
+
+        ConfigureMiddleware(app);
+        
+        await app.RunAsync();
+    }
+
+    private static void ConfigureServices(
+        IServiceCollection services, 
+        ConfigurationManager configuration, 
+        IWebHostEnvironment environment)
+    {
         services.AddScoped<IDbConnectionFactory, DbConnectionFactory>();
         
         ConfigureSettings(services, configuration, environment);
         AddRepositories(services);
         AddBllServices(services);
-        services.AddScoped<IMigrationRunner, MigrationRunner>();
+        AddReflectionAndSwagger(services);
         
+        services.AddScoped<IMigrationRunner, MigrationRunner>();
+        services.AddControllers();
+    }
+
+    private static async Task MigrateDatabase(WebApplication app)
+    {
+        var logger = app.Logger;
+        logger.LogInformation("Running database migrations...");
+    
+        using var scope = app.Services.CreateScope();
+        var migrationRunner = scope.ServiceProvider.GetRequiredService<IMigrationRunner>();
+    
+        try
+        {
+            await migrationRunner.RunMigrations();
+            logger.LogInformation("Migrations completed successfully!");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Migrations failed");
+            throw;
+        }
+    }
+    
+    private static void ConfigureMiddleware(WebApplication app)
+    {
+        app.UseSwagger();
+        app.UseSwaggerUI(c =>
+        {
+            c.SwaggerEndpoint("/swagger/v1/swagger.json", "Personage.Auth API v1");
+            c.DisplayOperationId();
+            c.DisplayRequestDuration();
+        });
+        
+
+        app.UseGrpcWeb();
+        app.MapGrpcReflectionService();
+        app.MapGrpcService<TestGrpcService>().EnableGrpcWeb();
+        app.MapGrpcService<AuthGrpcService>().EnableGrpcWeb();
+        
+        app.MapControllers();
+    }
+    
+    private static void AddReflectionAndSwagger(IServiceCollection services)
+    {
         services.AddGrpcReflection();
         services.AddEndpointsApiExplorer();
         services.AddSwaggerGen(c =>
@@ -43,46 +108,6 @@ public class Program
                 Description = "Authentication API with gRPC and REST endpoints"
             });
         });
-        services.AddControllers();
-        var app = builder.Build();
-        var logger = app.Logger;
-        
-        if (args.Contains("migrate"))
-        {
-            logger.LogInformation("Running database migrations...");
-    
-            using var scope = app.Services.CreateScope();
-            var migrationRunner = scope.ServiceProvider.GetRequiredService<IMigrationRunner>();
-    
-            try
-            {
-                await migrationRunner.RunMigrations();
-                logger.LogInformation("Migrations completed successfully!");
-                return;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Migrations failed");
-                return;
-            }
-        }
-
-        app.UseSwagger();
-        app.UseSwaggerUI(c =>
-        {
-            c.SwaggerEndpoint("/swagger/v1/swagger.json", "Personage.Auth API v1");
-            
-            c.DisplayOperationId();
-            c.DisplayRequestDuration();
-        });
-        
-        app.MapGrpcReflectionService();
-        app.MapControllers();
-        
-        app.UseGrpcWeb();
-        app.MapGrpcService<TestGrpcService>().EnableGrpcWeb();
-        
-        await app.RunAsync();
     }
 
     private static void AddRepositories(IServiceCollection services)
