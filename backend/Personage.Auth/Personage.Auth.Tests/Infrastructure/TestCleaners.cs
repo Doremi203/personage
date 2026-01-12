@@ -12,7 +12,14 @@ public class TestCleaners(IDbConnectionFactory connectionFactory)
     {
         using var connection = await connectionFactory.CreateConnection(CancellationToken.None);
 
-        await connection.ExecuteAsync("""delete from "user" where id = @userId;""", new { userId });
         await connection.ExecuteAsync("delete from gmail_token where user_id = @userId", new { userId });
+        await connection.ExecuteAsync("""delete from "user" where id = @userId;""", new { userId });
+    }
+
+    public async Task DeleteOAuthState(string state)
+    {
+        using var connection = await connectionFactory.CreateConnection(CancellationToken.None);
+
+        await connection.ExecuteAsync("delete from oauth_state where state = @state;", new { state });
     }
 }

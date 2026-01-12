@@ -124,7 +124,7 @@ public class Program
     {
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IGoogleOAuthService, GoogleOAuthService>();
-        services.AddHttpClient<GoogleOAuthService>();
+        services.AddHttpClient<IGoogleOAuthService, GoogleOAuthService>();
     }
 
     private static void ConfigureSettings(
