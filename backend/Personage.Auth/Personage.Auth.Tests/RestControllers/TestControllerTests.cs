@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Personage.Auth.Tests.Infrastructure;
 
 namespace Personage.Auth.Tests.RestControllers;
 

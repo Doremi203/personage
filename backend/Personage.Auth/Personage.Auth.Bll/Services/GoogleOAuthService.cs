@@ -15,6 +15,7 @@ public class GoogleOAuthService(
     ILogger<GoogleOAuthService> logger
 ) : IGoogleOAuthService
 {
+    private const string OAuthAuthorizationUrlPrefix = "https://accounts.google.com/o/oauth2/auth";
     public string GetAuthorizationUrl(string redirectUri, string state)
     {
         var queryParams = new Dictionary<string, string>
@@ -31,7 +32,7 @@ public class GoogleOAuthService(
         var queryString = string.Join("&", 
             queryParams.Select(kvp => $"{kvp.Key}={HttpUtility.UrlEncode(kvp.Value)}"));
         
-        return $"https://accounts.google.com/o/oauth2/auth?{queryString}";
+        return $"{OAuthAuthorizationUrlPrefix}?{queryString}";
     }
     
     public async Task<GmailTokenModel> ExchangeCode(string code, string redirectUri, CancellationToken ct)
