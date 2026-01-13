@@ -21,7 +21,18 @@ public class Program
         {
             options.EnableDetailedErrors = true;
             options.Interceptors.Add<ExceptionInterceptor>();
+            options.IgnoreUnknownServices = true;
         });
+        
+        builder.WebHost.ConfigureKestrel(options =>
+        {
+            options.ConfigureEndpointDefaults(defaultOptions =>
+            {
+                defaultOptions.Protocols = Microsoft.AspNetCore.Server.Kestrel.Core.HttpProtocols.Http1AndHttp2;
+            });
+        });
+        
+        builder.Services.AddGrpcReflection();
 
         var services = builder.Services;
         var configuration = builder.Configuration;

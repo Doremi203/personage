@@ -10,6 +10,6 @@ CREATE TABLE IF NOT EXISTS gmail_token (
     UNIQUE(user_id)
 );
 
-CREATE INDEX idx_gmail_token_user_id ON gmail_token(user_id);
-CREATE INDEX idx_gmail_token_expires_at ON gmail_token(expires_at);
-CREATE INDEX idx_gmail_token_email ON gmail_token(gmail_email);
+CREATE INDEX IF NOT EXISTS idx_gmail_token_user_id ON gmail_token(user_id);
+CREATE INDEX IF NOT EXISTS idx_gmail_token_expires_at ON gmail_token(expires_at);
+CREATE INDEX IF NOT EXISTS idx_gmail_token_email ON gmail_token(gmail_email);
