@@ -1,6 +1,6 @@
 using System.Threading;
 using System.Threading.Tasks;
-using Personage.Auth.Contracts.Test.Responses;
+using Personage.Auth.Api.Contracts.Test.Responses;
 using RestEase;
 
 namespace Personage.Auth.Tests.Api;
