@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
-using Personage.Auth.Contracts.Test.Responses;
+using Personage.Auth.Api.Contracts.Test.Responses;
 
-namespace Personage.Auth.Controllers;
+namespace Personage.Auth.Api.Controllers;
 
 [ApiController]
 [Route("test")]

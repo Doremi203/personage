@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using FluentAssertions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Personage.Auth.Api.Grpc;
+using Personage.Auth.Tests.Infrastructure;
 
 namespace Personage.Auth.Tests.GrpcServices;
 

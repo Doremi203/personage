@@ -1,4 +1,4 @@
-namespace Personage.Auth.Contracts.Test.Responses;
+namespace Personage.Auth.Api.Contracts.Test.Responses;
 
 public class PingResponse
 {

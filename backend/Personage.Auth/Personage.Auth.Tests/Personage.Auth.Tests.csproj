@@ -4,9 +4,11 @@
         <IsPackable>false</IsPackable>
         <RootNamespace>Personage.Auth.Tests</RootNamespace>
         <Nullable>enable</Nullable>
+        <WarningsAsErrors>nullable</WarningsAsErrors>
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="AutoFixture" Version="4.18.1" />
         <PackageReference Include="FluentAssertions" Version="8.8.0" />
         <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="9.0.11" />
         <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
@@ -36,8 +38,8 @@
 
     <ItemGroup>
         <Protobuf
-                Include="..\Personage.Auth.Api\Protos\test.proto"
+                Include="..\Personage.Auth.Api\Protos\*.proto"
                 GrpcServices="Client"
-                Link="Protos\test.proto" />
+                Link="Protos\%(Filename).proto" />
     </ItemGroup>
 </Project>
