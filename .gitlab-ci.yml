@@ -3,10 +3,38 @@ stages:
   - test
   - deploy
 
+variables:
+  DOTNET_VERSION: "9.0"
+
 build:
   stage: build
   script:
     - echo "Hello, $GITLAB_USER_LOGIN!"
+
+test-personage-auth:
+  stage: test
+  image: mcr.microsoft.com/dotnet/sdk:$DOTNET_VERSION
+  script:
+    - cd backend/Personage.Auth
+    - dotnet restore
+    - dotnet build
+    - dotnet test --logger "trx;LogFileName=test-results.trx"
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - backend/Personage.Auth/TestResults/test-results.xml
+    paths:
+      - backend/Personage.Auth/TestResults/
+  only:
+    changes:
+      - backend/Personage.Auth/**/*
+    refs:
+      - merge_requests
+      - main
+      - develop
+      - master
+  allow_failure: false
 
 test:
   stage: test
