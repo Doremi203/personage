@@ -22,6 +22,7 @@ test-personage-auth:
     ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=authdb_test;Username=postgres;Password=postgres"
     ASPNETCORE_ENVIRONMENT: "Testing"
   before_script:
+    - apk add --no-cache docker-compose
     - cd backend/Personage.Auth
     - docker-compose -f docker-compose.test.yml up -d postgres
     - sleep 10
