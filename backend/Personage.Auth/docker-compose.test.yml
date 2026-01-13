@@ -13,11 +13,29 @@ services:
       timeout: 5s
       retries: 10
 
-  tests:
+  migrations:
     image: mcr.microsoft.com/dotnet/sdk:9.0
     depends_on:
       postgres:
         condition: service_healthy
+    environment:
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=authdb_test;Username=postgres;Password=postgres;Pooling=false"
+      ASPNETCORE_ENVIRONMENT: "Testing"
+    volumes:
+      - .:/app
+      - nuget-packages:/root/.nuget/packages
+    working_dir: /app
+    command: >
+      sh -c "
+      dotnet restore &&
+      dotnet build &&
+      dotnet run --project Personage.Auth.Api -- migrate"
+
+  tests:
+    image: mcr.microsoft.com/dotnet/sdk:9.0
+    depends_on:
+      - postgres
+      - migrations
     environment:
       POSTGRES_HOST: "postgres"
       ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=authdb_test;Username=postgres;Password=postgres;Pooling=false"
