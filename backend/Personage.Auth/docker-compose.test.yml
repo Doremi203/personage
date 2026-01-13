@@ -7,8 +7,6 @@ services:
       POSTGRES_DB: authdb_test
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-    ports:
-      - "5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -26,7 +24,6 @@ services:
       ASPNETCORE_ENVIRONMENT: "Testing"
     volumes:
       - .:/app
-      - nuget-packages:/root/.nuget/packages
     working_dir: /app
     command: >
       sh -c "
@@ -36,5 +33,6 @@ services:
       dotnet run --project Personage.Auth.Api -- migrate &&
       echo 'Running tests...' &&
       dotnet test --logger 'trx;LogFileName=test-results.trx' --results-directory TestResults"
-  volumes:
+
+volumes:
   nuget-packages:
