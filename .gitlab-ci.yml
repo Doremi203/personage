@@ -13,17 +13,28 @@ build:
 
 test-personage-auth:
   stage: test
-  image: mcr.microsoft.com/dotnet/sdk:$DOTNET_VERSION
-  script:
+  image: docker:latest
+  services:
+    - docker:dind
+  variables:
+    DOCKER_TLS_CERTDIR: ""
+    POSTGRES_HOST: "postgres"
+    ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=authdb_test;Username=postgres;Password=postgres"
+    ASPNETCORE_ENVIRONMENT: "Testing"
+  before_script:
     - cd backend/Personage.Auth
-    - dotnet restore
-    - dotnet build
-    - dotnet test --logger "trx;LogFileName=test-results.trx"
+    - docker-compose -f docker-compose.test.yml up -d postgres
+    - sleep 10
+    - docker-compose -f docker-compose.test.yml ps
+  script:
+    - docker-compose -f docker-compose.test.yml run --rm tests
+  after_script:
+    - docker-compose -f docker-compose.test.yml down -v
   artifacts:
     when: always
     reports:
       junit:
-        - backend/Personage.Auth/TestResults/test-results.xml
+        - backend/Personage.Auth/TestResults/*.xml
     paths:
       - backend/Personage.Auth/TestResults/
   only:
