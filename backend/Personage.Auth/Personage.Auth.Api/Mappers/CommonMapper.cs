@@ -6,8 +6,11 @@ namespace Personage.Auth.Api.Mappers;
 
 public static class CommonMapper
 {
-    public static GmailTokens ToGrpcGmailTokens(GmailTokenModel value)
+    public static GmailTokens? ToGrpcGmailTokens(GmailTokenModel? value)
     {
+        if (value is null)
+            return null;
+        
         return new GmailTokens
         {
             AccessToken = value.AccessToken,

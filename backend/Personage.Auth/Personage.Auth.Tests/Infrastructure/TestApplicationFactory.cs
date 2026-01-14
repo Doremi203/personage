@@ -35,6 +35,7 @@ public sealed class TestApplicationFactory(Action<IServiceCollection> overrideSe
             
             services.AddScoped<TestCleaners>();
             services.AddScoped<TestOAuthStateRepository>();
+            services.AddScoped<TestUserRepository>();
             
             overrideServices.Invoke(services);
         });

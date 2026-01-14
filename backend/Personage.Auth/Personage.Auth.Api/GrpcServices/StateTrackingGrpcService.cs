@@ -62,7 +62,6 @@ public class StateTrackingGrpcService(
         {
             UserId = model.UserId.ToString(),
             UserEmail = model.UserEmail,
-            GmailEmail = model.GmailEmail,
             Tokens = CommonMapper.ToGrpcGmailTokens(model.Tokens)
         };
         

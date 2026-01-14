@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Personage.Auth.Api;
 using Personage.Auth.Api.Grpc;
+using Personage.Auth.Api.Grpc.State;
 using Personage.Auth.Tests.Api;
 using RestEase;
 
@@ -28,6 +29,7 @@ public abstract class TestClassBase : IDisposable
     //gRPC API
     protected TestService.TestServiceClient TestGrpcClient { get; }
     protected AuthService.AuthServiceClient AuthGrpcClient { get; }
+    protected StateTrackingService.StateTrackingServiceClient StateTrackingGrpcClient { get; }
 
     protected TestClassBase()
 
@@ -44,6 +46,7 @@ public abstract class TestClassBase : IDisposable
         
         TestGrpcClient = new TestService.TestServiceClient(GrpcChannel);
         AuthGrpcClient = new AuthService.AuthServiceClient(GrpcChannel);
+        StateTrackingGrpcClient = new StateTrackingService.StateTrackingServiceClient(GrpcChannel);
 
         Cleaner = Factory.Services.GetRequiredService<Cleaner>();
     }

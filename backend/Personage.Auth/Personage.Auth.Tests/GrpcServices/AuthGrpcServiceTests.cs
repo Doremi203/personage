@@ -67,8 +67,7 @@ public class AuthGrpcServiceTests : TestClassBase
             AccessToken = accessToken,
             RefreshToken = refreshToken,
             ExpiresAt = expiresAt,
-            GmailEmail = gmailEmail,
-            CreatedAt = Fixture.Create<DateTime>()
+            GmailEmail = gmailEmail
         }, CancellationToken.None);
         
         //act

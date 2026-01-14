@@ -8,4 +8,5 @@ public enum ErrorCode
     Unknown = 0,
     OAuthError = 1,
     TokenNotFound = 2,
+    ServiceTypeNotSupported = 3,
 }
