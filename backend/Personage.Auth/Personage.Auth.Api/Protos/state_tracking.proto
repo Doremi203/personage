@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package auth;
+
+option csharp_namespace = "Personage.Auth.Api.Grpc.State";
+
+import "google/protobuf/timestamp.proto";
+import "common.proto";
+
+service StateTrackingService {
+  rpc GetUsersForProcessing(GetUsersForProcessingRequest) returns (GetUsersForProcessingResponse) {}
+  rpc MarkUsersAsProcessed(MarkUsersAsProcessedRequest) returns (MarkUsersAsProcessedResponse) {}
+}
+
+message GetUsersForProcessingRequest {
+  int32 batch_size = 1;
+  int32 min_seconds_since_last_process = 2;
+  ServiceType service_type = 3;
+}
+
+message GetUsersForProcessingResponse {
+  repeated UserForProcessing users = 1;
+}
+
+message UserForProcessing {
+  string user_id = 1;
+  string user_email = 2;
+  string gmail_email = 3;
+  GmailTokens tokens = 4;
+  google.protobuf.Timestamp last_processed_at = 5;
+}
+
+message MarkUsersAsProcessedRequest {
+  repeated ProcessedUser users = 1;
+}
+
+message ProcessedUser {
+  string user_id = 1;
+  google.protobuf.Timestamp processed_at = 2;
+}
+
+message MarkUsersAsProcessedResponse {
+}

@@ -8,4 +8,5 @@ public class GmailToken
     public DateTime ExpiresAt { get; init; }
     public string GmailEmail { get; init; } = null!;
     public DateTime CreatedAt { get; init; }
+    public DateTime LastProcessedAt { get; set; }
 }

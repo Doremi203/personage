@@ -56,7 +56,6 @@ public class AuthGrpcServiceTests : TestClassBase
         var gmailEmail = Fixture.Create<string>();
         var expiresAt = Fixture.Create<DateTime>();
         
-        
         Cleaner.AddCleanAction(async () =>
         {
             await TestCleaners.DeleteUser(user.Id);

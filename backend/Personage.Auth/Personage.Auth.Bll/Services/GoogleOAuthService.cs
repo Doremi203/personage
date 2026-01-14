@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Personage.Auth.Domain.Configuration;
 using Personage.Auth.Domain.Interfaces;
-using Personage.Auth.Domain.Models.Responses;
+using Personage.Auth.Domain.Models.Common;
 
 namespace Personage.Auth.Bll.Services;
 

@@ -105,6 +105,7 @@ public class Program
         app.MapGrpcReflectionService();
         app.MapGrpcService<TestGrpcService>().EnableGrpcWeb();
         app.MapGrpcService<AuthGrpcService>().EnableGrpcWeb();
+        app.MapGrpcService<StateTrackingGrpcService>().EnableGrpcWeb();
         
         app.MapControllers();
     }
@@ -134,6 +135,7 @@ public class Program
     private static void AddBllServices(IServiceCollection services)
     {
         services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<IStateTrackingService, StateTrackingService>();
         services.AddScoped<IGoogleOAuthService, GoogleOAuthService>();
         services.AddHttpClient<IGoogleOAuthService, GoogleOAuthService>();
     }

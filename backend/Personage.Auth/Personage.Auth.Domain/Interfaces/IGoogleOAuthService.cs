@@ -1,4 +1,4 @@
-using Personage.Auth.Domain.Models.Responses;
+using Personage.Auth.Domain.Models.Common;
 
 namespace Personage.Auth.Domain.Interfaces;
 

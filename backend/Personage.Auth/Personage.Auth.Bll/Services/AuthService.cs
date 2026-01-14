@@ -3,8 +3,8 @@ using Personage.Auth.DataAccess.Interfaces.Repositories;
 using Personage.Auth.DataAccess.Models;
 using Personage.Auth.Domain.Exceptions;
 using Personage.Auth.Domain.Interfaces;
-using Personage.Auth.Domain.Models.Requests;
-using Personage.Auth.Domain.Models.Responses;
+using Personage.Auth.Domain.Models.Auth.Requests;
+using Personage.Auth.Domain.Models.Common;
 
 namespace Personage.Auth.Bll.Services;
 

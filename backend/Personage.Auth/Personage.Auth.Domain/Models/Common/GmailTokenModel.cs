@@ -1,4 +1,4 @@
-namespace Personage.Auth.Domain.Models.Responses;
+namespace Personage.Auth.Domain.Models.Common;
 
 public class GmailTokenModel
 {

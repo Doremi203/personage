@@ -1,5 +1,5 @@
-using Personage.Auth.Domain.Models.Requests;
-using Personage.Auth.Domain.Models.Responses;
+using Personage.Auth.Domain.Models.Auth.Requests;
+using Personage.Auth.Domain.Models.Common;
 
 namespace Personage.Auth.Domain.Interfaces;
 
