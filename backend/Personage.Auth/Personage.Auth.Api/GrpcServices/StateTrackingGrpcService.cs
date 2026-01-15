@@ -1,10 +1,8 @@
 using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
-using Personage.Auth.Api.Grpc.Common;
 using Personage.Auth.Api.Grpc.State;
 using Personage.Auth.Api.Mappers;
 using Personage.Auth.Domain.Interfaces;
-using Personage.Auth.Domain.Models.Common;
 using Personage.Auth.Domain.Models.StateTracking;
 using Personage.Auth.Domain.Models.StateTracking.Requests;
 
