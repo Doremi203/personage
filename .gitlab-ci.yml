@@ -1,20 +1,10 @@
-stages:
-  - build
-  - test
-  - deploy
+stages: [ .pre, lint, build, test, deploy ]
 
-build:
-  stage: build
-  script:
-    - echo "Hello, $GITLAB_USER_LOGIN!"
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - when: never
 
-test:
-  stage: test
-  script:
-    - echo "This job tests something"
-
-deploy:
-  stage: deploy
-  script:
-    - echo "This job deploys something from the $CI_COMMIT_BRANCH branch."
-  environment: production
+include:
+  - local: .gitlab/ci/common.yml
+  - local: backend/tasker/.gitlab-ci.yml

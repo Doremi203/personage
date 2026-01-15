@@ -1,0 +1,40 @@
+include:
+  - local: .gitlab/ci/go.yml
+
+.tasker_rules:
+  rules:
+    - changes:
+        - backend/tasker/**/*
+
+
+.tasker:lint:
+  stage: lint
+  extends:
+    - .tasker_rules
+    - .go:lint
+  variables:
+    SERVICE: "tasker"
+
+tasker:build:
+  stage: build
+  extends:
+    - .tasker_rules
+    - .docker:build
+  variables:
+    SERVICE: "tasker"
+
+tasker:test:
+  stage: test
+  extends:
+    - .tasker_rules
+    - .go:test
+  variables:
+    SERVICE: "tasker"
+
+tasker:deploy:
+  stage: deploy
+  extends:
+    - .tasker_rules
+  image: alpine:3.20
+  script:
+    - echo "Deploy step is not implemented yet"
