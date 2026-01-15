@@ -1,0 +1,82 @@
+include:
+  - local: .gitlab/ci/utils.yml
+
+.go:base:
+  image: golang:1.25
+  tags:
+    - docker
+  before_script:
+    - go version
+    - cd "$CI_PROJECT_DIR/backend"
+    - go env -w GOPATH="$CI_PROJECT_DIR/backend/.go"
+    - go env -w GOMODCACHE="$CI_PROJECT_DIR/backend/.go/pkg/mod"
+    - go env -w GOCACHE="$CI_PROJECT_DIR/backend/.go/cache"
+    - go mod download
+  cache:
+    key: "go-${CI_COMMIT_REF_SLUG}"
+    policy: pull-push
+    paths:
+      - backend/.go/pkg/mod
+      - backned/.go/cache
+
+.go:lint:
+  stage: lint
+  image: golangci/golangci-lint:v2.8.0-alpine
+  tags:
+    - docker
+  variables:
+    SERVICE: ""
+    GOLANGCI_LINT_CACHE: "$CI_PROJECT_DIR/.golangci-cache"
+  cache:
+    key: "golangci-${CI_COMMIT_REF_SLUG}"
+    policy: pull-push
+    paths:
+      - .golangci-cache
+  before_script:
+    - cd "$CI_PROJECT_DIR/backend/$SERVICE"
+  script:
+    - golangci-lint run --timeout=5m
+  allow_failure: false
+
+.go:test:
+  stage: test
+  extends:
+    - .go:base
+  script:
+    - cd "$CI_PROJECT_DIR/backend/$SERVICE"
+    - go test ./... -race -count=1
+
+.docker:build:
+  stage: build
+  variables:
+    SERVICE: ""
+  before_script:
+    - !reference [.get_iam_token, before_script]
+    - echo "🔐 Logging into Yandex Container Registry..."
+    - echo "${YC_IAM_TOKEN}" | docker login ${CI_REGISTRY} --username iam --password-stdin
+    - echo "✅ Logged in successfully"
+  script:
+    - set -eo pipefail
+    - |
+      if [ -z "$SERVICE" ]; then
+        echo "❌ SERVICE variable is required" >&2
+        exit 1
+      fi
+    - cd "$CI_PROJECT_DIR/backend"
+    - IMAGE_TAG="${CI_REGISTRY}/$SERVICE:$CI_COMMIT_SHA"
+    - IMAGE_LATEST="${CI_REGISTRY}/$SERVICE:latest"
+    - |
+      echo "🐳 Building Docker image for service: $SERVICE"
+      docker build \
+        -f go.Dockerfile \
+        --build-arg service="$SERVICE" \
+        -t "$IMAGE_TAG" \
+        -t "$IMAGE_LATEST" \
+        .
+      
+      echo "📤 Pushing images..."
+      docker push "$IMAGE_TAG"
+      docker push "$IMAGE_LATEST"
+      
+      echo "✅ Build and push complete"
+      echo "   Image: $IMAGE_TAG"
