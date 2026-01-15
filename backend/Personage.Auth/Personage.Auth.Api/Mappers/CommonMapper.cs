@@ -19,4 +19,14 @@ public static class CommonMapper
             GmailEmail = value.GmailEmail
         };
     }
+
+    public static ServiceTypeModel ToDomainServiceType(ServiceType value)
+    {
+        return value switch
+        {
+            ServiceType.Unknown => ServiceTypeModel.Unknown,
+            ServiceType.Gmail => ServiceTypeModel.Gmail,
+            _ => ServiceTypeModel.Unknown
+        };
+    }
 }

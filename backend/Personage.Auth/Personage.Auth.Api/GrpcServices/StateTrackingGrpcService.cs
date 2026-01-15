@@ -21,12 +21,7 @@ public class StateTrackingGrpcService(
             {
                 BatchSize = request.BatchSize,
                 MinSecondsSinceLastProcess = request.MinSecondsSinceLastProcess,
-                ServiceType = request.ServiceType switch
-                {
-                    ServiceType.Unknown => ServiceTypeModel.Unknown,
-                    ServiceType.Gmail => ServiceTypeModel.Gmail,
-                    _ => ServiceTypeModel.Unknown
-                }
+                ServiceType = CommonMapper.ToDomainServiceType(request.ServiceType)
             },
             context.CancellationToken);
 
@@ -42,6 +37,7 @@ public class StateTrackingGrpcService(
         await stateTrackingService.MarkUsersAsProcessed(
             new MarkUsersAsProcessedRequestModel
             {
+                ServiceType = CommonMapper.ToDomainServiceType(request.ServiceType),
                 Users = request.Users.Select(Map).ToArray()
             }, context.CancellationToken);
         return new MarkUsersAsProcessedResponse();

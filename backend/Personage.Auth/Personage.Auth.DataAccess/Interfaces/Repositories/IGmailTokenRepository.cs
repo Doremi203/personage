@@ -6,4 +6,5 @@ public interface IGmailTokenRepository
 {
     Task<GmailToken?> GetTokenByUserEmail(string userEmail, CancellationToken ct);
     Task SaveToken(GmailToken token, CancellationToken ct);
+    Task<Guid[]> GetUsersWithoutToken(Guid[] userIds, CancellationToken ct);
 }

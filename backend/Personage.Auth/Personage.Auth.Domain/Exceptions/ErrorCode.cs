@@ -9,4 +9,6 @@ public enum ErrorCode
     OAuthError = 1,
     TokenNotFound = 2,
     ServiceTypeNotSupported = 3,
+    DuplicatedUsersForbidden = 4,
+    UsersNotAuthorizedForProcessing = 5
 }

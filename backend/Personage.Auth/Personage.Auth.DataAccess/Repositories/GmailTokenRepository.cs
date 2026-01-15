@@ -13,6 +13,7 @@ public class GmailTokenRepository(IDbConnectionFactory connectionFactory) : IGma
         
         return await connection.QueryFirstOrDefaultAsync<GmailToken>(
             """
+            --GmailTokenRepository.GetTokenByUserEmail
             SELECT 
                 gt.user_id as UserId,
                 gt.access_token as AccessToken, 
@@ -34,6 +35,7 @@ public class GmailTokenRepository(IDbConnectionFactory connectionFactory) : IGma
         
         await connection.ExecuteAsync(
             """
+            --GmailTokenRepository.SaveToken
             INSERT INTO gmail_token (user_id, access_token, refresh_token, expires_at, gmail_email)
             VALUES (@UserId, @AccessToken, @RefreshToken, @ExpiresAt, @GmailEmail)
             ON CONFLICT (user_id) DO UPDATE SET
@@ -43,5 +45,24 @@ public class GmailTokenRepository(IDbConnectionFactory connectionFactory) : IGma
                 gmail_email = EXCLUDED.gmail_email;
             """,
             token);
+    }
+
+    public async Task<Guid[]> GetUsersWithoutToken(Guid[] userIds, CancellationToken ct)
+    {
+        using var connection = await connectionFactory.CreateConnection(ct);
+        
+        var usersWithTokens = await connection.QueryAsync<Guid>(
+            """
+            --GmailTokenRepository.GetUsersWithoutToken
+            SELECT 
+                gt.user_id as UserId
+            FROM gmail_token gt
+            WHERE gt.user_id = any(@userIds);
+            """,
+            new { userIds });
+        
+        return userIds
+            .Except(usersWithTokens)
+            .ToArray();
     }
 }

@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Personage.Auth.DataAccess.Interfaces.Repositories;
 using Personage.Auth.DataAccess.Models;
 using Personage.Auth.Domain.Exceptions;
@@ -9,7 +10,11 @@ using Personage.Auth.Domain.Models.StateTracking.Responses;
 
 namespace Personage.Auth.Bll.Services;
 
-public class StateTrackingService(IUserRepository userRepository) : IStateTrackingService
+public class StateTrackingService(
+    IGmailTokenRepository gmailTokenRepository,
+    IUserRepository userRepository,
+    ILogger<StateTrackingService> logger
+) : IStateTrackingService
 {
     public async Task<GetUsersForProcessingResponseModel> GetUsersForProcessing(GetUsersForProcessingRequestModel request, CancellationToken ct)
     {
@@ -25,9 +30,36 @@ public class StateTrackingService(IUserRepository userRepository) : IStateTracki
         };
     }
 
-    public Task MarkUsersAsProcessed(MarkUsersAsProcessedRequestModel request, CancellationToken ct)
+    public async Task MarkUsersAsProcessed(MarkUsersAsProcessedRequestModel request, CancellationToken ct)
     {
-        throw new NotImplementedException();
+        if(request.ServiceType is not ServiceTypeModel.Gmail)
+            throw new ServiceTypeNotSupportedException($"Service type {request.ServiceType} is not supported for {nameof(MarkUsersAsProcessed)}");
+        
+        var userIds = request.Users.Select(u => u.UserId).ToArray();
+        var duplicatedUsers = userIds
+            .GroupBy(x => x)
+            .Where(g => g.Count() > 1)
+            .Select(g => g.Key)
+            .ToArray();
+
+        if (duplicatedUsers.Length != 0)
+            throw new CustomException(
+                ErrorCode.DuplicatedUsersForbidden,
+                $"Users must be unique. Duplicated users: [{string.Join(", ", duplicatedUsers)}]");
+
+        var usersWithoutToken = await gmailTokenRepository.GetUsersWithoutToken(userIds, ct);
+        if(usersWithoutToken.Length != 0)
+        {
+            logger.LogError("Attempt to mark users processing for users with no gmail access: {@UsersWithoutToken}", usersWithoutToken);
+            throw new CustomException(
+                ErrorCode.UsersNotAuthorizedForProcessing,
+                "Cannot mark users gmail processing, the following users have no gmail access:" +
+                "\n" + string.Join("\n", usersWithoutToken)
+            );
+        }
+
+        await userRepository.MarkUsersAsProcessed(
+            request.Users.Select(x => (x.UserId, x.ProcessedAt)).ToArray(), ct);
     }
 
     private static UserForProcessingModel Map(UserWithToken model)

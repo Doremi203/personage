@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
+using Google.Protobuf.WellKnownTypes;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Personage.Auth.Api.Grpc.State;
@@ -113,5 +114,52 @@ public class StateTrackingGrpcServiceTests : TestClassBase
         
         //assert
         res.Users.Should().HaveCount(batchSize);
+    }
+
+    [TestMethod]
+    public async Task MarkUsersAsProcessed_ShouldMarkUsersAsProcessed()
+    {
+        //arrange
+        const int notProcessedForMinutesThreshold = 15;
+        var matchingTimestamp = DateTime.UtcNow
+            .AddMinutes(-notProcessedForMinutesThreshold - Random.Shared.Next(5, 100));
+        var user = await TestUserRepository.CreateUserWithToken(matchingTimestamp);
+        
+        Cleaner.AddCleanAction(async () => await TestCleaners.DeleteUser(user.UserId));
+        
+        //act
+        var usersForProcessBeforeMarking = await StateTrackingGrpcClient.GetUsersForProcessingAsync(
+            new GetUsersForProcessingRequest
+            {
+                BatchSize = 10000, //get all users
+                MinSecondsSinceLastProcess = notProcessedForMinutesThreshold * 60,
+                ServiceType = ServiceType.Gmail
+            }, cancellationToken: CancellationToken.None);
+
+        await StateTrackingGrpcClient.MarkUsersAsProcessedAsync(
+            new MarkUsersAsProcessedRequest
+            {
+                ServiceType = ServiceType.Gmail,
+                Users =
+                {
+                    new ProcessedUser
+                    {
+                        UserId = user.UserId.ToString(),
+                        ProcessedAt = Timestamp.FromDateTime(DateTime.UtcNow)
+                    }
+                }
+            }, cancellationToken: CancellationToken.None);
+        
+        var usersForProcessAfterMarking = await StateTrackingGrpcClient.GetUsersForProcessingAsync(
+            new GetUsersForProcessingRequest
+            {
+                BatchSize = 10000, //get all users
+                MinSecondsSinceLastProcess = notProcessedForMinutesThreshold * 60,
+                ServiceType = ServiceType.Gmail
+            }, cancellationToken: CancellationToken.None);
+        
+        //assert
+        usersForProcessBeforeMarking.Users.Should().ContainSingle(x => x.UserId == user.UserId.ToString());
+        usersForProcessAfterMarking.Users.Should().NotContain(x => x.UserId == user.UserId.ToString());
     }
 }
