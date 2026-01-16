@@ -80,3 +80,5 @@ include:
       
       echo "✅ Build and push complete"
       echo "   Image: $IMAGE_TAG"
+      docker rmi "$IMAGE_TAG" "$IMAGE_LATEST" || true
+      echo "Removed local images"
