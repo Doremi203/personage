@@ -28,10 +28,18 @@ resource "yandex_vpc_security_group" "alb" {
     port              = 30080
     predefined_target = "loadbalancer_healthchecks"
   }
+
+  egress {
+    protocol       = "ANY"
+    description    = "any"
+    v4_cidr_blocks = ["0.0.0.0/0"]
+    from_port      = 0
+    to_port        = 65535
+  }
 }
 
 resource "yandex_vpc_address" "public_alb_static_address" {
-  name       = "public-alb-static-address"
+  name = "public-alb-static-address"
   external_ipv4_address {
     zone_id = "ru-central1-d"
   }
@@ -72,16 +80,6 @@ resource "yandex_alb_load_balancer" "main_alb" {
         certificate_ids = [yandex_cm_certificate.main_domain_cert.id]
         http_handler {
           http_router_id = yandex_alb_http_router.https_router.id
-        }
-      }
-      sni_handler {
-        name = "main-sni"
-        server_names = [var.domain]
-        handler {
-          http_handler {
-            http_router_id = yandex_alb_http_router.https_router.id
-          }
-          certificate_ids = [yandex_cm_certificate.main_domain_cert.id]
         }
       }
     }

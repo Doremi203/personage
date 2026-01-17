@@ -1,3 +1,7 @@
+resource "yandex_iam_service_account" "docker_images_pusher" {
+  name = "docker-images-pusher"
+}
+
 resource "yandex_container_registry_iam_binding" "images_pusher_iam_binding" {
   registry_id = yandex_container_registry.container_registry.id
   role        = "container-registry.images.pusher"
