@@ -1,0 +1,9 @@
+services:
+  app:
+    image: cr.yandex/crp77qhpsda1m6ian417/tasker:0a8d9a16af40619f9adbaa564bc614f392f14472
+    environment:
+      APP_ENV: prod
+      CONFIGS_PATH: /app/configs
+    ports:
+      - "80:80"
+      - "5051:5051"
