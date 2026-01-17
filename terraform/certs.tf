@@ -1,8 +1,8 @@
 resource "yandex_cm_certificate" "main_domain_cert" {
-  name = "main-domain-cert"
+  name    = "main-domain-cert"
   domains = [var.domain, "*.${var.domain}"]
   managed {
-    challenge_type = "DNS_CNAME"
+    challenge_type  = "DNS_CNAME"
     challenge_count = 1
   }
 }
