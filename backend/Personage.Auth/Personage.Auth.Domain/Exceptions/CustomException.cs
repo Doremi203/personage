@@ -1,14 +1,15 @@
 namespace Personage.Auth.Domain.Exceptions;
 
-public abstract class CustomException : Exception
+public class CustomException : Exception
 {
     protected CustomException(string message) : base(message)
     {
     }
 
-    protected CustomException(string message, Exception innerException) : base(message, innerException)
+    public CustomException(ErrorCode errorCode, string message) : base(message)
     {
+        ErrorCode = errorCode;
     }
 
-    public abstract ErrorCode ErrorCode { get; }
+    public virtual ErrorCode ErrorCode { get; }
 }

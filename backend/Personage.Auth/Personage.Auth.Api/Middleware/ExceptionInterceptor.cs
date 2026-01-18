@@ -44,6 +44,9 @@ public class ExceptionInterceptor(ILogger<ExceptionInterceptor> logger) : Interc
         {
             ErrorCode.TokenNotFound => StatusCode.NotFound,
             ErrorCode.OAuthError => StatusCode.InvalidArgument,
+            ErrorCode.ServiceTypeNotSupported => StatusCode.Unimplemented,
+            ErrorCode.DuplicatedUsersForbidden => StatusCode.InvalidArgument,
+            ErrorCode.UsersNotAuthorizedForProcessing => StatusCode.InvalidArgument,
             _ => StatusCode.Unknown
         };
     }

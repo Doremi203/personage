@@ -35,11 +35,5 @@
     <ItemGroup>
         <ProjectReference Include="..\Personage.Auth.Api\Personage.Auth.Api.csproj" />
     </ItemGroup>
-
-    <ItemGroup>
-        <Protobuf
-                Include="..\Personage.Auth.Api\Protos\*.proto"
-                GrpcServices="Client"
-                Link="Protos\%(Filename).proto" />
-    </ItemGroup>
+    
 </Project>

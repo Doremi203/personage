@@ -1,4 +1,4 @@
-namespace Personage.Auth.Domain.Models.Requests;
+namespace Personage.Auth.Domain.Models.Auth.Requests;
 
 public class StartGmailAuthResponseModel
 {

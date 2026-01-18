@@ -1,6 +1,7 @@
 using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
 using Personage.Auth.Api.Grpc;
+using Personage.Auth.Api.Grpc.Common;
 using Personage.Auth.Domain.Interfaces;
 
 namespace Personage.Auth.Api.GrpcServices;

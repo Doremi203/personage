@@ -6,4 +6,6 @@ public interface IUserRepository
 {
     Task<User?> GetUserByEmail(string email, CancellationToken ct);
     Task<User> CreateUser(string email, CancellationToken ct);
+    Task<UserWithToken[]> GetUsersProcessedBeforeMoment(DateTime processedBeforeMoment, int limit, CancellationToken ct);
+    Task MarkUsersAsProcessed((Guid UserId, DateTime ProcessedAt)[] users, CancellationToken ct);
 }

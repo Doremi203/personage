@@ -7,13 +7,15 @@ namespace Personage.Auth.DataAccess.Repositories;
 
 public class GmailTokenRepository(IDbConnectionFactory connectionFactory) : IGmailTokenRepository
 {
-    public async Task<GmailToken?> GetTokenByUserEmail(string userEmail, CancellationToken ct)
+    public async Task<GmailTokenWithId?> GetTokenByUserEmail(string userEmail, CancellationToken ct)
     {
         using var connection = await connectionFactory.CreateConnection(ct);
         
-        return await connection.QueryFirstOrDefaultAsync<GmailToken>(
+        return await connection.QueryFirstOrDefaultAsync<GmailTokenWithId>(
             """
-            SELECT 
+            --GmailTokenRepository.GetTokenByUserEmail
+            SELECT
+                gt.id as Id,
                 gt.user_id as UserId,
                 gt.access_token as AccessToken, 
                 gt.refresh_token as RefreshToken,
@@ -34,6 +36,7 @@ public class GmailTokenRepository(IDbConnectionFactory connectionFactory) : IGma
         
         await connection.ExecuteAsync(
             """
+            --GmailTokenRepository.SaveToken
             INSERT INTO gmail_token (user_id, access_token, refresh_token, expires_at, gmail_email)
             VALUES (@UserId, @AccessToken, @RefreshToken, @ExpiresAt, @GmailEmail)
             ON CONFLICT (user_id) DO UPDATE SET
@@ -43,5 +46,48 @@ public class GmailTokenRepository(IDbConnectionFactory connectionFactory) : IGma
                 gmail_email = EXCLUDED.gmail_email;
             """,
             token);
+    }
+
+    public async Task UpdateToken(Guid tokenId, string accessToken, string refreshToken, DateTime expiresAt, CancellationToken ct)
+    {
+        using var connection = await connectionFactory.CreateConnection(ct);
+        
+        await connection.ExecuteAsync(
+            """
+            --GmailTokenRepository.UpdateToken
+            UPDATE gmail_token
+            SET
+                access_token = @accessToken,
+                refresh_token = @refreshToken,
+                expires_at = @expiresAt
+            WHERE
+                id = @tokeId;
+            """,
+            new
+            {
+                accessToken,
+                refreshToken,
+                expiresAt,
+                tokenId
+            });
+    }
+
+    public async Task<Guid[]> GetUsersWithoutToken(Guid[] userIds, CancellationToken ct)
+    {
+        using var connection = await connectionFactory.CreateConnection(ct);
+        
+        var usersWithTokens = await connection.QueryAsync<Guid>(
+            """
+            --GmailTokenRepository.GetUsersWithoutToken
+            SELECT 
+                gt.user_id as UserId
+            FROM gmail_token gt
+            WHERE gt.user_id = any(@userIds);
+            """,
+            new { userIds });
+        
+        return userIds
+            .Except(usersWithTokens)
+            .ToArray();
     }
 }

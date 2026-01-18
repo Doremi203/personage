@@ -20,7 +20,9 @@
         <PackageReference Include="Grpc.AspNetCore.Web" Version="2.57.0" />
     </ItemGroup>
     <ItemGroup>
-        <Protobuf Include="Protos\*.proto" GrpcServices="Both" />
+        <Protobuf Include="Protos\*.proto" GrpcServices="Both">
+            <AdditionalImportDirs>Protos</AdditionalImportDirs>
+        </Protobuf>
     </ItemGroup>
     <ItemGroup>
       <ProjectReference Include="..\Personage.Auth.Bll\Personage.Auth.Bll.csproj" />

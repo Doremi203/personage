@@ -3,8 +3,8 @@ using Personage.Auth.DataAccess.Interfaces.Repositories;
 using Personage.Auth.DataAccess.Models;
 using Personage.Auth.Domain.Exceptions;
 using Personage.Auth.Domain.Interfaces;
-using Personage.Auth.Domain.Models.Requests;
-using Personage.Auth.Domain.Models.Responses;
+using Personage.Auth.Domain.Models.Auth.Requests;
+using Personage.Auth.Domain.Models.Common;
 
 namespace Personage.Auth.Bll.Services;
 
@@ -16,6 +16,7 @@ public class AuthService(
     ILogger<AuthService> logger
 ) : IAuthService
 {
+    private const int TokenExpirationThresholdMinutes = 5;
     public async Task<StartGmailAuthResponseModel> StartGmailAuth(string userEmail, string redirectUri, CancellationToken ct)
     {
         //TODO: validate whether email is valid https://tracker.yandex.ru/PERSONAGE-59
@@ -70,7 +71,7 @@ public class AuthService(
         {
             UserId = user.Id,
             AccessToken = tokenExchangeResult.AccessToken,
-            RefreshToken = tokenExchangeResult.RefreshToken,
+            RefreshToken = tokenExchangeResult.RefreshToken ?? throw new ArgumentException("Invalid refresh token"),
             ExpiresAt = tokenExchangeResult.ExpiresAt,
             GmailEmail = tokenExchangeResult.GmailEmail
         };
@@ -87,6 +88,33 @@ public class AuthService(
         var userToken = await gmailTokenRepository.GetTokenByUserEmail(userEmail, ct);
         if (userToken is null)
             throw new TokenNotFoundException($"Token for user with email {userEmail} not found");
+
+        if (userToken.ExpiresAt >= DateTime.UtcNow.AddMinutes(TokenExpirationThresholdMinutes))
+            return new GmailTokenModel
+            {
+                AccessToken = userToken.AccessToken,
+                RefreshToken = userToken.RefreshToken,
+                ExpiresAt = userToken.ExpiresAt,
+                GmailEmail = userToken.GmailEmail
+            };
+        
+        try
+        {
+            var refreshedToken = await googleOAuthService.RefreshToken(userToken.RefreshToken, ct);
+            await gmailTokenRepository.UpdateToken(
+                userToken.Id,
+                refreshedToken.AccessToken,
+                refreshedToken.RefreshToken ?? userToken.RefreshToken,
+                refreshedToken.ExpiresAt,
+                ct
+            );
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to refresh Gmail token for user {UserEmail}", userEmail);
+            throw new OAuthException($"Token refresh failed: {ex.Message}");
+        }
+        
         return new GmailTokenModel
         {
             AccessToken = userToken.AccessToken,
