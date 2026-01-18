@@ -64,6 +64,8 @@ public class UserRepository(IDbConnectionFactory connectionFactory) : IUserRepos
             WHERE 
                 gt.last_processed_at IS NULL OR 
                 gt.last_processed_at <= @processedBeforeMoment
+            ORDER BY 
+                gt.last_processed_at ASC NULLS FIRST
             LIMIT @limit;
             """;
 
