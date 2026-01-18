@@ -1,4 +1,4 @@
-stages: [ .pre, lint, build, test, deploy ]
+stages: [ .pre, lint, build, test, merge_ok, deploy ]
 
 workflow:
   rules:
@@ -8,3 +8,10 @@ workflow:
 include:
   - local: .gitlab/ci/common.yml
   - local: backend/tasker/.gitlab-ci.yml
+
+merge_request_checks:
+  stage: merge_ok
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  script:
+    - echo "Merge request pipeline checks"
