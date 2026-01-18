@@ -53,6 +53,7 @@ public class UserRepository(IDbConnectionFactory connectionFactory) : IUserRepos
             --UserRepository.GetUsersProcessedBeforeMoment   
             SELECT u.id AS UserId,
                 u.email AS UserEmail,
+                gt.Id as TokenId,
                 gt.access_token AS AccessToken,
                 gt.refresh_token AS RefreshToken,
                 gt.expires_at AS ExpiresAt,
@@ -78,7 +79,7 @@ public class UserRepository(IDbConnectionFactory connectionFactory) : IUserRepos
                 processedBeforeMoment,
                 limit
             },
-            splitOn: nameof(ShortGmailToken.AccessToken)
+            splitOn: nameof(ShortGmailToken.TokenId)
         );
 
         return results.ToArray();

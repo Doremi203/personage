@@ -146,12 +146,17 @@ public class Program
         IWebHostEnvironment environment)
     {
         services.Configure<OAuthSettings>(configuration.GetSection(nameof(OAuthSettings)));
+        
+        var clientId = configuration["OAuthSettings:ClientId"];
+        var clientSecret = configuration["OAuthSettings:ClientSecret"];
+        var scopes = configuration.GetSection("OAuthSettings:Scopes").Get<string[]>();
+        
         if (!environment.IsProduction())
         {
             Env.Load();
-            var clientId = Environment.GetEnvironmentVariable("OAUTH_CLIENT_ID");
-            var clientSecret = Environment.GetEnvironmentVariable("OAUTH_CLIENT_SECRET");
-            var scopes = Environment.GetEnvironmentVariable("OAUTH_SCOPES")?.Split(',');
+            clientId ??= Environment.GetEnvironmentVariable("OAUTH_CLIENT_ID");
+            clientSecret ??= Environment.GetEnvironmentVariable("OAUTH_CLIENT_SECRET");
+            scopes ??= Environment.GetEnvironmentVariable("OAUTH_SCOPES")?.Split(',');
             
             services.Configure<OAuthSettings>(options =>
             {

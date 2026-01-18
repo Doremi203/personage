@@ -4,6 +4,7 @@ using System.Web;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Personage.Auth.Domain.Configuration;
+using Personage.Auth.Domain.Exceptions;
 using Personage.Auth.Domain.Interfaces;
 using Personage.Auth.Domain.Models.Common;
 
@@ -16,6 +17,8 @@ public class GoogleOAuthService(
 ) : IGoogleOAuthService
 {
     private const string OAuthAuthorizationUrlPrefix = "https://accounts.google.com/o/oauth2/auth";
+    private const string OAuthTokenUrlPrefix = "https://oauth2.googleapis.com/token";
+    
     public string GetAuthorizationUrl(string redirectUri, string state)
     {
         var queryParams = new Dictionary<string, string>
@@ -47,7 +50,7 @@ public class GoogleOAuthService(
         };
         
         var response = await httpClient.PostAsync(
-            "https://oauth2.googleapis.com/token",
+            OAuthTokenUrlPrefix,
             new FormUrlEncodedContent(requestBody), ct);
         
         if (!response.IsSuccessStatusCode)
@@ -58,7 +61,7 @@ public class GoogleOAuthService(
         }
         
         var json = await response.Content.ReadAsStringAsync(ct);
-        var tokenResponse = JsonSerializer.Deserialize<TokenResponse>(json);
+        var tokenResponse = JsonSerializer.Deserialize<AuthorizationTokenResponse>(json);
         
         if (tokenResponse == null)
             throw new InvalidOperationException("Invalid token response");
@@ -72,7 +75,48 @@ public class GoogleOAuthService(
             GmailEmail = email
         };
     }
-    
+
+    public async Task<GmailTokenModel> RefreshToken(string refreshToken, CancellationToken ct)
+    {
+        var refreshRequest = new Dictionary<string, string>
+        {
+            ["refresh_token"] = refreshToken,
+            ["client_id"] = settings.Value.ClientId,
+            ["client_secret"] = settings.Value.ClientSecret,
+            ["grant_type"] = "refresh_token"
+        };
+
+        var response = await httpClient.PostAsync(
+            OAuthTokenUrlPrefix,
+            new FormUrlEncodedContent(refreshRequest),
+            ct);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorContent = await response.Content.ReadAsStringAsync(ct);
+            logger.LogError("Token refresh failed: {Error}", errorContent);
+            
+            if (errorContent.Contains("invalid_grant"))
+                throw new OAuthException("Token has been revoked. User needs to re-authenticate.");
+            
+            throw new OAuthException($"Token refresh failed: {response.StatusCode}");
+        }
+
+        var json = await response.Content.ReadAsStringAsync(ct);
+        var tokenResponse = JsonSerializer.Deserialize<RefreshTokenResponse>(json);
+
+        if (tokenResponse == null)
+            throw new OAuthException("Invalid token response from Google");
+
+        return new GmailTokenModel
+        {
+            AccessToken = tokenResponse.AccessToken,
+            RefreshToken = tokenResponse.RefreshToken ?? refreshToken,
+            ExpiresAt = DateTime.UtcNow.AddSeconds(tokenResponse.ExpiresIn),
+            GmailEmail = string.Empty
+        };
+    }
+
     private async Task<string> GetUserEmailAsync(string accessToken)
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "https://www.googleapis.com/oauth2/v2/userinfo");
@@ -87,16 +131,28 @@ public class GoogleOAuthService(
         return userInfo?.Email ?? throw new InvalidOperationException("Could not get user email");
     }
     
-    private class TokenResponse
+    private class AuthorizationTokenResponse
     {
         [JsonPropertyName("access_token")]
         public string AccessToken { get; init; } = null!;
         
-        [JsonPropertyName("refresh_token")]
+        [JsonPropertyName("expires_in")]
+        public int ExpiresIn { get; init; }
+        
+        [JsonPropertyName("refresh_token")] 
         public string RefreshToken { get; init; } = null!;
+    }
+    
+    private class RefreshTokenResponse
+    {
+        [JsonPropertyName("access_token")]
+        public string AccessToken { get; init; } = null!;
         
         [JsonPropertyName("expires_in")]
         public int ExpiresIn { get; init; }
+        
+        [JsonPropertyName("refresh_token")] 
+        public string? RefreshToken { get; init; }
     }
     
     private class UserInfoResponse

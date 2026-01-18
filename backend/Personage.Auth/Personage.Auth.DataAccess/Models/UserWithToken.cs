@@ -9,9 +9,10 @@ public class UserWithToken
 
 public class ShortGmailToken
 {
-    public string AccessToken { get; init; } = null!;
-    public string RefreshToken { get; init; } = null!;
-    public DateTime ExpiresAt { get; init; }
+    public Guid TokenId { get; init; }
+    public string AccessToken { get; set; } = null!;
+    public string RefreshToken { get; set; } = null!;
+    public DateTime ExpiresAt { get; set; }
     public string GmailEmail { get; init; } = null!;
     public DateTime? LastProcessedAt { get; init; }
 }

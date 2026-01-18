@@ -1,8 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using AutoFixture;
 using FluentAssertions;
 using Google.Protobuf.WellKnownTypes;
 using Microsoft.Extensions.DependencyInjection;
@@ -42,6 +45,21 @@ public class StateTrackingGrpcServiceTests : TestClassBase
         var userProcessedBeforeCutoff = await TestUserRepository.CreateUserWithToken(matchingTimestamp);
         var userProcessedAfterCutoff = await TestUserRepository.CreateUserWithToken(nonMatchingTimestamp);
         var userWithoutTokenId = await TestUserRepository.CreateUser();
+        
+        var factory = (TestApplicationFactory)Factory;
+        var handlerMock = factory.HttpMessageHandlerMock;
+
+        var tokenResponse = new
+        {
+            access_token = Fixture.Create<string>(),
+            refresh_token = Fixture.Create<string>(),
+            expires_in = Random.Shared.Next(100, 2000)
+        };
+        
+        handlerMock.SetupSendAsync(
+            "https://oauth2.googleapis.com/token",
+            HttpMethod.Post,
+            JsonSerializer.Serialize(tokenResponse));
         
         Cleaner.AddCleanAction(async () =>
         {
@@ -102,6 +120,21 @@ public class StateTrackingGrpcServiceTests : TestClassBase
         {
             await TestCleaners.DeleteUsers(users.Select(x => x.UserId).ToArray());
         });
+        
+        var factory = (TestApplicationFactory)Factory;
+        var handlerMock = factory.HttpMessageHandlerMock;
+
+        var tokenResponse = new
+        {
+            access_token = Fixture.Create<string>(),
+            refresh_token = Fixture.Create<string>(),
+            expires_in = Random.Shared.Next(100, 2000)
+        };
+        
+        handlerMock.SetupSendAsync(
+            "https://oauth2.googleapis.com/token",
+            HttpMethod.Post,
+            JsonSerializer.Serialize(tokenResponse));
         
         //act
         var res = await StateTrackingGrpcClient.GetUsersForProcessingAsync(

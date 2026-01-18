@@ -46,7 +46,7 @@ public class AuthGrpcServiceTests : TestClassBase
     }
 
     [TestMethod]
-    public async Task GetGmailTokens_ExistingUserAndHasToken_ShouldBeOk()
+    public async Task GetGmailTokens_NonExpiredToken_ExistingUserAndHasToken_ShouldBeOk()
     {
         //arrange
         var userEmail = Fixture.Create<string>();
@@ -54,7 +54,7 @@ public class AuthGrpcServiceTests : TestClassBase
         var accessToken = Fixture.Create<string>();
         var refreshToken = Fixture.Create<string>();
         var gmailEmail = Fixture.Create<string>();
-        var expiresAt = Fixture.Create<DateTime>();
+        var expiresAt = DateTime.UtcNow.AddMinutes(Random.Shared.Next(10, 50));
         
         Cleaner.AddCleanAction(async () =>
         {

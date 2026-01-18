@@ -36,6 +36,7 @@ public class TestUserRepository(IDbConnectionFactory connectionFactory)
             INSERT INTO gmail_token(user_id, access_token, refresh_token, expires_at, gmail_email, last_processed_at)
             VALUES (@userId, @accessToken, @refreshToken, @expiresAt, @gmailEmail, @userProcessedAt)
             returning
+                id as TokenId,
                 user_id as UserId,
                 access_token as AccessToken,
                 refresh_token as RefreshToken,
