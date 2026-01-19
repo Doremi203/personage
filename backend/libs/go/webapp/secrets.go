@@ -1,40 +1,5 @@
 package webapp
 
-import (
-	"context"
-	"time"
-
-	"github.com/yandex-cloud/go-genproto/yandex/cloud/lockbox/v1"
-	"gitlab.com/amoguscorp/personage/backend/libs/go/errors"
-)
-
-func (a *App) loadSecrets() error {
-	for name, id := range a.Config.secrets.Ids {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		secret, err := a.ycSDKClient.LockboxPayload().Payload().Get(ctx, &lockbox.GetPayloadRequest{
-			SecretId: id,
-		})
-		cancel()
-		if err != nil {
-			return errors.WrapFailf(
-				err,
-				"get secret %v %v",
-				errors.Token("name", name),
-				errors.Token("id", id),
-			)
-		}
-		if len(secret.GetEntries()) == 0 {
-			return errors.Error("secret required with config but not found in yc")
-		}
-
-		for _, entry := range secret.GetEntries() {
-			_, ok := a.Config.secretsMap[entry.GetKey()]
-			if ok {
-				return errors.Errorf("all keys must be unique, non unique %v", errors.Token("secret_key", entry.GetKey()))
-			}
-			a.Config.secretsMap[entry.GetKey()] = entry.GetTextValue()
-		}
-	}
-
-	return nil
-}
+// This file is kept for backwards compatibility but the loadSecrets functionality
+// has been moved to config.go as part of the value-based parsing approach.
+// Secret loading now happens automatically when parsing config values that start with "secret:"

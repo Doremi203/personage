@@ -1,16 +1,19 @@
 package webapp
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
-	"strconv"
+	"strings"
+	"time"
 
 	"gitlab.com/amoguscorp/personage/backend/libs/go/log"
 
-	"github.com/ilyakaznacheev/cleanenv"
 	"github.com/spf13/viper"
+	"github.com/yandex-cloud/go-genproto/yandex/cloud/lockbox/v1"
+	ycsdk "github.com/yandex-cloud/go-sdk"
 	"gitlab.com/amoguscorp/personage/backend/libs/go/errors"
 )
 
@@ -32,25 +35,20 @@ type swaggerUIConfig struct {
 	Enabled bool
 }
 
-type secretsConfig struct {
-	Ids map[string]string
-}
-
 type Config struct {
 	grpc      grpcConfig
 	http      httpConfig
 	logging   loggingConfig
 	swaggerUI swaggerUIConfig
-	secrets   secretsConfig
 
-	secretsMap map[string]string
-
-	viperLoader *viper.Viper
-	logger      log.Logger
+	viperLoader  *viper.Viper
+	ycSDKClient  *ycsdk.SDK
+	logger       log.Logger
+	secretsCache map[string]*lockbox.Payload // Cache for secrets by "id:version"
 }
 
-func (c *Config) ReadSection(name string, cfg any) error {
-	err := c.readSection(name, cfg)
+func (c *Config) ReadSection(ctx context.Context, name string, cfg any) error {
+	err := c.readSection(ctx, name, cfg)
 	if err != nil {
 		return err
 	}
@@ -59,29 +57,21 @@ func (c *Config) ReadSection(name string, cfg any) error {
 	return nil
 }
 
-func (c *Config) readSection(name string, cfg any) error {
+func (c *Config) readSection(ctx context.Context, name string, cfg any) error {
 	err := c.viperLoader.UnmarshalKey(name, cfg)
 	if err != nil {
 		return errors.WrapFailf(err, "read section %v", errors.Token("name", name))
 	}
 
-	err = c.readFromSecrets(cfg)
+	err = c.processValues(ctx, cfg)
 	if err != nil {
-		return errors.WrapFailf(err, "read secrets for config with %v", errors.Token("name", name))
-	}
-
-	err = cleanenv.ReadEnv(cfg)
-	if err != nil {
-		return errors.WrapFailf(err, "read envs for config with %v", errors.Token("name", name))
+		return errors.WrapFailf(err, "process values for config with %v", errors.Token("name", name))
 	}
 
 	return nil
 }
 
-func (c *Config) readFromSecrets(cfg any) error {
-	if len(c.secretsMap) == 0 {
-		return nil
-	}
+func (c *Config) processValues(ctx context.Context, cfg any) error {
 	v := reflect.ValueOf(cfg)
 	if v.Kind() != reflect.Ptr || v.Elem().Kind() != reflect.Struct {
 		return errors.Errorf("want pointer to struct, got %T", cfg)
@@ -91,38 +81,109 @@ func (c *Config) readFromSecrets(cfg any) error {
 
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
-		tagValue := field.Tag.Get("secret")
-		if tagValue == "" {
-			continue
-		}
-
-		secret, ok := c.secretsMap[tagValue]
-		if !ok {
-			continue
-		}
-
 		fv := v.Field(i)
+
 		if !fv.CanSet() {
-			return errors.Errorf("field %q could not be set", field.Name)
+			continue
 		}
-		switch fv.Kind() {
-		case reflect.String:
-			fv.SetString(secret)
-		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-			secretNumber, err := strconv.ParseInt(secret, 10, 64)
-			if err != nil {
-				return errors.WrapFailf(err, "field %q could not be parsed", field.Name)
+
+		if fv.Kind() != reflect.String {
+			continue
+		}
+
+		strValue := fv.String()
+		if strValue == "" {
+			continue
+		}
+
+		var finalValue string
+		var err error
+
+		switch {
+		case strings.HasPrefix(strValue, "env:"):
+			envName := strings.TrimPrefix(strValue, "env:")
+			finalValue = os.Getenv(envName)
+			if finalValue == "" {
+				return errors.Errorf("environment variable not found: %v", errors.Token("env", envName))
 			}
-			fv.SetInt(secretNumber)
+		case strings.HasPrefix(strValue, "secret:"):
+			// Parse secret:{id}:{version}:{key}
+			finalValue, err = c.loadSecretValue(ctx, strValue)
+			if err != nil {
+				return errors.WrapFailf(err, "load secret for field %q", field.Name)
+			}
 		default:
-			return fmt.Errorf("field type %q (%s) not supported", field.Name, fv.Kind())
+			// Use the YAML value as-is
+			continue
 		}
+
+		fv.SetString(finalValue)
 	}
+
 	return nil
 }
 
+func (c *Config) loadSecretValue(ctx context.Context, secretSpec string) (string, error) {
+	// Parse secret:{id}:{version}:{key}
+	parts := strings.SplitN(secretSpec, ":", 4)
+	if len(parts) != 4 || parts[0] != "secret" {
+		return "", errors.Errorf(
+			"invalid secret format, expected secret:{id}:{version}:{key}, got %v",
+			errors.Token("spec", secretSpec),
+		)
+	}
+
+	secretID := parts[1]
+	versionID := parts[2]
+	key := parts[3]
+
+	if c.ycSDKClient == nil {
+		return "", errors.Error("yandex cloud SDK client not initialized")
+	}
+
+	cacheKey := secretID + ":" + versionID
+
+	var secret *lockbox.Payload
+	if cachedSecret, exists := c.secretsCache[cacheKey]; exists {
+		secret = cachedSecret
+	} else {
+		ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
+		defer cancel()
+
+		fetchedSecret, err := c.ycSDKClient.LockboxPayload().Payload().Get(ctx, &lockbox.GetPayloadRequest{
+			SecretId:  secretID,
+			VersionId: versionID,
+		})
+		if err != nil {
+			return "", errors.WrapFailf(
+				err,
+				"get secret from lockbox %v %v",
+				errors.Token("id", secretID),
+				errors.Token("version", versionID),
+			)
+		}
+
+		c.secretsCache[cacheKey] = fetchedSecret
+		secret = fetchedSecret
+	}
+
+	if len(secret.GetEntries()) == 0 {
+		return "", errors.Error("secret has no entries")
+	}
+
+	for _, entry := range secret.GetEntries() {
+		if entry.GetKey() == key {
+			return entry.GetTextValue(), nil
+		}
+	}
+
+	return "", errors.Errorf("key not found in secret %v", errors.Token("key", key))
+}
+
 func loadConfig(
+	ctx context.Context,
 	env Environment,
+	ycSDKClient *ycsdk.SDK,
 ) (Config, error) {
 	configsPath := os.Getenv("CONFIGS_PATH")
 	fmt.Println("CONFIGS_PATH", configsPath)
@@ -154,33 +215,29 @@ func loadConfig(
 	}
 
 	cfg := Config{
-		secretsMap:  make(map[string]string),
-		viperLoader: v,
+		viperLoader:  v,
+		ycSDKClient:  ycSDKClient,
+		secretsCache: make(map[string]*lockbox.Payload),
 	}
 
-	err = cfg.readSection("grpc", &cfg.grpc)
+	err = cfg.readSection(ctx, "grpc", &cfg.grpc)
 	if err != nil {
 		return Config{}, errors.Wrap(err, "load grpc server config")
 	}
 
-	err = cfg.readSection("http", &cfg.http)
+	err = cfg.readSection(ctx, "http", &cfg.http)
 	if err != nil {
 		return Config{}, errors.Wrap(err, "load http server config")
 	}
 
-	err = cfg.readSection("logging", &cfg.logging)
+	err = cfg.readSection(ctx, "logging", &cfg.logging)
 	if err != nil {
 		return Config{}, errors.Wrap(err, "load logging config")
 	}
 
-	err = cfg.readSection("swagger-ui", &cfg.swaggerUI)
+	err = cfg.readSection(ctx, "swagger-ui", &cfg.swaggerUI)
 	if err != nil {
 		return Config{}, errors.WrapFail(err, "load swagger-ui config")
-	}
-
-	err = cfg.readSection("secrets", &cfg.secrets)
-	if err != nil {
-		return Config{}, errors.WrapFail(err, "load secrets config")
 	}
 
 	return cfg, nil

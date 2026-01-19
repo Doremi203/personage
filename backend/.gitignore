@@ -10,6 +10,9 @@
 ## secrets
 *.env
 
+# ignore cover files
+*cover.out
+
 # User-specific files
 *.rsuser
 *.suo

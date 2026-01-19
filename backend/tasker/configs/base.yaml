@@ -7,3 +7,10 @@ http:
 logging:
   level: debug
   format: console
+
+sqs:
+  endpoint: https://message-queue.api.cloud.yandex.net
+  region: ru-central1
+  accessKey: "secret:e6q869h32umj7dap12qa:e6q1l84sfb3f05qqu03e:access_key_id"
+  secretKey: "secret:e6q869h32umj7dap12qa:e6q1l84sfb3f05qqu03e:secret_key"
+  queueUrl: https://message-queue.api.cloud.yandex.net/b1gfkhf234165rrluh60/dj60000000bu18uu03cs/connector-events.fifo
