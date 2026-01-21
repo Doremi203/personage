@@ -61,7 +61,7 @@ public class GmailTokenRepository(IDbConnectionFactory connectionFactory) : IGma
                 refresh_token = @refreshToken,
                 expires_at = @expiresAt
             WHERE
-                id = @tokeId;
+                id = @tokenId;
             """,
             new
             {
