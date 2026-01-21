@@ -39,10 +39,81 @@ type grpcGatewayService interface {
 // вернуть ошибку, если что-то пошло не так.
 type ResourceCloser func() error
 
-// BackgroundProcess представляет функцию фонового процесса, которая запускается
-// в отдельной горутине. Функция принимает контекст для отслеживания сигнала отмены
-// и возвращает ошибку в случае возникновения проблем во время выполнения.
-type BackgroundProcess func(ctx context.Context) error
+func NewBackgroundJob(
+	name string,
+	jobFunc func(ctx context.Context) error,
+) backgroundJob {
+	return backgroundJob{
+		name:    name,
+		jobFunc: jobFunc,
+	}
+}
+
+func (bj backgroundJob) WithInterval(interval time.Duration) backgroundJob {
+	bj.interval = interval
+	return bj
+}
+
+// backgroundJob представляет фоновый процесс, который запускается
+// в отдельной горутине.
+type backgroundJob struct {
+	name     string
+	interval time.Duration
+	jobFunc  func(ctx context.Context) error
+}
+
+func (bj backgroundJob) Run(ctx context.Context, logger log.Logger) error {
+	if bj.interval > 0 {
+		return bj.runWithInterval(ctx, logger)
+	}
+	return bj.run(ctx, logger)
+}
+
+func (bj backgroundJob) runWithInterval(ctx context.Context, logger log.Logger) error {
+	ticker := time.NewTicker(bj.interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+			err := bj.runIteration(ctx, logger)
+			if err != nil {
+				return errors.WrapFail(err, "run background job iteration")
+			}
+		}
+	}
+}
+
+func (bj backgroundJob) run(ctx context.Context, logger log.Logger) error {
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			err := bj.runIteration(ctx, logger)
+			if err != nil {
+				return errors.WrapFail(err, "run background job iteration")
+			}
+		}
+	}
+}
+
+func (bj backgroundJob) runIteration(ctx context.Context, logger log.Logger) error {
+	defer func() {
+		if panicErr := recover(); panicErr != nil {
+			logger.Error(errors.Wrapf(
+				panicErr.(error),
+				"background job %s caught panic %s",
+				errors.Token("name", bj.name),
+				errors.Token("stack", string(debug.Stack())),
+			))
+		}
+	}()
+
+	return bj.jobFunc(ctx)
+}
 
 // App представляет основное приложение, включающее в себя настройки,
 // логирование, HTTP и gRPC серверы, а также управление фоновыми процессами
@@ -68,20 +139,31 @@ type App struct {
 	gatewayHandlers       []grpcGatewayService
 	httpServer            *http.Server
 
-	backgroundProcesses  []BackgroundProcess
-	backgroundCtx        context.Context
-	backgroundCancelFunc context.CancelCauseFunc
+	backgroundJobs []backgroundJob
+	backgroundCtx  context.Context
 
 	Env    Environment
 	Config Config
 }
 
-func initApp() *App {
+func initApp(ctx context.Context) *App {
 	envStr := os.Getenv("APP_ENV")
 	env := parseEnvironment(envStr)
 	fmt.Println("APP_ENV", env)
 
-	cfg, err := loadConfig(env)
+	httpClient := resty.New().
+		SetTimeout(5 * time.Second).
+		SetRetryCount(5).
+		SetRetryWaitTime(1 * time.Second).
+		SetRetryMaxWaitTime(5 * time.Second)
+
+	sdkClient, err := initYCSdk(ctx, env)
+	if err != nil {
+		fmt.Printf("Error initializing YC SDK: %v\n", err)
+		os.Exit(1)
+	}
+
+	cfg, err := loadConfig(ctx, env, sdkClient)
 	if err != nil {
 		panic(errors.WrapFail(err, "load app config"))
 	}
@@ -97,28 +179,13 @@ func initApp() *App {
 	)
 	cfg.logger = logger
 
-	backgroundCtx, backgroundCancelFunc := context.WithCancelCause(context.Background())
-
-	httpClient := resty.New().
-		SetTimeout(5 * time.Second).
-		SetRetryCount(5).
-		SetRetryWaitTime(1 * time.Second).
-		SetRetryMaxWaitTime(5 * time.Second)
-
-	sdkClient, err := initYCSdk(httpClient, env)
-	if err != nil {
-		logger.Error(errors.WrapFail(err, "init yc sdk"))
-		os.Exit(1)
-	}
-
 	app := &App{
-		Env:                  env,
-		Config:               cfg,
-		Log:                  logger,
-		ycSDKClient:          sdkClient,
-		httpClient:           httpClient,
-		backgroundCtx:        backgroundCtx,
-		backgroundCancelFunc: backgroundCancelFunc,
+		Env:           env,
+		Config:        cfg,
+		Log:           logger,
+		ycSDKClient:   sdkClient,
+		httpClient:    httpClient,
+		backgroundCtx: ctx,
 		httpServer: &http.Server{
 			Addr:              fmt.Sprintf(":%d", cfg.http.Port),
 			ReadHeaderTimeout: 5 * time.Second,
@@ -145,16 +212,10 @@ func initApp() *App {
 		},
 	}
 
-	err = app.loadSecrets()
-	if err != nil {
-		logger.Error(errors.WrapFail(err, "load secrets"))
-		os.Exit(1)
-	}
-
 	return app
 }
 
-func initYCSdk(httpClient *resty.Client, env Environment) (*ycsdk.SDK, error) {
+func initYCSdk(ctx context.Context, env Environment) (*ycsdk.SDK, error) {
 	var ycToken string
 	if env == TestingEnvironment || env == ProdEnvironment {
 		tokenResp := struct {
@@ -162,7 +223,12 @@ func initYCSdk(httpClient *resty.Client, env Environment) (*ycsdk.SDK, error) {
 			ExpiresIn   int    `json:"expires_in"`
 			TokenType   string `json:"token_type"`
 		}{}
-		resp, err := httpClient.R().
+		resp, err := resty.New().
+			SetTimeout(1*time.Second).
+			SetRetryCount(5).
+			SetRetryWaitTime(50*time.Millisecond).
+			SetRetryMaxWaitTime(1*time.Second).R().
+			SetContext(ctx).
 			SetHeader("Metadata-Flavor", "Google").
 			SetResult(&tokenResp).
 			Get(fmt.Sprintf("http://%s/computeMetadata/v1/instance/service-accounts/default/token", ycsdk.GetMetadataServiceAddr()))
@@ -187,7 +253,7 @@ func initYCSdk(httpClient *resty.Client, env Environment) (*ycsdk.SDK, error) {
 	}
 
 	ycSDKClient, err := ycsdk.Build(
-		context.Background(),
+		ctx,
 		ycsdk.Config{Credentials: ycsdk.NewIAMTokenCredentials(ycToken)},
 		retriesDialOption,
 	)
@@ -198,15 +264,25 @@ func initYCSdk(httpClient *resty.Client, env Environment) (*ycsdk.SDK, error) {
 	return ycSDKClient, nil
 }
 
+var errAppGracefulShutdown = errors.Error("app graceful shutdown")
+
 // Run запускает приложение. Вызов функции блокируется до получения сигнала от OS о завершении приложения.
 //
 // Для запуска необходимо выставить переменную окружения APP_ENV, которая определяет окружение приложения. Возможные значения: (dev, tests, testing, prod).
 //
 // Также необходимо указать переменную окружения CONFIGS_PATH, которая указывает путь к директории с конфигурационными файлами.
 func Run(setupFunc func(ctx context.Context, app *App) error) {
-	a := initApp()
+	ctx, cancel := context.WithCancelCause(context.Background())
+	defer cancel(errAppGracefulShutdown)
+	stopCh := make(chan os.Signal, 1)
+	signal.Notify(stopCh, syscall.SIGTERM, syscall.SIGINT)
+	go func() {
+		<-stopCh
+		cancel(errAppGracefulShutdown)
+	}()
+	a := initApp(ctx)
 
-	err := run(a, setupFunc)
+	err := run(ctx, a, setupFunc)
 	if err != nil {
 		a.Log.Error(err)
 		a.shutDown()
@@ -216,10 +292,7 @@ func Run(setupFunc func(ctx context.Context, app *App) error) {
 	a.shutDown()
 }
 
-func run(a *App, setupFunc func(ctx context.Context, app *App) error) (err error) {
-	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
-	defer cancel()
-
+func run(ctx context.Context, a *App, setupFunc func(ctx context.Context, app *App) error) (err error) {
 	defer func() {
 		if panicErr := recover(); panicErr != nil {
 			err = errors.Wrapf(panicErr.(error), "app crashed with panic %v", errors.Token("stack", string(debug.Stack())))
@@ -233,10 +306,10 @@ func run(a *App, setupFunc func(ctx context.Context, app *App) error) (err error
 
 	grpcMux := runtime.NewServeMux(a.gatewayOptions...)
 
-	grpcServer, err := a.initGRPCServer(grpcMux)
+	grpcServer, err := a.initGRPCServer(ctx, grpcMux)
 	a.initHTTPServer(grpcMux)
 
-	a.startBackgroundProcesses()
+	a.startBackgroundJobs()
 
 	a.healthCheckFunc = func() bool {
 		return true
@@ -291,11 +364,11 @@ func (a *App) AddCloser(closer ResourceCloser) {
 	a.closers = append(a.closers, closer)
 }
 
-// AddBackgroundProcess добавляет фоновый процесс, который будет запущен вместе
+// AddBackgroundJob добавляет фоновый процесс, который будет запущен вместе
 // с приложением. Фоновый процесс — это функция, принимающая контекст и возвращающая ошибку.
 // Такие процессы используются для обслуживания постоянных задач (например, прослушивания портов, запуск воркеров и т.д.).
-func (a *App) AddBackgroundProcess(processor BackgroundProcess) {
-	a.backgroundProcesses = append(a.backgroundProcesses, processor)
+func (a *App) AddBackgroundJob(job backgroundJob) {
+	a.backgroundJobs = append(a.backgroundJobs, job)
 }
 
 // AddGRPCUnaryInterceptor добавляет в gRPC-сервер указанные interceptors в переданном порядке.
@@ -336,9 +409,9 @@ func (a *App) registerGatewayHandler(
 	return nil
 }
 
-func (a *App) initGRPCServer(grpcMux *runtime.ServeMux) (*grpc.Server, error) {
+func (a *App) initGRPCServer(ctx context.Context, grpcMux *runtime.ServeMux) (*grpc.Server, error) {
 	var xApiCfg xAPIKeyConfig
-	err := a.Config.ReadSection("x-api-key", &xApiCfg)
+	err := a.Config.ReadSection(ctx, "x-api-key", &xApiCfg)
 	if err != nil {
 		return nil, errors.WrapFail(err, "read x-api-key config")
 	}
@@ -371,7 +444,7 @@ func (a *App) initGRPCServer(grpcMux *runtime.ServeMux) (*grpc.Server, error) {
 		}
 	}
 
-	a.AddBackgroundProcess(func(ctx context.Context) error {
+	a.AddBackgroundJob(NewBackgroundJob("grpc_server", func(ctx context.Context) error {
 		a.Log.Infof("starting listen on %v", errors.Token("port", a.Config.grpc.Port))
 		listener, err := net.Listen("tcp", fmt.Sprintf(":%d", a.Config.grpc.Port))
 		if err != nil {
@@ -385,7 +458,7 @@ func (a *App) initGRPCServer(grpcMux *runtime.ServeMux) (*grpc.Server, error) {
 		}
 
 		return nil
-	})
+	}))
 
 	return grpcServer, nil
 }
@@ -428,37 +501,34 @@ func (a *App) initHTTPServer(grpcMux *runtime.ServeMux) {
 		AllowCredentials: true,
 		MaxAge:           600,
 	}).Handler(mux)
-	a.AddBackgroundProcess(func(ctx context.Context) error {
+	a.AddBackgroundJob(NewBackgroundJob("http_server", func(ctx context.Context) error {
 		a.Log.Infof("starting http server on %v", errors.Token("address", a.httpServer.Addr))
 		if err := a.httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			return errors.WrapFail(err, "serve http")
 		}
 
 		return nil
-	})
+	}))
 }
 
-func (a *App) startBackgroundProcesses() {
-	for _, processor := range a.backgroundProcesses {
-		a.wg.Add(1)
-		go func() {
-			defer a.wg.Done()
-			err := processor(a.backgroundCtx)
-			if err != nil && !errors.Is(err, errBackgroundProcessStopped) {
-				a.Log.Error(errors.WrapFail(err, "start background process"))
+func (a *App) startBackgroundJobs() {
+	for _, job := range a.backgroundJobs {
+		a.wg.Go(func() {
+			a.Log.Infof("starting background job %v", errors.Token("name", job.name))
+			err := job.Run(a.backgroundCtx, a.Log)
+			if errors.Is(err, context.Canceled) &&
+				errors.Is(context.Cause(a.backgroundCtx), errAppGracefulShutdown) {
+				a.Log.Infof("background job %v stopped due to app stop", errors.Token("name", job.name))
+				return
 			}
-		}()
+			a.Log.Error(errors.WrapFail(err, "run background job"))
+		})
 	}
 }
 
-var errBackgroundProcessStopped = errors.Error("background process has been stopped")
-
-func (a *App) stopBackgroundProcesses() {
-	a.Log.Infof("stopping background processes")
-
-	a.backgroundCancelFunc(errBackgroundProcessStopped)
+func (a *App) waitBackgroundProcessesToStop() {
+	a.Log.Infof("waiting background processes to stop")
 	a.wg.Wait()
-
 	a.Log.Infof("background processes stopped")
 }
 
@@ -476,7 +546,7 @@ func (a *App) closeResources() {
 }
 
 func (a *App) shutDown() {
-	a.stopBackgroundProcesses()
+	a.waitBackgroundProcessesToStop()
 	a.closeResources()
 
 	a.Log.Infof("app shut down")

@@ -9,7 +9,7 @@ services:
       APP_ENV: dev
       CONFIGS_PATH: /app/configs
     env_file:
-      - secrets.env
+      - ../secrets.env
     ports:
       - "8080:8080"
       - "9090:9090"

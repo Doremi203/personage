@@ -6,9 +6,6 @@ MIGRATE_CREATE = goose create $(name) sql -s
 export TESTCONTAINERS_RYUK_DISABLED=true
 export BASE_MIGRATIONS_PATH=$(PWD)
 
-secrets/yc-token:
-	@echo "YC_TOKEN=$$(yc iam create-token --impersonate-service-account-id ajemh7rheo5jrvfq4svj)" > secrets.env
-
 deps: deps/migrate deps/go-test-coverage deps/buf deps/mockgen deps/protoc deps/linters
 
 deps/migrate:
@@ -33,7 +30,7 @@ deps/protoc:
 deps/linters:
 	brew install golangci-lint
 
-common/pull/proto: common/pull/proto/googleapis
+common/pull/proto: common/pull/proto/googleapis common/pull/proto/protoc-gen-openapiv2 common/pull/proto/validate
 
 common/pull/proto/googleapis:
 	$(call CLONE_PROTO_REPO, https://github.com/googleapis/googleapis,google/api/http.proto google/api/annotations.proto google/api/field_behavior.proto)
@@ -52,9 +49,9 @@ define CLONE_PROTO_REPO
 		git sparse-checkout init --no-cone && \
 		git sparse-checkout set $(2) && \
 		git checkout
-	@mkdir -p common/proto
+	@mkdir -p libs/proto
 	@cd tmp && \
-		rsync -aR $(2) $(CURDIR)/common/proto/
+		rsync -aR $(2) $(CURDIR)/libs/proto/
 	@rm -rf tmp
 endef
 

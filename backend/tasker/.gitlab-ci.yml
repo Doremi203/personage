@@ -5,6 +5,7 @@ include:
   rules:
     - changes:
         - backend/tasker/**/*
+        - backend/libs/go/**/*
 
 
 .tasker:lint:
