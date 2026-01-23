@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from typing import Any
 
 
 class BaseConsumer(ABC):
@@ -13,9 +12,4 @@ class BaseConsumer(ABC):
     @abstractmethod
     async def stop(self) -> None:
         """Stop consuming messages"""
-        pass
-
-    @abstractmethod
-    async def process_message(self, message: Any) -> None:
-        """Process a single message"""
         pass

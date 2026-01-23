@@ -1,6 +1,24 @@
 from dependency_injector import providers, containers
 
+from app.services.GmailProcessingService import GmailProcessingService
+from messaging.EventProducer import EventProducer
+
 
 class ServiceContainer(containers.DeclarativeContainer):
     config = providers.Configuration()
-    pass
+    repositories = providers.DependenciesContainer()
+    clients = providers.DependenciesContainer()
+    message_queue = providers.Dependency()
+
+    event_producer = providers.Factory(
+        EventProducer,
+        queue_client=message_queue
+    )
+
+    gmail_processing_service = providers.Factory(
+        GmailProcessingService,
+        gmail_processing_repository=repositories.gmail_processing_repository,
+        state_tracking_client=clients.state_tracking_client,
+        gmail_api_client=clients.gmail_api_client,
+        event_producer=event_producer,
+    )

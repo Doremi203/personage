@@ -1,0 +1,60 @@
+syntax = "proto3";
+
+package api.events;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/amoguscorp/personage/backend/tasker/gen/api/events";
+
+message Event {
+  string id = 1;
+  string user_id = 2;
+  ConnectorType connector_type = 3;
+  google.protobuf.Timestamp occurred_at = 4;
+  Context context = 5;
+}
+
+enum ConnectorType {
+  CONNECTOR_TYPE_UNKNOWN = 0;
+  CONNECTOR_TYPE_GMAIL = 1;
+  CONNECTOR_TYPE_TELEGRAM = 2;
+  CONNECTOR_TYPE_GOOGLE_CALENDAR = 3;
+}
+
+message Context {
+  string body = 1;
+  optional Subject subject = 2;
+  optional TimeFrame time_frame = 3;
+  optional Location location = 4;
+  repeated Attachment attachments = 5;
+  repeated Participant other_participants = 6;
+  optional Participant sender = 7;
+
+  message Subject {
+    string name = 1;
+  }
+
+  message Location {
+    string address = 1;
+  }
+
+  message Attachment {
+    string name = 1;
+  }
+
+  message Participant {
+    optional string name = 1;
+    optional TelegramUser telegram_user = 2;
+    optional string email = 3;
+  }
+}
+
+message TimeFrame {
+  google.protobuf.Timestamp start = 1;
+  google.protobuf.Timestamp end = 2;
+}
+
+message TelegramUser {
+  string id = 1;
+  string tag = 2;
+}

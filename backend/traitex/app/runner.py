@@ -2,15 +2,53 @@ import asyncio
 import logging
 import signal
 import sys
+import os
+from app.core.configuration.config import Configuration
 from app.core.containers.ApplicationContainer import ApplicationContainer
 
 logger = logging.getLogger(__name__)
 
 
 class ApplicationRunner:
-    def __init__(self):
-        self.container = ApplicationContainer()
+    def __init__(self, config: Configuration):
+        self.config = config
+        self.container = ApplicationRunner._create_container(config)
         self.shutdown_event = asyncio.Event()
+
+    @staticmethod
+    def _create_container(config: Configuration) -> ApplicationContainer:
+        container = ApplicationContainer()
+
+        container.config.from_dict({
+            "database": {
+                "username": config.get("Database.Username"),
+                "password": config.get("Database.Password"),
+                "host": config.get("Database.Host"),
+                "port": config.get("Database.Port"),
+                "dbname": config.get("Database.Database")
+            },
+            "state_tracking": {
+                "endpoint": config.get("StateTracking.Endpoint")
+            },
+            "gmail": {
+                "max_messages_per_user": config.get("Gmail.MaxMessagesPerUser", 100),
+                "client_id": config.get("Gmail.ClientId", ""),
+                "client_secret": config.get("Gmail.ClientSecret", "")
+            },
+            "application": {
+                "batch_size": config.get("Application.BatchSize", 10),
+                "seconds_since_last_process": config.get("Application.SecondsSinceLastProcess", 60)
+            },
+            "ymq":
+                {
+                    "endpoint_url": config.get("YMQ.EndpointUrl"),
+                    "access_key": config.get("YMQ.AccessKeyId"),
+                    "secret_key": config.get("YMQ.SecretAccessKey"),
+                    "region": config.get("YMQ.Region")
+                }
+        })
+
+        return container
 
     async def start(self) -> None:
         try:
@@ -37,7 +75,7 @@ class ApplicationRunner:
 
 
 def setup_signal_handlers(runner: ApplicationRunner) -> None:
-    def signal_handler(signum, frame):
+    def signal_handler(signum, _):
         logger.info(f"Received signal {signum}, initiating shutdown...")
         runner.shutdown_event.set()
 
@@ -46,25 +84,46 @@ def setup_signal_handlers(runner: ApplicationRunner) -> None:
 
 
 async def main() -> None:
-    """Main application entry point"""
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        stream=sys.stdout
-    )
-
-    runner = ApplicationRunner()
-    setup_signal_handlers(runner)
-
     try:
-        await runner.start()
-    except KeyboardInterrupt:
-        logger.info("Received keyboard interrupt")
+        config = Configuration()
+
+        logging_config = config.get_section("Logging")
+        logging.basicConfig(
+            level=getattr(logging, logging_config.get("Level", "INFO")),
+            format=logging_config.get("Format", '%(asctime)s - %(name)s - %(levelname)s - %(message)s'),
+            stream=sys.stdout
+        )
+
+        logger.info(f"Application started. Environment: {os.getenv('APP_ENV', 'development')}")
+
+        runner = ApplicationRunner(config)
+        setup_signal_handlers(runner)
+
+        try:
+            await runner.start()
+        except KeyboardInterrupt:
+            logger.info("Received keyboard interrupt")
+        except Exception as e:
+            logger.error(f"Application error: {e}")
+            raise
+        finally:
+            await runner.stop()
+
     except Exception as e:
-        logger.error(f"Application error: {e}")
-    finally:
-        await runner.stop()
+        logger.error(f"Failed to start application: {e}", exc_info=True)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    if os.name == 'nt':
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
+    if 'pydevd' in sys.modules:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            loop.run_until_complete(main())
+        finally:
+            loop.close()
+    else:
+        asyncio.run(main())

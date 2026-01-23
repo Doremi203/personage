@@ -1,16 +1,18 @@
 from dependency_injector import containers, providers
 
-from app.consumers.MockConsumer import MockConsumer
+from app.consumers.GmailConsumer import GmailConsumer
 
 
 class ConsumerContainer(containers.DeclarativeContainer):
     config = providers.Configuration()
 
-    message_consumer = providers.Singleton(
-        MockConsumer,
-        batch_size=config.batch_size
+    services = providers.DependenciesContainer()
+
+    gmail_consumer = providers.Singleton(
+        GmailConsumer,
+        gmail_processing_service=services.gmail_processing_service
     )
 
     all_consumers = providers.List(
-        message_consumer,
+        gmail_consumer,
     )

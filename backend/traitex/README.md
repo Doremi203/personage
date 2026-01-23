@@ -13,10 +13,49 @@ A background service that ingests data from various sources (messengers, mail, c
 
 ## Quick Start
 
-```bash
-# Install dependencies
-pip install -r requirements.txt
+### Activate venv
 
+#### windows
+```cmd
+python -m venv .venv
+.venv\Scripts\activate.bat
+```
+
+#### unix
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
+---
+### Install dependencies
+```bash
+pip install -r requirements.txt
+```
+---
+### Set PYTHONPATH
+#### windows
+```cmd
+set PYTHONPATH=%cd%
+```
+
+#### unix
+```bash
+export PYTHONPATH=$(pwd)/externalClient/personage_auth/proto
+```
+
+### Generate classes for .proto files
+
+#### traitex api files
+```bash
+python -m grpc_tools.protoc -I=./proto --python_out=./proto --grpc_python_out=./proto --mypy_out=./proto proto/*.proto
+```
+
+#### External dependencies
+```bash
+python -m grpc_tools.protoc --proto_path=../Personage.Auth/Personage.Auth.Api/Protos --python_out=./externalClients/personage_auth/proto --grpc_python_out=./externalClients/personage_auth/proto --mypy_out=./externalClients/personage_auth/proto ../Personage.Auth/Personage.Auth.Api/Protos/*.proto
+```
+
+```bash
 # Run the service
 python -m app.runner
 ```
