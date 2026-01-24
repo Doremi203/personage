@@ -69,3 +69,17 @@ tasker/run: tasker/generate
 
 tasker/generate:
 	cd tasker && go generate ./...
+
+TASKER_MIGRATIONS = tasker/migrations
+
+tasker/migrate/up:
+	goose -v -dir "$(TASKER_MIGRATIONS)" "$(DB)tasker$(DB_PARAMS)" up
+
+tasker/migrate/down:
+	goose -v -dir "$(TASKER_MIGRATIONS)" "$(DB)tasker$(DB_PARAMS)" reset
+
+tasker/migrate/down-one:
+	goose -v -dir "$(TASKER_MIGRATIONS)" "$(DB)tasker$(DB_PARAMS)" down
+
+tasker/migrate/create:
+	cd $(TASKER_MIGRATIONS) && $(MIGRATE_CREATE)

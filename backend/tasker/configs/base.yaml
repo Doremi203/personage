@@ -14,3 +14,19 @@ sqs:
   accessKey: "secret:e6q869h32umj7dap12qa:e6q1l84sfb3f05qqu03e:access_key_id"
   secretKey: "secret:e6q869h32umj7dap12qa:e6q1l84sfb3f05qqu03e:secret_key"
   queueUrl: https://message-queue.api.cloud.yandex.net/b1gfkhf234165rrluh60/dj60000000bu18uu03cs/connector-events.fifo
+
+database:
+  host: db
+  port: 5432
+  user: user
+  password: pass
+  database: tasker
+  options: sslmode=disable
+
+llm:
+  model: "xiaomi/mimo-v2-flash:free"
+  apiKey: "secret:e6qd2ljggdrvefjgg0gf:e6q72jfficuq9om25sab:open-router"
+
+embedding:
+  model: openai/text-embedding-3-small
+  apiKey: "secret:e6qd2ljggdrvefjgg0gf:e6q72jfficuq9om25sab:open-router"

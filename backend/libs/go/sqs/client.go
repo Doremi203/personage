@@ -2,18 +2,20 @@ package sqs
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 
-	"github.com/Doremi203/couply/backend/auth/pkg/errors"
-	"github.com/Doremi203/couply/backend/auth/pkg/log"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
+	"gitlab.com/amoguscorp/personage/backend/libs/go/errors"
+	"gitlab.com/amoguscorp/personage/backend/libs/go/log"
+	"google.golang.org/protobuf/proto"
 )
 
 type ClientWriter[T any] interface {
-	SendMessage(ctx context.Context, groupID string, data T) error
+	SendMessage(ctx context.Context, groupID string, deduplicationID string, data T) error
 }
 
 type ClientReader[T any] interface {
@@ -21,11 +23,15 @@ type ClientReader[T any] interface {
 	DeleteMessage(context.Context, Message[T]) error
 }
 
-type withID interface {
-	GetId() string
+type constraint interface {
+	proto.Message
 }
 
-func New[T withID](ctx context.Context, cfg Config) (*client[T], error) {
+func New[T constraint](
+	ctx context.Context,
+	cfg Config,
+	factory func() T,
+) (*client[T], error) {
 	clientAWSCfg, err := config.LoadDefaultConfig(
 		ctx,
 		config.WithBaseEndpoint(cfg.Endpoint),
@@ -46,17 +52,25 @@ func New[T withID](ctx context.Context, cfg Config) (*client[T], error) {
 	)
 
 	return &client[T]{
-		client: awsSQS,
-		config: cfg,
+		client:  awsSQS,
+		config:  cfg,
+		factory: factory,
 	}, nil
 }
 
-type client[T withID] struct {
+type client[T constraint] struct {
 	client *sqs.Client
 	config Config
+
+	factory func() T
 }
 
-func (c *client[T]) SendMessage(ctx context.Context, groupID string, data T) error {
+func (c *client[T]) SendMessage(
+	ctx context.Context,
+	groupID string,
+	deduplicationID string,
+	data T,
+) error {
 	messageBody, err := json.Marshal(data)
 	if err != nil {
 		return errors.WrapFail(err, "marshal message")
@@ -64,7 +78,7 @@ func (c *client[T]) SendMessage(ctx context.Context, groupID string, data T) err
 
 	input := &sqs.SendMessageInput{
 		MessageGroupId:         aws.String(groupID),
-		MessageDeduplicationId: aws.String(data.GetId()),
+		MessageDeduplicationId: aws.String(deduplicationID),
 		MessageBody:            aws.String(string(messageBody)),
 		QueueUrl:               aws.String(c.config.QueueURL),
 	}
@@ -89,10 +103,16 @@ func (c *client[T]) ReadMessages(ctx context.Context, logger log.Logger, maxCoun
 	}
 
 	for _, msg := range resp.Messages {
-		var body T
-		err = json.Unmarshal([]byte(*msg.Body), &body)
+		body := c.factory()
+		decodedBytes, err := base64.StdEncoding.DecodeString(*msg.Body)
 		if err != nil {
-			logger.Error(errors.WrapFailf(err, "unmarshal message body %v", errors.Token("message_body", *msg.Body)))
+			logger.Error(errors.WrapFailf(err, "decode base64 message body %v", errors.Token("message_id", *msg.MessageId)))
+			continue
+		}
+
+		err = proto.Unmarshal(decodedBytes, body)
+		if err != nil {
+			logger.Error(errors.WrapFailf(err, "unmarshal protobuf message %v", errors.Token("message_id", *msg.MessageId)))
 			continue
 		}
 

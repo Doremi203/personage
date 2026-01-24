@@ -80,7 +80,7 @@ func (bj backgroundJob) runWithInterval(ctx context.Context, logger log.Logger) 
 		case <-ticker.C:
 			err := bj.runIteration(ctx, logger)
 			if err != nil {
-				return errors.WrapFail(err, "run background job iteration")
+				logger.Error(errors.WrapFail(err, "run background job iteration"))
 			}
 		}
 	}
@@ -94,7 +94,7 @@ func (bj backgroundJob) run(ctx context.Context, logger log.Logger) error {
 		default:
 			err := bj.runIteration(ctx, logger)
 			if err != nil {
-				return errors.WrapFail(err, "run background job iteration")
+				logger.Error(errors.WrapFail(err, "run background job iteration"))
 			}
 		}
 	}

@@ -8,19 +8,20 @@ import (
 	"gitlab.com/amoguscorp/personage/backend/libs/go/log"
 )
 
-type processor[T withID] interface {
+type processor[T constraint] interface {
 	Process(ctx context.Context, data T) error
 }
 
-func NewMessageProcessor[T withID](
+func NewMessageProcessor[T constraint](
 	ctx context.Context,
 	logger log.Logger,
 	cfg Config,
+	factory func() T,
 	processor processor[T],
 	processingTimeout time.Duration,
 	maxMessagesPerBatch int,
 ) (*MessageProcessor[T], error) {
-	client, err := New[T](ctx, cfg)
+	client, err := New[T](ctx, cfg, factory)
 	if err != nil {
 		return nil, errors.WrapFail(err, "create sqs client")
 	}
@@ -33,7 +34,7 @@ func NewMessageProcessor[T withID](
 	}, nil
 }
 
-type MessageProcessor[T withID] struct {
+type MessageProcessor[T constraint] struct {
 	sqsClient ClientReader[T]
 	logger    log.Logger
 	processor processor[T]
