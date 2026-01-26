@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Icon Generator</title>
+</head>
+<body>
+    <h1>PWA Icon Generator</h1>
+    <p>Open browser console and click the button to generate icons</p>
+    <button onclick="generateIcons()">Generate Icons</button>
+    <div id="output"></div>
+
+    <script>
+        function generateIcons() {
+            const sizes = [72, 96, 128, 144, 152, 192, 384, 512];
+            const output = document.getElementById('output');
+            output.innerHTML = '';
+
+            sizes.forEach(size => {
+                const canvas = document.createElement('canvas');
+                canvas.width = size;
+                canvas.height = size;
+                const ctx = canvas.getContext('2d');
+
+                const gradient = ctx.createLinearGradient(0, 0, size, size);
+                gradient.addColorStop(0, '#5C6BFF');
+                gradient.addColorStop(1, '#7C8CFF');
+
+                const radius = size * 0.22;
+                ctx.beginPath();
+                ctx.moveTo(radius, 0);
+                ctx.lineTo(size - radius, 0);
+                ctx.arcTo(size, 0, size, radius, radius);
+                ctx.lineTo(size, size - radius);
+                ctx.arcTo(size, size, size - radius, size, radius);
+                ctx.lineTo(radius, size);
+                ctx.arcTo(0, size, 0, size - radius, radius);
+                ctx.lineTo(0, radius);
+                ctx.arcTo(0, 0, radius, 0, radius);
+                ctx.closePath();
+                ctx.fillStyle = gradient;
+                ctx.fill();
+
+                ctx.fillStyle = 'white';
+                const sparkleSize = size * 0.4;
+                const sparkleX = size * 0.5;
+                const sparkleY = size * 0.5;
+
+                ctx.beginPath();
+                for (let i = 0; i < 4; i++) {
+                    const angle = (i * Math.PI / 2) + Math.PI / 4;
+                    const x1 = sparkleX + Math.cos(angle) * sparkleSize * 0.3;
+                    const y1 = sparkleY + Math.sin(angle) * sparkleSize * 0.3;
+                    const x2 = sparkleX + Math.cos(angle) * sparkleSize * 0.5;
+                    const y2 = sparkleY + Math.sin(angle) * sparkleSize * 0.5;
+
+                    if (i === 0) ctx.moveTo(x1, y1);
+                    ctx.lineTo(x2, y2);
+                    ctx.lineTo(sparkleX + Math.cos(angle + Math.PI / 4) * sparkleSize * 0.15,
+                              sparkleY + Math.sin(angle + Math.PI / 4) * sparkleSize * 0.15);
+                }
+                ctx.closePath();
+                ctx.fill();
+
+                canvas.toBlob(blob => {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `icon-${size}x${size}.png`;
+                    a.textContent = `Download icon-${size}x${size}.png`;
+                    a.style.display = 'block';
+                    a.style.margin = '10px 0';
+                    output.appendChild(a);
+                });
+
+                const img = document.createElement('img');
+                img.src = canvas.toDataURL();
+                img.style.width = '64px';
+                img.style.margin = '10px';
+                output.appendChild(img);
+            });
+        }
+    </script>
+</body>
+</html>
