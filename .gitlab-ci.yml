@@ -2,7 +2,10 @@ stages: [ .pre, lint, build, test, merge_ok, deploy ]
 
 workflow:
   rules:
+    # Запускаем для merge request
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    # Запускаем для git тегов (релизы)
+    - if: $CI_COMMIT_TAG
     - when: never
 
 include:
