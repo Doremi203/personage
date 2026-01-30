@@ -124,7 +124,7 @@ tasker:deploy:
       
       # Пушим изменения обратно в репозиторий
       echo "📤 Pushing changes to repository..."
-      git push https://oauth2:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git HEAD:${CI_DEFAULT_BRANCH}
+      git push origin HEAD:${CI_DEFAULT_BRANCH}
       
       # Переходим в директорию Terraform
       cd terraform
