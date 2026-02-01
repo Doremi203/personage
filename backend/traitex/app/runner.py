@@ -4,7 +4,7 @@ import signal
 import sys
 import os
 from app.core.configuration.config import Configuration
-from app.core.containers.ApplicationContainer import ApplicationContainer
+from app.core.containers.ApplicationContainer import create_application_container
 
 logger = logging.getLogger(__name__)
 
@@ -12,43 +12,8 @@ logger = logging.getLogger(__name__)
 class ApplicationRunner:
     def __init__(self, config: Configuration):
         self.config = config
-        self.container = ApplicationRunner._create_container(config)
+        self.container = create_application_container(config)
         self.shutdown_event = asyncio.Event()
-
-    @staticmethod
-    def _create_container(config: Configuration) -> ApplicationContainer:
-        container = ApplicationContainer()
-
-        container.config.from_dict({
-            "database": {
-                "username": config.get("Database.Username"),
-                "password": config.get("Database.Password"),
-                "host": config.get("Database.Host"),
-                "port": config.get("Database.Port"),
-                "dbname": config.get("Database.Database")
-            },
-            "state_tracking": {
-                "endpoint": config.get("StateTracking.Endpoint")
-            },
-            "gmail": {
-                "max_messages_per_user": config.get("Gmail.MaxMessagesPerUser", 100),
-                "client_id": config.get("Gmail.ClientId", ""),
-                "client_secret": config.get("Gmail.ClientSecret", "")
-            },
-            "application": {
-                "batch_size": config.get("Application.BatchSize", 10),
-                "seconds_since_last_process": config.get("Application.SecondsSinceLastProcess", 60)
-            },
-            "ymq":
-                {
-                    "endpoint_url": config.get("YMQ.EndpointUrl"),
-                    "access_key": config.get("YMQ.AccessKeyId"),
-                    "secret_key": config.get("YMQ.SecretAccessKey"),
-                    "region": config.get("YMQ.Region")
-                }
-        })
-
-        return container
 
     async def start(self) -> None:
         try:

@@ -1,5 +1,6 @@
 from dependency_injector import providers, containers
 
+from app.core.configuration.config import Configuration
 from app.core.containers.ClientsContainer import ClientsContainer
 from app.core.containers.InfrastructureContainer import InfrastructureContainer
 from app.core.containers.RepositoryContainer import RepositoryContainer
@@ -39,3 +40,38 @@ class ApplicationContainer(containers.DeclarativeContainer):
         config=config,
         services=services
     )
+
+
+def create_application_container(config: Configuration) -> ApplicationContainer:
+    container = ApplicationContainer()
+
+    container.config.from_dict({
+        "database": {
+            "username": config.get("Database.Username"),
+            "password": config.get("Database.Password"),
+            "host": config.get("Database.Host"),
+            "port": config.get("Database.Port"),
+            "dbname": config.get("Database.Database")
+        },
+        "state_tracking": {
+            "endpoint": config.get("StateTracking.Endpoint")
+        },
+        "gmail": {
+            "max_messages_per_user": config.get("Gmail.MaxMessagesPerUser", 100),
+            "client_id": config.get("Gmail.ClientId", ""),
+            "client_secret": config.get("Gmail.ClientSecret", "")
+        },
+        "application": {
+            "batch_size": config.get("Application.BatchSize", 10),
+            "seconds_since_last_process": config.get("Application.SecondsSinceLastProcess", 60)
+        },
+        "ymq":
+            {
+                "endpoint_url": config.get("YMQ.EndpointUrl"),
+                "access_key": config.get("YMQ.AccessKeyId"),
+                "secret_key": config.get("YMQ.SecretAccessKey"),
+                "region": config.get("YMQ.Region")
+            }
+    })
+
+    return container
