@@ -17,3 +17,4 @@ proto-plus~=1.27.0
 PyJWT~=2.10.1
 requests~=2.32.5
 cryptography~=46.0.3
+yc-lockbox~=0.2.0

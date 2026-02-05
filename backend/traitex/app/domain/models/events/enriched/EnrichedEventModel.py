@@ -1,15 +1,14 @@
-from dataclasses import dataclass
+from pydantic import BaseModel
 from datetime import datetime
 from uuid import UUID
 from app.domain.models import ConnectorTypeModel
-from app.domain.models.traits.base.TraitModel import TraitModel
+from app.domain.models.traits.TraitUnion import TraitUnion
 
 
-@dataclass(frozen=True)
-class EnrichedEventModel:
+class EnrichedEventModel(BaseModel):
     id: UUID
     user_id: UUID
     connector_type: ConnectorTypeModel
     occurred_at: datetime
     main_body: str
-    traits: list[TraitModel]
+    traits: list[TraitUnion]

@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package api.events;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/amoguscorp/personage/backend/tasker/gen/api/events";
+
+service ProcessingService {
+  rpc SendProcessingSnapshot(SendProcessingSnapshotRequest) returns (SendProcessingSnapshotResponse) {}
+  rpc GetProcessingSnapshots(GetProcessingSnapshotsRequest) returns (GetProcessingSnapshotsResponse) {}
+  rpc CreateProcessingSnapshot(CreateProcessingSnapshotRequest) returns (CreateProcessingSnapshotResponse) {}
+}
+
+message ProcessingSnapshot {
+  string id = 1;
+  google.protobuf.Timestamp from_ = 2;
+  google.protobuf.Timestamp to = 3;
+}
+
+message GetProcessingSnapshotsRequest {
+}
+
+message GetProcessingSnapshotsResponse {
+  repeated ProcessingSnapshot snapshots = 1;
+}
+
+message CreateProcessingSnapshotRequest {
+  google.protobuf.Timestamp from_ = 1;
+  google.protobuf.Timestamp to = 2;
+}
+
+message CreateProcessingSnapshotResponse {
+  string snapshot_id = 1;
+}
+
+message SendProcessingSnapshotRequest {
+  string snapshot_id = 1;
+}
+
+message SendProcessingSnapshotResponse {
+    int32 events_count = 1;
+}
