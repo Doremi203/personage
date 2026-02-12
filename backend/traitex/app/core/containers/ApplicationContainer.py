@@ -1,6 +1,7 @@
 from dependency_injector import providers, containers
 
 from app.core.configuration.config import Configuration
+from app.core.containers.GrpcServiceContainer import GrpcServiceContainer
 from app.core.containers.ClientsContainer import ClientsContainer
 from app.core.containers.InfrastructureContainer import InfrastructureContainer
 from app.core.containers.RepositoryContainer import RepositoryContainer
@@ -39,6 +40,11 @@ class ApplicationContainer(containers.DeclarativeContainer):
         ConsumerContainer,
         config=config,
         services=services
+    )
+
+    grpc_services = providers.Container(
+        GrpcServiceContainer,
+        services=services,
     )
 
 

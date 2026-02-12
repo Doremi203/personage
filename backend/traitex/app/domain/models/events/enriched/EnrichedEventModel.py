@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 from datetime import datetime
 from uuid import UUID
-from app.domain.models import ConnectorTypeModel
+from app.domain.models.ConnectorTypeModel import ConnectorTypeModel
 from app.domain.models.traits.TraitUnion import TraitUnion
 
 

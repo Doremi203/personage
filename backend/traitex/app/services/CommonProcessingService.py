@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 
 from app.domain.exceptions.base.BusinessErrorCode import BusinessErrorCode
@@ -19,6 +20,7 @@ class CommonProcessingService(ICommonProcessingService):
         self.snapshot_repository = snapshot_repository
         self.event_producer = event_producer
         self.processing_results_repository = processing_results_repository
+        self.logger = logging.getLogger("[CommonProcessingService]")
 
     async def create_processing_snapshot(
             self,
@@ -37,15 +39,30 @@ class CommonProcessingService(ICommonProcessingService):
     ) -> int:
         snapshot = await self.snapshot_repository.get_snapshot(snapshot_id)
         if not snapshot:
-            raise BusinessException(BusinessErrorCode.SnapshotNotFound, f"Snapshot with id {snapshot_id} not found")
+            raise BusinessException(BusinessErrorCode.ProcessingSnapshotNotFound, f"Processing snapshot with id {snapshot_id} not found")
 
         max_events_count = 1000
-        #TODO: check events count
         events = await self.processing_results_repository.get_processing_results(
             from_=snapshot.from_,
             to=snapshot.to,
+            limit=max_events_count + 1
         )
 
+        if len(events) > max_events_count:
+            self.logger.warning(f"Attempted to resend too many events. Only sent {max_events_count} events, the rest is trimmed")
+            events = events[:max_events_count]
+
+        sent_events_count = 0
+        try:
+            #TODO: batch send to queue?
+            for event in events:
+                await self.event_producer.send(event)
+                sent_events_count += 1
+        except Exception as e:
+            self.logger.error(f"Error occurred while sending event to event producer: {str(e)}. Sent {sent_events_count} events. Skipped events: {len(events) - sent_events_count}")
+            return sent_events_count
+
+        return len(events)
 
     async def get_processing_snapshots(self) -> list[SnapshotModel]:
         return await self.snapshot_repository.get_all_snapshots()

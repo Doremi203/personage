@@ -21,4 +21,6 @@ class ServiceContainer(containers.DeclarativeContainer):
         state_tracking_client=clients.state_tracking_client,
         gmail_api_client=clients.gmail_api_client,
         event_producer=event_producer,
+        processing_results_repository=repositories.processing_results_repository,
+        processing_snapshot_repository=repositories.processing_snapshot_repository,
     )

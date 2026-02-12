@@ -48,7 +48,7 @@ def setup_signal_handlers(runner: ApplicationRunner) -> None:
     signal.signal(signal.SIGTERM, signal_handler)
 
 
-async def main() -> None:
+async def serve() -> None:
     try:
         config = Configuration()
 
@@ -78,8 +78,7 @@ async def main() -> None:
         logger.error(f"Failed to start application: {e}", exc_info=True)
         sys.exit(1)
 
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     if os.name == 'nt':
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
@@ -87,8 +86,8 @@ if __name__ == "__main__":
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
-            loop.run_until_complete(main())
+            loop.run_until_complete(serve())
         finally:
             loop.close()
     else:
-        asyncio.run(main())
+        asyncio.run(serve())
