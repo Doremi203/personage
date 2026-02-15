@@ -1,9 +1,9 @@
 from enum import Enum
 
 
-class TraitKindModel(Enum):
-    Unknown = 0
-    Subject = 1
-    Recipient = 2
-    Attachment = 3
-    Sender = 4
+class TraitKindModel(str, Enum):
+    Unknown = "unknown"
+    Subject = "subject"
+    Recipient = "recipient"
+    Attachment = "attachment"
+    Sender = "sender"

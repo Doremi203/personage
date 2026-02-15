@@ -1,5 +1,7 @@
 import asyncio
 import logging
+import traceback
+
 from app.consumers.BaseConsumer import BaseConsumer
 from app.domain.interfaces.business_logic.IGmailProcessingService import IGmailProcessingService
 
@@ -40,7 +42,8 @@ class GmailConsumer(BaseConsumer):
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                logger.error(f"Error in consumption loop: {e}")
+                logger.error(f"Error in consumption loop: {e}\n"
+                             f"Stack trace: {traceback.format_exc()}")
                 await asyncio.sleep(10)
 
     async def run_iteration(self) -> None:

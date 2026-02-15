@@ -17,6 +17,7 @@ class GmailProcessingRepository(IGmailProcessingRepository):
 
             return await commands.query_async(
                 '''
+                --GmailProcessingRepository.get_users_processing_info
                 SELECT 
                     gp.user_id,
                     gp.last_message_history_id
@@ -27,12 +28,30 @@ class GmailProcessingRepository(IGmailProcessingRepository):
                 model=UserProcessingInfo
             )
 
+    async def get_all_users_processing_info(
+            self
+    ) -> list[UserProcessingInfo]:
+        async with self.connection_provider.get_connection() as commands:
+            commands: CommandsAsync
+
+            return await commands.query_async(
+                '''
+                --GmailProcessingRepository.get_all_users_processing_info
+                SELECT 
+                    gp.user_id,
+                    gp.last_message_history_id
+                FROM gmail_processing gp;
+                ''',
+                model=UserProcessingInfo
+            )
+
     async def save_users_processing_info(self, users_processing_info: list[UserProcessingInfo]) -> None:
         async with self.connection_provider.get_connection() as commands:
             commands: CommandsAsync
 
             await commands.execute_async(
                 '''
+                --GmailProcessingRepository.save_users_processing_info
                 INSERT INTO gmail_processing(user_id, last_message_history_id)
                 SELECT
                     unnest(?user_ids?),
@@ -46,3 +65,30 @@ class GmailProcessingRepository(IGmailProcessingRepository):
                     "last_history_ids": [u.last_message_history_id for u in users_processing_info]
                 }
             )
+
+    async def decrease_last_history_id(
+            self,
+            user_id: UUID,
+            decrease_by: int
+    ) -> int | None:
+        async with self.connection_provider.get_connection() as commands:
+            commands: CommandsAsync
+
+            res = await commands.query_single_or_default_async(
+                '''
+                --GmailProcessingRepository.decrease_last_history_id
+                UPDATE gmail_processing gp
+                SET last_message_history_id = gp.last_message_history_id - ?decrease_by?
+                WHERE gp.user_id = ?user_id?
+                RETURNING gp.last_message_history_id;
+                ''',
+                param={
+                    "user_id": user_id,
+                    "decrease_by": decrease_by
+                },
+                default=None
+            )
+
+            if res:
+                return res['last_message_history_id']
+            return None
