@@ -6,6 +6,7 @@ import os
 import grpc
 from app.core.configuration.config import Configuration
 from app.core.containers.ApplicationContainer import create_application_container
+from app.core.containers.GrpcServiceContainer import register_grpc_services
 
 logger = logging.getLogger(__name__)
 
@@ -16,22 +17,25 @@ class ApplicationRunner:
         self.config = config
         self.container = create_application_container(config)
         self.shutdown_event = asyncio.Event()
+        self.server: grpc.Server | None = None
 
     async def start(self) -> None:
-        server = grpc.aio.server(
-            # interceptors=(context_interceptor,)
-        )
-        self.container.grpc_services.register_grpc_services(server)
+        self.server = grpc.aio.server()
+        register_grpc_services(self.container, self.server)
+        grpc_port = self.config.get("Hosting.ServerGrpcPort")
+        if not grpc_port:
+            logger.error("No grpc-server port configured")
+            return
 
         try:
-            server.add_insecure_port(f'[::]:{SERVER_PORT}')
-            logger.info(f"Server started on [::]:{SERVER_PORT}")
+            self.server.add_insecure_port(f'[::]:{grpc_port}')
+            logger.info(f"Server started on [::]:{grpc_port}")
 
         except Exception as e:
             logger.error(f"Failed to start server: {str(e)}")
             raise
 
-        await server.start()
+        await self.server.start()
         logger.info("Server is running...")
 
 

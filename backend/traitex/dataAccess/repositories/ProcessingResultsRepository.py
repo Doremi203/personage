@@ -25,7 +25,7 @@ class ProcessingResultsRepository(IProcessingResultsRepository):
             return await commands.execute_async(
                 '''
                 INSERT INTO processing_result(processed_at, event)
-                VALUE(?processed_at?, ?event?);
+                VALUES(?processed_at?, ?event?);
                 ''',
                 param={
                     "processed_at": processed_at,
@@ -56,4 +56,4 @@ class ProcessingResultsRepository(IProcessingResultsRepository):
                     "to": to,
                     "limit": limit,
                 })
-            return [EnrichedEventModel.model_validate_json(raw_event['event']) for raw_event in raw_events]
+            return [EnrichedEventModel.model_validate(raw_event['event']) for raw_event in raw_events]

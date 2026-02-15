@@ -1,3 +1,4 @@
+from datetime import datetime, timezone, timedelta
 from uuid import UUID
 
 from app.domain.interfaces.business_logic.ICommonProcessingService import ICommonProcessingService
@@ -29,6 +30,19 @@ class ProcessingGrpcService(processing_pb2_grpc.ProcessingServiceServicer):
         snapshot_id = await self.processing_service.create_processing_snapshot(
             from_=request.from_,
             to=request.to,
+        )
+        return processing_pb2.CreateProcessingSnapshotResponse(snapshot_id=str(snapshot_id))
+
+    async def CreateSnapshotFromCurrentMoment(
+            self,
+            request: processing_pb2.CreateSnapshotFromCurrentMomentRequest,
+            context: ServicerContext
+    ) -> processing_pb2.CreateSnapshotFromCurrentMomentResponse:
+        start = datetime.now(timezone.utc)
+        end = start + timedelta(seconds=request.for_seconds)
+        snapshot_id = await self.processing_service.create_processing_snapshot(
+            from_=start,
+            to=end,
         )
         return processing_pb2.CreateProcessingSnapshotResponse(snapshot_id=str(snapshot_id))
 

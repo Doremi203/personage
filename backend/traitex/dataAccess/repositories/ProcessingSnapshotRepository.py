@@ -35,17 +35,21 @@ class ProcessingSnapshotRepository(IProcessingSnapshotRepository):
         async with self.connection_provider.get_connection() as commands:
             commands: CommandsAsync
 
-            return await commands.query_single_or_default_async(
+            res = await commands.query_single_or_default_async(
                 '''
                 --ProcessingSnapshotRepository.belongs_to_snapshot
                 SELECT true as belongs_to_snapshot
                 FROM processing_snapshot ps
-                where ?datetime? between ps.start and ps.finish;
+                where ?datetime? between ps.start and ps.finish
+                limit 1;
+                ;
                 ''',
                 param={"datetime": timestamp},
-                model=bool,
                 default=False
             )
+            if not res:
+                return False
+            return res['belongs_to_snapshot']
 
     async def get_all_snapshots(self) -> list[SnapshotModel]:
         async with self.connection_provider.get_connection() as commands:

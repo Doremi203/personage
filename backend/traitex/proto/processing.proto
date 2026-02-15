@@ -1,15 +1,16 @@
 syntax = "proto3";
 
-package api.events;
+package api.processing;
 
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/amoguscorp/personage/backend/tasker/gen/api/events";
+option go_package = "github.com/amoguscorp/personage/backend/tasker/gen/api/processing";
 
 service ProcessingService {
   rpc SendProcessingSnapshot(SendProcessingSnapshotRequest) returns (SendProcessingSnapshotResponse) {}
   rpc GetProcessingSnapshots(GetProcessingSnapshotsRequest) returns (GetProcessingSnapshotsResponse) {}
   rpc CreateProcessingSnapshot(CreateProcessingSnapshotRequest) returns (CreateProcessingSnapshotResponse) {}
+  rpc CreateSnapshotFromCurrentMoment(CreateSnapshotFromCurrentMomentRequest) returns (CreateSnapshotFromCurrentMomentResponse) {}
 }
 
 message ProcessingSnapshot {
@@ -31,6 +32,14 @@ message CreateProcessingSnapshotRequest {
 }
 
 message CreateProcessingSnapshotResponse {
+  string snapshot_id = 1;
+}
+
+message CreateSnapshotFromCurrentMomentRequest {
+  int32 for_seconds = 1;
+}
+
+message CreateSnapshotFromCurrentMomentResponse {
   string snapshot_id = 1;
 }
 
