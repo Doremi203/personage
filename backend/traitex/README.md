@@ -40,7 +40,7 @@ set PYTHONPATH=%cd%
 
 #### unix
 ```bash
-export PYTHONPATH=$(pwd)/externalClient/personage_auth/proto
+export PYTHONPATH=$(pwd)/externalClients/personage_auth/proto:$(pwd)/proto
 ```
 
 ### Generate classes for .proto files
