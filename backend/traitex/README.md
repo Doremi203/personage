@@ -40,19 +40,19 @@ set PYTHONPATH=%cd%
 
 #### unix
 ```bash
-export PYTHONPATH=$(pwd)/externalClient/personage_auth/proto
+export PYTHONPATH=$(pwd)/externalClients/personage_auth/proto:$(pwd)/proto
 ```
 
 ### Generate classes for .proto files
 
 #### traitex api files
 ```bash
-python -m grpc_tools.protoc -I=./proto --python_out=./proto --grpc_python_out=./proto --mypy_out=./proto proto/*.proto
+python3 -m grpc_tools.protoc -I=./proto --python_out=./proto --grpc_python_out=./proto --mypy_out=./proto proto/*.proto
 ```
 
 #### External dependencies
 ```bash
-python -m grpc_tools.protoc --proto_path=../Personage.Auth/Personage.Auth.Api/Protos --python_out=./externalClients/personage_auth/proto --grpc_python_out=./externalClients/personage_auth/proto --mypy_out=./externalClients/personage_auth/proto ../Personage.Auth/Personage.Auth.Api/Protos/*.proto
+python3 -m grpc_tools.protoc --proto_path=../Personage.Auth/Personage.Auth.Api/Protos --python_out=./externalClients/personage_auth/proto --grpc_python_out=./externalClients/personage_auth/proto --mypy_out=./externalClients/personage_auth/proto ../Personage.Auth/Personage.Auth.Api/Protos/*.proto
 ```
 
 ```bash

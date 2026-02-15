@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package api.debug;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/amoguscorp/personage/backend/tasker/gen/api/debug";
+
+service DebugService {
+  rpc RollbackGmailProcessing(RollbackGmailProcessingRequest) returns (RollbackGmailProcessingResponse) {}
+  rpc GetInternalProcessingInfo(GetInternalProcessingInfoRequest) returns (GetInternalProcessingInfoResponse) {}
+}
+
+message GetInternalProcessingInfoRequest {
+}
+
+message GetInternalProcessingInfoResponse {
+  repeated InternalProcessingInfo infos = 1;
+}
+
+message InternalProcessingInfo {
+  string user_id = 1;
+  optional int64 gmail_counter = 2;
+}
+
+message RollbackGmailProcessingRequest {
+  string user_id = 1;
+  int32 decrease_processing_counter_by = 2;
+}
+
+message RollbackGmailProcessingResponse {
+  optional int64 updated_processing_counter = 2;
+}

@@ -1,6 +1,7 @@
 import logging
 import uuid
 import datetime
+from datetime import timezone
 from uuid import UUID
 
 from app.domain.exceptions.processing.DuplicateProcessingInfoException import DuplicateProcessingInfoException
@@ -18,6 +19,8 @@ from app.domain.models.traits.common.UserIdentifier import UserIdentifier
 from app.domain.models.users.ProcessedUserModel import ProcessedUserModel
 from app.domain.models.users.UserForGmailProcessingModel import UserForGmailProcessingModel
 from dataAccess.interfaces.IGmailProcessingRepository import IGmailProcessingRepository
+from dataAccess.interfaces.IProcessingResultsRepository import IProcessingResultsRepository
+from dataAccess.interfaces.IProcessingSnapshotRepository import IProcessingSnapshotRepository
 from dataAccess.models.gmail.UserProcessingInfo import UserProcessingInfo
 from externalClients.gmail_api.GmailApiClient import GmailApiClient
 from externalClients.gmail_api.models.UserGmailFetchResult import UserGmailFetchResult
@@ -31,11 +34,15 @@ class GmailProcessingService(IGmailProcessingService):
     def __init__(
             self,
             gmail_processing_repository: IGmailProcessingRepository,
+            processing_results_repository: IProcessingResultsRepository,
+            processing_snapshot_repository: IProcessingSnapshotRepository,
             state_tracking_client: StateTrackingClient,
             gmail_api_client: GmailApiClient,
             event_producer: IEventProducer,
     ):
         self.gmail_processing_repository = gmail_processing_repository
+        self.processing_results_repository = processing_results_repository
+        self.processing_snapshot_repository = processing_snapshot_repository
         self.state_tracking_client = state_tracking_client
         self.gmail_api_client = gmail_api_client
         self.event_producer = event_producer
@@ -64,24 +71,22 @@ class GmailProcessingService(IGmailProcessingService):
 
             last_processing_map[user.user_id] = user.last_message_history_id
 
-
         users_with_last_ids = []
         for user in users_for_processing:
             last_id = last_processing_map.get(user.user_id)
             users_with_last_ids.append((user, last_id))
 
+        should_mark_processed_with_retained = await self.processing_snapshot_repository.belongs_to_snapshot(datetime.datetime.now(timezone.utc))
 
         fetch_results = await self.gmail_api_client.fetch_batch_messages(users_with_last_ids)
-        await self._process_fetch_results(fetch_results)
+        await self._process_fetch_results(fetch_results, retain_processed_messages=should_mark_processed_with_retained)
 
-    async def _process_fetch_results(self, results: dict[UUID, UserGmailFetchResult]) -> None:
+    async def _process_fetch_results(self, results: dict[UUID, UserGmailFetchResult], retain_processed_messages: bool) -> None:
         successful_fetches = [
             UserProcessingInfo(user_id=user_id, last_message_history_id=fetch.new_history_id)
             for user_id, fetch in results.items()
             if fetch.success and fetch.new_history_id
         ]
-
-
 
         user_processed_at_map: dict[UUID, datetime.datetime] = {}
         for user_id, result in results.items():
@@ -94,7 +99,7 @@ class GmailProcessingService(IGmailProcessingService):
                 continue
 
             if result.messages:
-                await self._process_user_messages(user_id, result.messages)
+                await self._process_user_messages(user_id, result.messages, retain_processed_messages)
                 user_processed_at_map[user_id] = datetime.datetime.now(datetime.UTC)
 
         await self.gmail_processing_repository.save_users_processing_info(successful_fetches)
@@ -106,16 +111,23 @@ class GmailProcessingService(IGmailProcessingService):
             ) for user_id, _ in results.items()]
         )
 
-
-    async def _process_user_messages(self, user_id: UUID, messages: list[RawGmailMessage]) -> None:
+    async def _process_user_messages(
+            self,
+            user_id: UUID,
+            messages: list[RawGmailMessage],
+            retain_processed_messages: bool
+    ) -> None:
         self. logger.info(f"Processing {len(messages)} messages for user {user_id}")
 
         for message in messages:
             enriched_message = GmailProcessingService._enrich_message(user_id, message)
             self.logger.info(f"Enriched message for user {user_id}: {enriched_message}")
 
+            processed_at = datetime.datetime.now(datetime.UTC)
+            #TODO: consider batch write
+            if retain_processed_messages:
+                await self.processing_results_repository.save_processing_result(processed_at, enriched_message)
             await self.event_producer.send(enriched_message)
-            pass
 
     @staticmethod
     def _enrich_message(user_id: UUID, raw_message: RawGmailMessage) -> EnrichedEventModel:

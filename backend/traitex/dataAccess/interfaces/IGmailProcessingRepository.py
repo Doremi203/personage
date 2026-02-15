@@ -13,8 +13,22 @@ class IGmailProcessingRepository(ABC):
         pass
 
     @abstractmethod
+    async def get_all_users_processing_info(
+            self
+    ) -> list[UserProcessingInfo]:
+        pass
+
+    @abstractmethod
     async def save_users_processing_info(
             self,
             users_processing_info: list[UserProcessingInfo]
     ) -> None:
+        pass
+
+    @abstractmethod
+    async def decrease_last_history_id(
+            self,
+            user_id: UUID,
+            decrease_by: int
+    ) -> int | None:
         pass

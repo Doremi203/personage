@@ -1,8 +1,7 @@
-from dataclasses import dataclass
+from pydantic import BaseModel
 
 
-@dataclass(frozen=True)
-class UserIdentifier:
+class UserIdentifier(BaseModel):
     telegram_tag: str | None = None
     telegram_name: str | None = None
     email: str | None = None

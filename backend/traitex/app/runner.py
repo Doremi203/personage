@@ -3,54 +3,42 @@ import logging
 import signal
 import sys
 import os
+import grpc
 from app.core.configuration.config import Configuration
-from app.core.containers.ApplicationContainer import ApplicationContainer
+from app.core.containers.ApplicationContainer import create_application_container
+from app.core.containers.GrpcServiceContainer import register_grpc_services
 
 logger = logging.getLogger(__name__)
 
+GRACE_PERIOD_IN_SECOND = 15
 
 class ApplicationRunner:
     def __init__(self, config: Configuration):
         self.config = config
-        self.container = ApplicationRunner._create_container(config)
+        self.container = create_application_container(config)
         self.shutdown_event = asyncio.Event()
-
-    @staticmethod
-    def _create_container(config: Configuration) -> ApplicationContainer:
-        container = ApplicationContainer()
-
-        container.config.from_dict({
-            "database": {
-                "username": config.get("Database.Username"),
-                "password": config.get("Database.Password"),
-                "host": config.get("Database.Host"),
-                "port": config.get("Database.Port"),
-                "dbname": config.get("Database.Database")
-            },
-            "state_tracking": {
-                "endpoint": config.get("StateTracking.Endpoint")
-            },
-            "gmail": {
-                "max_messages_per_user": config.get("Gmail.MaxMessagesPerUser", 100),
-                "client_id": config.get("Gmail.ClientId", ""),
-                "client_secret": config.get("Gmail.ClientSecret", "")
-            },
-            "application": {
-                "batch_size": config.get("Application.BatchSize", 10),
-                "seconds_since_last_process": config.get("Application.SecondsSinceLastProcess", 60)
-            },
-            "ymq":
-                {
-                    "endpoint_url": config.get("YMQ.EndpointUrl"),
-                    "access_key": config.get("YMQ.AccessKeyId"),
-                    "secret_key": config.get("YMQ.SecretAccessKey"),
-                    "region": config.get("YMQ.Region")
-                }
-        })
-
-        return container
+        self.server: grpc.Server | None = None
 
     async def start(self) -> None:
+        self.server = grpc.aio.server()
+        register_grpc_services(self.container, self.server)
+        grpc_port = self.config.get("Hosting.ServerGrpcPort")
+        if not grpc_port:
+            logger.error("No grpc-server port configured")
+            return
+
+        try:
+            self.server.add_insecure_port(f'[::]:{grpc_port}')
+            logger.info(f"Server started on [::]:{grpc_port}")
+
+        except Exception as e:
+            logger.error(f"Failed to start server: {str(e)}")
+            raise
+
+        await self.server.start()
+        logger.info("Server is running...")
+
+
         try:
             logger.info("Starting Personage Traitex service...")
             await self._start_consumers()
@@ -71,6 +59,8 @@ class ApplicationRunner:
         logger.info("Shutting down service...")
         for consumer in self.container.consumers.all_consumers():
             await consumer.stop()
+
+        await self.server.stop(GRACE_PERIOD_IN_SECOND)
         logger.info("Service shutdown complete")
 
 
@@ -83,7 +73,7 @@ def setup_signal_handlers(runner: ApplicationRunner) -> None:
     signal.signal(signal.SIGTERM, signal_handler)
 
 
-async def main() -> None:
+async def serve() -> None:
     try:
         config = Configuration()
 
@@ -113,8 +103,7 @@ async def main() -> None:
         logger.error(f"Failed to start application: {e}", exc_info=True)
         sys.exit(1)
 
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     if os.name == 'nt':
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
@@ -122,8 +111,8 @@ if __name__ == "__main__":
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
-            loop.run_until_complete(main())
+            loop.run_until_complete(serve())
         finally:
             loop.close()
     else:
-        asyncio.run(main())
+        asyncio.run(serve())

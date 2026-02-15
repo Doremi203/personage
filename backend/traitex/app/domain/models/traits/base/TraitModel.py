@@ -1,10 +1,6 @@
-from abc import ABC, abstractmethod
-
+from pydantic import BaseModel
 from app.domain.models.traits.base.TraitKindModel import TraitKindModel
 
 
-class TraitModel(ABC):
-    @property
-    @abstractmethod
-    def kind(self) -> TraitKindModel:
-        pass
+class TraitModel(BaseModel):
+    kind: TraitKindModel
