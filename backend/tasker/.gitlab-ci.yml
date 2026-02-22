@@ -117,15 +117,6 @@ tasker:deploy:
       echo "✅ Updated docker-compose.yml:"
       cat "$DOCKER_COMPOSE_FILE"
       
-      # Коммитим изменения в Git
-      echo "💾 Committing release version to Git..."
-      git add "$DOCKER_COMPOSE_FILE"
-      git commit -m "chore: update tasker to ${TASKER_IMAGE_TAG} [skip ci]" || echo "No changes to commit"
-      
-      # Пушим изменения обратно в репозиторий
-      echo "📤 Pushing changes to repository..."
-      git push origin HEAD:${CI_DEFAULT_BRANCH}
-      
       # Переходим в директорию Terraform
       cd terraform
       
@@ -138,4 +129,15 @@ tasker:deploy:
       terraform apply -auto-approve
       
       echo "✅ Deployment complete!"
+      
+      # Коммитим и пушим только после успешного apply
+      cd "$CI_PROJECT_DIR"
+      
+      echo "💾 Committing release version to Git..."
+      git add "$DOCKER_COMPOSE_FILE"
+      git commit -m "chore: update tasker to ${TASKER_IMAGE_TAG} [skip ci]" || echo "No changes to commit"
+      
+      echo "📤 Pushing changes to repository..."
+      git push origin HEAD:${CI_DEFAULT_BRANCH}
+      
       echo "   Version ${TASKER_IMAGE_TAG} is now deployed and committed to Git"
