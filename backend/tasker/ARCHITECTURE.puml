@@ -1,0 +1,106 @@
+@startuml Tasker Service Architecture
+
+' Styling
+skinparam componentStyle rectangle
+skinparam backgroundColor #FFFFFF
+skinparam component {
+    BackgroundColor<<external>> #FFE6E6
+    BorderColor<<external>> #CC0000
+    BackgroundColor<<worker>> #E6F3FF
+    BorderColor<<worker>> #0066CC
+    BackgroundColor<<usecase>> #E6FFE6
+    BorderColor<<usecase>> #00AA00
+    BackgroundColor<<service>> #FFF4E6
+    BorderColor<<service>> #FF8C00
+    BackgroundColor<<repo>> #F0E6FF
+    BorderColor<<repo>> #6600CC
+    BackgroundColor<<storage>> #E6E6E6
+    BorderColor<<storage>> #666666
+}
+
+' External Systems
+package "External Systems" {
+    component "Yandex Message Queue" as sqs <<external>>
+    component "OpenRouter API" as openrouter <<external>>
+}
+
+' Main Application
+package "Tasker Service" {
+
+    ' Workers
+    package "Workers" {
+        component "SQS Worker" as sqs_worker <<worker>>
+        component "Cluster Closure Worker" as closure_worker <<worker>>
+        component "Planning Worker" as planning_worker <<worker>>
+    }
+
+    ' Use Cases
+    package "Use Cases" {
+        component "Clusterization UseCase\n\n+ ProcessEvent()" as clusterization_uc <<usecase>>
+        component "Task Generation UseCase\n\n+ ProcessClosableClusters()" as taskgen_uc <<usecase>>
+        component "Planning UseCase\n\n+ CalculateSchedule()" as planning_uc <<usecase>>
+    }
+
+    ' Services
+    package "Services" {
+        component "Embedding Service\n\n+ GenerateEmbeddings()" as embedding_service <<service>>
+        component "Task Generation Service\n\n+ GenerateTask()" as task_service <<service>>
+        component "Scheduler Service\n\n+ CalculateSchedule()" as scheduler_service <<service>>
+    }
+
+    ' Repositories
+    package "Repositories" {
+        component "Event Repository\n\n+ UpsertEvent()\n+ GetEventsByClusterID()" as event_repo <<repo>>
+        component "Cluster Repository\n\n+ FindSimilarClusters()\n+ UpsertCluster()\n+ FindClosableClusters()\n+ UpdateClusterStatus()" as cluster_repo <<repo>>
+        component "Task Repository\n\n+ CreateTask()\n+ GetTasksByUserID()\n+ GetTasksByStatus()\n+ UpdateTaskSchedule()\n+ UpdateTaskStatus()" as task_repo <<repo>>
+    }
+
+    ' Infrastructure
+    component "Database Client" as db_client
+}
+
+' Storage
+package "Storage" {
+    database "PostgreSQL + pgvector" as postgres <<storage>>
+}
+
+' Connections
+sqs --> sqs_worker
+sqs_worker --> clusterization_uc
+
+closure_worker --> taskgen_uc
+
+planning_worker --> planning_uc
+
+clusterization_uc --> embedding_service
+clusterization_uc --> cluster_repo
+clusterization_uc --> event_repo
+
+embedding_service --> openrouter
+
+taskgen_uc --> cluster_repo
+taskgen_uc --> event_repo
+taskgen_uc --> task_service
+taskgen_uc --> task_repo
+
+task_service --> openrouter
+
+planning_uc --> task_repo
+planning_uc --> scheduler_service
+
+event_repo --> db_client
+cluster_repo --> db_client
+task_repo --> db_client
+
+db_client --> postgres
+
+legend right
+  |<#FFE6E6>   | External Systems |
+  |<#E6F3FF>   | Workers |
+  |<#E6FFE6>   | Use Cases |
+  |<#FFF4E6>   | Services |
+  |<#F0E6FF>   | Repositories |
+  |<#E6E6E6>   | Storage |
+endlegend
+
+@enduml

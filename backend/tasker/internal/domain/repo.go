@@ -19,4 +19,8 @@ type ClusterRepo interface {
 
 type TaskRepo interface {
 	CreateTask(ctx context.Context, task Task) error
+	GetTasksByUserID(ctx context.Context, userID UserID) ([]Task, error)
+	GetTasksByStatus(ctx context.Context, userID UserID, status TaskStatus) ([]Task, error)
+	UpdateTaskSchedule(ctx context.Context, taskID TaskID, startTime time.Time, status TaskStatus) error
+	UpdateTaskStatus(ctx context.Context, taskID TaskID, status TaskStatus) error
 }

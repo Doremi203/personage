@@ -7,10 +7,6 @@ terraform {
   }
 }
 
-data "yandex_compute_image" "container-optimized-image" {
-  family = "container-optimized-image"
-}
-
 locals {
   # Collect all unique health check ports
   health_check_ports = toset([
@@ -35,6 +31,18 @@ resource "yandex_container_registry_iam_binding" "images_puller_iam_binding" {
 resource "yandex_resourcemanager_folder_iam_member" "service_vpc_user" {
   folder_id = var.folder_id
   role      = "vpc.user"
+  member    = "serviceAccount:${yandex_iam_service_account.service.id}"
+}
+
+resource "yandex_resourcemanager_folder_iam_member" "service_lockbox_viewer" {
+  folder_id = var.folder_id
+  role      = "lockbox.payloadViewer"
+  member    = "serviceAccount:${yandex_iam_service_account.service.id}"
+}
+
+resource "yandex_resourcemanager_folder_iam_member" "kms_encrypter_decrypter" {
+  folder_id = var.folder_id
+  role      = "kms.keys.encrypterDecrypter"
   member    = "serviceAccount:${yandex_iam_service_account.service.id}"
 }
 
@@ -133,7 +141,7 @@ resource "yandex_compute_instance_group" "service" {
     boot_disk {
       mode = "READ_WRITE"
       initialize_params {
-        image_id = data.yandex_compute_image.container-optimized-image.id
+        image_id = "fd8f946rrpej0cptu18n"
         type     = "network-hdd"
         size     = var.instance_disk_size
       }
