@@ -11,10 +11,11 @@ public enum ErrorCode
     ServiceTypeNotSupported = 3,
     DuplicatedUsersForbidden = 4,
     UsersNotAuthorizedForProcessing = 5,
-    UserNotFound = 6,
+    InvalidCredentials = 6,
     InvalidRefreshToken = 7,
     UserAlreadyExists = 8,
-    InvalidEmail = 9,
-    InvalidPassword = 10,
-    InvalidName = 11,
+    EmailValidationFail = 9,
+    PasswordValidationFail = 10,
+    UserNameValidationFail = 11,
+    PasswordNotSet = 12
 }

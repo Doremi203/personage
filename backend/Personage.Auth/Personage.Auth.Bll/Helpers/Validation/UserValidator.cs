@@ -32,23 +32,23 @@ public static partial class UserValidator
     private static void ValidateEmail(string email)
     {
         if (string.IsNullOrWhiteSpace(email))
-            throw new ValidationException(ErrorCode.InvalidEmail, "Email cannot be empty");
+            throw new ValidationException(ErrorCode.EmailValidationFail, "Email cannot be empty");
 
         if (!EmailRegex().IsMatch(email))
-            throw new ValidationException(ErrorCode.InvalidEmail, "Invalid email. Your email should have the following format: email@example.com");
+            throw new ValidationException(ErrorCode.EmailValidationFail, "Invalid email. Your email should have the following format: email@example.com");
     }
     
     private static void ValidatePassword(string password)
     {
         if (string.IsNullOrWhiteSpace(password))
-            throw new ValidationException(ErrorCode.InvalidPassword, "Password cannot be empty");
+            throw new ValidationException(ErrorCode.PasswordValidationFail, "Password cannot be empty");
         
         if (password.Length < 8)
-            throw new ValidationException(ErrorCode.InvalidPassword, "Password must be at least 8 characters long");
+            throw new ValidationException(ErrorCode.PasswordValidationFail, "Password must be at least 8 characters long");
         
         if (!PasswordRegex().IsMatch(password))
         {
-            throw new ValidationException(ErrorCode.InvalidPassword, 
+            throw new ValidationException(ErrorCode.PasswordValidationFail, 
                 "Password must contain at least one lowercase letter, one uppercase letter, and one digit");
         }
     }
@@ -56,20 +56,20 @@ public static partial class UserValidator
     private static void ValidateName(string name)
     {
         if (string.IsNullOrWhiteSpace(name))
-            throw new ValidationException(ErrorCode.InvalidName, "Name cannot be empty");
+            throw new ValidationException(ErrorCode.UserNameValidationFail, "Name cannot be empty");
         
         switch (name.Length)
         {
             case < 2:
-                throw new ValidationException(ErrorCode.InvalidName, "Name must be at least 2 characters long");
+                throw new ValidationException(ErrorCode.UserNameValidationFail, "Name must be at least 2 characters long");
             case > 100:
-                throw new ValidationException(ErrorCode.InvalidName, "Name cannot exceed 100 characters");
+                throw new ValidationException(ErrorCode.UserNameValidationFail, "Name cannot exceed 100 characters");
         }
 
         if (!NameRegex().IsMatch(name))
         {
             throw new ValidationException(
-                ErrorCode.InvalidName,
+                ErrorCode.UserNameValidationFail,
                 "Name can only contain letters, spaces, hyphens, and apostrophes"
             );
         }

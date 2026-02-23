@@ -45,4 +45,19 @@ public class PersonageAuthController(IAuthService authService) : ControllerBase
             RefreshToken = res.RefreshToken,
         };
     }
+    
+    [HttpPost("refresh")]
+    public async Task<ActionResult<PersonageAuthResponse>> AuthByRefreshToken(
+        [FromBody] AuthByRefreshTokenRequest request,
+        CancellationToken ct
+    )
+    {
+        var res = await authService.RefreshAccessToken(request.RefreshToken, ct);
+
+        return new PersonageAuthResponse
+        {
+            AccessToken = res.AccessToken,
+            RefreshToken = res.RefreshToken,
+        };
+    }
 }

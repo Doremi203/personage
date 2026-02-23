@@ -177,8 +177,14 @@ public class AuthService(
     {
         var user = await userRepository.GetUserByEmail(email, ct);
         if (user is null)
-            throw new AuthenticationException(ErrorCode.UserNotFound, "Invalid user credentials");
+            throw new AuthenticationException(ErrorCode.InvalidCredentials, "Invalid user credentials");
 
+        if (user.PasswordHash is null)
+            throw new AuthenticationException(ErrorCode.PasswordNotSet, "Password for user not set");
+        
+        if(!PasswordHasher.VerifyPassword(password, user.PasswordHash))
+            throw new AuthenticationException(ErrorCode.InvalidCredentials, "Invalid user credentials");
+        
         var accessToken = GenerateAccessToken(user);
         var refreshToken = await GenerateAndStoreRefreshToken(user.Id, ct);
 
@@ -232,7 +238,7 @@ public class AuthService(
             .Replace('/', '_')
             .Replace("=", "");
 
-        var createTokenRequest = new CreateRefreshTokenRequest()
+        var createTokenRequest = new CreateRefreshTokenRequest
         {
             Token = tokenString,
             UserId = userId,
