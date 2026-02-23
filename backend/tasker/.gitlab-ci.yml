@@ -98,14 +98,8 @@ tasker:deploy:
     - tasker:build
   before_script:
     - cd "$CI_PROJECT_DIR"
-    # Настройка Git для коммитов
     - git config user.email "ci@persomanage.ru"
     - git config user.name "GitLab CI"
-    # Экспорт credentials для Terraform
-    - export AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID}"
-    - export AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY}"
-    - export YC_CLOUD_ID="${YC_CLOUD_ID}"
-    - export YC_FOLDER_ID="${YC_FOLDER_ID}"
   script:
     - set -eo pipefail
     - |
@@ -124,6 +118,14 @@ tasker:deploy:
       
       # Переходим в директорию Terraform
       cd terraform
+      
+      export AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID}"
+      export AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY}"
+      export YC_CLOUD_ID="${YC_CLOUD_ID}"
+      export YC_FOLDER_ID="${YC_FOLDER_ID}"
+      
+      echo "ID облака"
+      echo $YC_CLOUD_ID
       
       # Инициализируем Terraform
       echo "🔧 Initializing Terraform..."
