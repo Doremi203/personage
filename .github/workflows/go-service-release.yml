@@ -135,7 +135,7 @@ jobs:
 
   migrate-up:
     runs-on: ubuntu-latest
-    needs: build
+    needs: test-unit
     if: ${{ inputs.needs_migrations }}
     timeout-minutes: 10
     defaults:
@@ -161,7 +161,7 @@ jobs:
         run: |
           echo "Fetching DB_USER from Yandex Cloud Lockbox..."
           DB_USER=main
-          DB_PASS=$(/opt/yc/bin/yc lockbox payload get --id ${{ secrets.POSTGRES_DB_PASSWORD_SECRET_ID }} --key db-password)
+          DB_PASS=$(/opt/yc/bin/yc lockbox payload get --id ${{ secrets.POSTGRES_DB_PASSWORD_SECRET_ID }} --key postgresql_password)
           
           mkdir -p ~/.postgresql && wget "https://storage.yandexcloud.net/cloud-certs/CA.pem" --output-document ~/.postgresql/root.crt && chmod 0600 ~/.postgresql/root.crt
           
@@ -175,6 +175,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     needs:
+      - build
       - migrate-up
     timeout-minutes: 20
     steps:
