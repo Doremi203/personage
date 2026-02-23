@@ -1,7 +1,5 @@
 -- +goose Up
 -- +goose StatementBegin
-CREATE EXTENSION IF NOT EXISTS vector;
-
 -- Create clusters table
 CREATE TABLE IF NOT EXISTS clusters
 (

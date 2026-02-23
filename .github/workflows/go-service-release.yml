@@ -167,12 +167,12 @@ jobs:
         if: ${{ inputs.needs_migrations == 'true' }}
         run: |
           echo "Fetching DB_PASSWORD from Yandex Cloud Lockbox..."
-          DB_PASS=$(/opt/yc/bin/yc lockbox payload get --id ${{ secrets.POSTGRES_DB_PASSWORD_SECRET_ID }} --key postgresql_password)
+          export PGPASSWORD=$(/opt/yc/bin/yc lockbox payload get --id ${{ secrets.POSTGRES_DB_PASSWORD_SECRET_ID }} --key postgresql_password)
           
           mkdir -p ~/.postgresql && wget "https://storage.yandexcloud.net/cloud-certs/CA.pem" --output-document ~/.postgresql/root.crt && chmod 0600 ~/.postgresql/root.crt
           
           export GOOSE_DRIVER=postgres
-          export GOOSE_DBSTRING="postgres://main:$DB_PASS@${{ vars.POSTGRES_DB_HOST }}:6432/${{ inputs.db_name }}?sslmode=verify-full&target_session_attrs=read-write&sslrootcert=/home/runner/.postgresql/root.crt"
+          export GOOSE_DBSTRING="postgres://main@${{ vars.POSTGRES_DB_HOST }}:6432/${{ inputs.db_name }}?sslmode=verify-full&target_session_attrs=read-write&sslrootcert=/home/runner/.postgresql/root.crt"
           goose -v -dir "migrations" up
 
       - name: Success

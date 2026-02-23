@@ -56,4 +56,11 @@ resource "yandex_vpc_security_group" "postgres_db" {
     port           = 6432
     security_group_id = module.tasker.security_group_id
   }
+
+  ingress {
+    protocol = "TCP"
+    description = "Принимает трафик на 6432 порте из интернета"
+    port = 6432
+    v4_cidr_blocks = ["0.0.0.0/0"]
+  }
 }
