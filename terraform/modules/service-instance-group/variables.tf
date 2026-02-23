@@ -53,6 +53,11 @@ variable "alb_security_group_id" {
   type        = string
 }
 
+variable "postgres_security_group_id" {
+  description = "ID of the PostgreSQL security group (for egress rules)"
+  type        = string
+}
+
 variable "bastion_security_group_id" {
   description = "ID of the bastion security group (for SSH access)"
   type        = string

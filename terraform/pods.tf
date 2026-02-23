@@ -24,6 +24,7 @@ module "tasker" {
   folder_id                 = data.yandex_vpc_network.default.folder_id
   subnet_id                 = yandex_vpc_subnet.services_central1_d.id
   alb_security_group_id     = yandex_vpc_security_group.alb.id
+  postgres_security_group_id = yandex_vpc_security_group.postgres_db.id
   bastion_security_group_id = data.yandex_vpc_security_group.default.id
 
   instance_count         = 2

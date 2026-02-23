@@ -110,6 +110,12 @@ resource "yandex_vpc_security_group" "service" {
     v4_cidr_blocks = ["0.0.0.0/0"]
     port           = 443
   }
+  egress {
+    protocol = "TCP"
+    description = "to Postgres"
+    security_group_id = var.postgres_security_group_id
+    port = 6432
+  }
 }
 
 resource "yandex_dns_recordset" "service_alb_record" {
