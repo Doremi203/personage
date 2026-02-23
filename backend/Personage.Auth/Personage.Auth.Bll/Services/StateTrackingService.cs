@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using Personage.Auth.DataAccess.Interfaces.Repositories;
 using Personage.Auth.DataAccess.Models;
 using Personage.Auth.Domain.Exceptions;
+using Personage.Auth.Domain.Exceptions.Base;
 using Personage.Auth.Domain.Interfaces;
 using Personage.Auth.Domain.Models.Common;
 using Personage.Auth.Domain.Models.StateTracking;

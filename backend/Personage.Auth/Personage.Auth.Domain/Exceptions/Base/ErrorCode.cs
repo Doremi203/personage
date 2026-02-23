@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace Personage.Auth.Domain.Exceptions;
+namespace Personage.Auth.Domain.Exceptions.Base;
 
 [JsonConverter(typeof(JsonStringEnumConverter))]
 public enum ErrorCode
@@ -10,5 +10,6 @@ public enum ErrorCode
     TokenNotFound = 2,
     ServiceTypeNotSupported = 3,
     DuplicatedUsersForbidden = 4,
-    UsersNotAuthorizedForProcessing = 5
+    UsersNotAuthorizedForProcessing = 5,
+    UserNotFound = 6,
 }

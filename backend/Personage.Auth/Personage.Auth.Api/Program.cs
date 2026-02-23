@@ -167,5 +167,6 @@ public class Program
         }
         
         services.Configure<ConnectionFactorySettings>(configuration.GetSection(nameof(ConnectionFactorySettings)));
+        services.Configure<JwtSettings>(configuration.GetSection(nameof(JwtSettings)));
     }
 }

@@ -11,4 +11,8 @@
       <ProjectReference Include="..\Personage.Auth.Domain\Personage.Auth.Domain.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="6.16.0" />
+    </ItemGroup>
+
 </Project>

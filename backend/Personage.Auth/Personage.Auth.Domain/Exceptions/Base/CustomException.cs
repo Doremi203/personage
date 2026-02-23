@@ -1,4 +1,4 @@
-namespace Personage.Auth.Domain.Exceptions;
+namespace Personage.Auth.Domain.Exceptions.Base;
 
 public class CustomException : Exception
 {
