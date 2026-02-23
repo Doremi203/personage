@@ -10,7 +10,7 @@ database:
   user: main
   password: "secret:e6qi97lh8ndntismopm3:e6qskch803760kuvk2op:postgresql_password"
   database: tasker
-  options: sslmode=verify-full&target_session_attrs=read-write&sslrootcert=/root/.postgresql/root.crt
+  options: sslmode=verify-full target_session_attrs=read-write sslrootcert=/root/.postgresql/root.crt
 
 logging:
   level: info

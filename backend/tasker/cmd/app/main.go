@@ -52,6 +52,10 @@ func main() {
 			return errors.WrapFail(err, "create postgres client")
 		}
 		app.AddCloser(dbClient.Close)
+		err = dbClient.Ping(ctx)
+		if err != nil {
+			return errors.WrapFail(err, "ping postgres health")
+		}
 
 		postgresTxProvider := postgres.NewTxProvider(dbClient.Pool)
 

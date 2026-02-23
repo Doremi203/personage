@@ -13,7 +13,7 @@ type Config struct {
 
 func (c Config) ConnectionString() string {
 	return fmt.Sprintf(
-		"postgres://%s:%s@%s:%d/%s?%s",
+		"user=%s password=%s host=%s port=%d dbname=%s %s",
 		c.User,
 		c.Password,
 		c.Host,
