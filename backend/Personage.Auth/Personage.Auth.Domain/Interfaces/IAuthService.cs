@@ -9,4 +9,5 @@ public interface IAuthService
     Task<string> HandleGmailCallbackAsync(HandleGmailCallbackRequestModel request, CancellationToken ct);
     Task<GmailTokenModel> GetUserGmailToken(string userEmail, CancellationToken ct);
     Task<PersonageTokenModel> AuthByPassword(string email, string password, CancellationToken ct);
+    Task<PersonageTokenModel> RegisterWithPassword(RegisterUserRequestModel request, CancellationToken ct);
 }

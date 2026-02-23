@@ -2,43 +2,91 @@ using Dapper;
 using Personage.Auth.DataAccess.Interfaces;
 using Personage.Auth.DataAccess.Interfaces.Repositories;
 using Personage.Auth.DataAccess.Models;
+using Personage.Auth.DataAccess.Models.Requests;
 
 namespace Personage.Auth.DataAccess.Repositories;
 
 public class UserRepository(IDbConnectionFactory connectionFactory) : IUserRepository
 {
+    private const string UserFields =
+        """
+        u.id as Id,
+        u.email as Email,
+        u.name as Name,
+        u.created_at as CreatedAt,
+        u.password_hash as PasswordHash
+        """;
     public async Task<User?> GetUserByEmail(string email, CancellationToken ct)
     {
         using var connection = await connectionFactory.CreateConnection(ct);
         
         return await connection.QueryFirstOrDefaultAsync<User>(
-            """
+            $"""
             --UserRepository.GetUserByEmail
-            SELECT 
-                u.id as Id,
-                u.email as Email,
-                u.created_at as CreatedAt
+            SELECT
+            {UserFields}
             FROM "user" u
             WHERE email = @email;
             """,
             new { email });
     }
 
-    public async Task<User> CreateUser(string email, CancellationToken ct)
+    public async Task<User?> GetUserById(Guid userId, CancellationToken ct)
+    {
+        using var connection = await connectionFactory.CreateConnection(ct);
+        
+        return await connection.QueryFirstOrDefaultAsync<User>(
+            $"""
+            --UserRepository.GetUserById
+            SELECT
+            {UserFields}
+            FROM "user" u
+            WHERE id = @userId;
+            """,
+            new { userId });
+    }
+
+    public async Task<User> CreateShortUser(string email, CancellationToken ct)
     {
         using var connection = await connectionFactory.CreateConnection(ct);
         
         return await connection.QuerySingleAsync<User>(
             """
-            --UserRepository.CreateUser
+            --UserRepository.CreateShortUser
             INSERT INTO "user" (email) 
             VALUES (@email) 
             RETURNING 
                 id,
                 email,
-                created_at as CreatedAt;
+                name,
+                created_at as CreatedAt,
+                password_hash as PasswordHash;
             """,
             new { email });
+    }
+
+    public async Task<User> CreateUser(CreateUserRequest request, CancellationToken ct)
+    {
+        using var connection = await connectionFactory.CreateConnection(ct);
+
+        return await connection.QuerySingleAsync<User>(
+            """
+            --UserRepository.CreateUser
+            INSERT INTO "user" (email, name, password_hash) 
+            VALUES (@email, @name, @password_hash) 
+            RETURNING 
+                id,
+                email,
+                name,
+                created_at as CreatedAt,
+                password_hash as PasswordHash;
+            """,
+            new
+            {
+                email = request.Email, 
+                name = request.Name, 
+                password_hash = request.PasswordHash
+            });
     }
 
     public async Task<UserWithToken[]> GetUsersProcessedBeforeMoment(

@@ -130,6 +130,7 @@ public class Program
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IGmailTokenRepository, GmailTokenRepository>();
         services.AddScoped<IOAuthStateRepository, OAuthStateRepository>();
+        services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
     }
 
     private static void AddBllServices(IServiceCollection services)
