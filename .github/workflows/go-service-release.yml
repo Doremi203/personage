@@ -18,6 +18,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   codegen:
@@ -264,16 +265,33 @@ jobs:
           terraform apply -auto-approve
           echo "✅ Deployment complete!"
 
-      - name: Commit and push changes
+      - name: Commit and push changes via PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "💾 Committing release version to Git..."
+          BRANCH="ci/update-${{ inputs.service_name }}-v${{ env.RELEASE_VERSION }}"
+          
+          echo "🌿 Creating branch ${BRANCH}..."
+          git checkout -b "$BRANCH"
+          
+          echo "💾 Committing release version..."
           git add terraform/pods-specs/docker-compose.go.yml
-          git commit -m "chore: update ${{ inputs.service_name }} to ${{ env.RELEASE_VERSION }} [skip ci]" || echo "No changes to commit"
+          git commit -m "chore: update ${{ inputs.service_name }} to ${{ env.RELEASE_VERSION }} [skip ci]" || { echo "No changes to commit"; exit 0; }
           
-          echo "📤 Pushing changes to repository..."
-          git push origin HEAD:${{ github.ref_name }}
+          echo "📤 Pushing branch to repository..."
+          git push origin "$BRANCH"
           
-          echo "✅ Version ${{ env.RELEASE_VERSION }} is now deployed and committed to Git"
+          echo "📝 Creating pull request..."
+          PR_URL=$(gh pr create \
+            --title "chore: update ${{ inputs.service_name }} to ${{ env.RELEASE_VERSION }}" \
+            --body "Automated release update for **${{ inputs.service_name }}** v${{ env.RELEASE_VERSION }}. Created by the release workflow. [skip ci]" \
+            --base "${{ github.ref_name }}" \
+            --head "$BRANCH")
+          
+          echo "🔀 Merging pull request..."
+          gh pr merge "$PR_URL" --squash --admin --delete-branch
+          
+          echo "✅ Version ${{ env.RELEASE_VERSION }} is now deployed and committed to ${{ github.ref_name }}"
 
   publish-release:
     runs-on: ubuntu-latest
