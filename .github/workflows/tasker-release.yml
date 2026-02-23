@@ -1,0 +1,15 @@
+name: Tasker Service Release Flow
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  release:
+    uses: ./.github/workflows/go-service-release.yml
+    with:
+      service_name: tasker
+      db_name: tasker
+    secrets: inherit

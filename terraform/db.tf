@@ -20,7 +20,7 @@ resource "yandex_mdb_postgresql_cluster_v2" "main_db" {
     "host1d" = {
       zone      = "ru-central1-d"
       subnet_id = data.yandex_vpc_subnet.default-d.id
-      assign_public_ip = false
+      assign_public_ip = true
     }
   }
 
