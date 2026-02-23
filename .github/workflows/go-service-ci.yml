@@ -21,10 +21,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/codegen
       - name: Upload codegen results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: codegen-output
           path: backend
@@ -37,10 +37,10 @@ jobs:
       run:
         working-directory: backend/${{ inputs.service_name }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Download codegen results
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: codegen-output
           path: backend
@@ -59,10 +59,10 @@ jobs:
       run:
         working-directory: backend/${{ inputs.service_name }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Download codegen results
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: codegen-output
           path: backend
@@ -87,13 +87,13 @@ jobs:
       run:
         working-directory: backend
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Download codegen results
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: codegen-output
           path: backend
 
       - name: Build Docker image
-        run: docker build --build-arg service=${{ inputs.service_name }} -t ${{ inputs.service_name }}_service:latest . -f prod.Dockerfile
+        run: docker build --build-arg service=${{ inputs.service_name }} -t ${{ inputs.service_name }}_service:${{ github.sha }} . -f go.Dockerfile
