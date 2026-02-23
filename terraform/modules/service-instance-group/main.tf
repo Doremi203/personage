@@ -28,6 +28,12 @@ resource "yandex_container_registry_iam_binding" "images_puller_iam_binding" {
   ]
 }
 
+resource "yandex_resourcemanager_folder_iam_member" "service_logging_writer" {
+  folder_id = var.folder_id
+  role      = "logging.writer"
+  member    = "serviceAccount:${yandex_iam_service_account.service.id}"
+}
+
 resource "yandex_resourcemanager_folder_iam_member" "service_vpc_user" {
   folder_id = var.folder_id
   role      = "vpc.user"
@@ -220,9 +226,9 @@ resource "yandex_alb_backend_group" "service_http" {
     target_group_ids = [yandex_compute_instance_group.service.application_load_balancer[0].target_group_id]
 
     healthcheck {
-      interval            = var.health_check.interval
-      timeout             = var.health_check.timeout
-      healthcheck_port    = var.health_check.healthcheck_port
+      interval         = var.health_check.interval
+      timeout          = var.health_check.timeout
+      healthcheck_port = var.health_check.healthcheck_port
       http_healthcheck {
         path = var.health_check.http_healthcheck.path
       }

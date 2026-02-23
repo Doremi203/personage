@@ -2,6 +2,11 @@ data "yandex_vpc_security_group" "default" {
   security_group_id = "enpopr5ic3p9afs56600"
 }
 
+resource "yandex_logging_group" "backend_logging_group" {
+  name             = "backend"
+  retention_period = "259200s"
+}
+
 # Tasker service instance group using module
 module "tasker" {
   source = "./modules/service-instance-group"
