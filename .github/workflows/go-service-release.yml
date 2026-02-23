@@ -208,6 +208,20 @@ jobs:
           echo "AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}" >> $GITHUB_ENV
           echo "✅ AWS credentials retrieved successfully"
 
+      - name: Configure Terraform for Yandex Cloud mirror
+        run: |
+          cat > ~/.terraformrc <<'EOF'
+          provider_installation {
+            network_mirror {
+              url = "https://terraform-mirror.yandexcloud.net/"
+              include = ["registry.terraform.io/*/*"]
+            }
+            direct {
+              exclude = ["registry.terraform.io/*/*"]
+            }
+          }
+          EOF
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
@@ -239,6 +253,7 @@ jobs:
           YC_CLOUD_ID: ${{ secrets.YC_CLOUD_ID }}
           YC_FOLDER_ID: ${{ secrets.YC_FOLDER_ID }}
         run: |
+          export YC_TOKEN=$(/opt/yc/bin/yc iam create-token)
           echo "🔧 Initializing Terraform..."
           terraform init
           
