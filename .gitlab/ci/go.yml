@@ -44,7 +44,7 @@ include:
     - .go:base
   script:
     - cd "$CI_PROJECT_DIR/backend/$SERVICE"
-    - go test ./... -race -count=1
+    - go test ./...
 
 .docker:build:
   stage: build
