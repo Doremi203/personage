@@ -4,21 +4,20 @@ description: 'Generate code for service'
 runs:
   using: "composite"
   steps:
-    - name: Cache tools
+    - name: Cache buf tools
       uses: actions/cache@v4
       with:
-        path: |
-          ~/.cache/go-build
-          /tmp/buf-cache
-        key: ${{ runner.os }}-tools-${{ hashFiles('backend/go.mod', 'backend/go.sum', 'backend/buf.yaml') }}
+        path: /tmp/buf-cache
+        key: ${{ runner.os }}-buf-${{ hashFiles('backend/buf.yaml') }}
         restore-keys: |
-          ${{ runner.os }}-tools-
+          ${{ runner.os }}-buf-
 
     - name: Set up Go
       uses: actions/setup-go@v5.1.0
       with:
         go-version-file: backend/go.mod
-        cache: false
+        cache: true
+        cache-dependency-path: backend/go.sum
 
     - name: Setup Buf
       uses: bufbuild/buf-setup-action@v1
