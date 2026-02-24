@@ -29,5 +29,5 @@ jobs:
           token: ${{secrets.GITHUB_TOKEN}}
           yandex_org_id: ${{ secrets.YC_ORG_ID }}
           yandex_oauth2_token: ${{ secrets.YC_TRACKER_OAUTH }}
-          to: closed
+          to: rc
           is_yandex_cloud_org: true
