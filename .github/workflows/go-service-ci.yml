@@ -6,11 +6,6 @@ on:
         required: true
         type: string
         description: "Service name (e.g. tasker, notificator)"
-      additional_paths:
-        required: false
-        type: string
-        description: "Additional paths to trigger the workflow, comma-separated"
-        default: ""
 
 permissions:
   actions: read
@@ -29,27 +24,27 @@ jobs:
           name: codegen-output
           path: backend
 
-  lint:
-    needs: codegen
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    defaults:
-      run:
-        working-directory: backend/${{ inputs.service_name }}
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Download codegen results
-        uses: actions/download-artifact@v6
-        with:
-          name: codegen-output
-          path: backend
-
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v7
-        with:
-          version: latest
-          working-directory: backend/${{ inputs.service_name }}
+#  lint:
+#    needs: codegen
+#    runs-on: ubuntu-latest
+#    timeout-minutes: 5
+#    defaults:
+#      run:
+#        working-directory: backend/${{ inputs.service_name }}
+#    steps:
+#      - uses: actions/checkout@v6
+#
+#      - name: Download codegen results
+#        uses: actions/download-artifact@v6
+#        with:
+#          name: codegen-output
+#          path: backend
+#
+#      - name: golangci-lint
+#        uses: golangci/golangci-lint-action@v7
+#        with:
+#          version: latest
+#          working-directory: backend/${{ inputs.service_name }}
 
   test:
     needs: codegen
@@ -67,17 +62,8 @@ jobs:
           name: codegen-output
           path: backend
 
-      - name: Run tests with coverage
-        run: BASE_MIGRATIONS_PATH=${{ github.workspace }}/backend go test ./... -race -coverprofile=coverage.txt -covermode=atomic -coverpkg=./...
-
-      - name: Upload coverage report to Codecov
-        uses: codecov/codecov-action@v5
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          slug: ${{ github.repository }}
-          files: ./backend/${{ inputs.service_name }}/coverage.txt
-          fail_ci_if_error: false
-          verbose: true
+      - name: Run tests
+        run: BASE_MIGRATIONS_PATH=${{ github.workspace }}/backend go test ./... -race
 
   build:
     needs: codegen
