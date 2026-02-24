@@ -3,8 +3,8 @@ package clusterclosure
 import (
 	"context"
 
-	"gitlab.com/amoguscorp/personage/backend/libs/go/errors"
-	"gitlab.com/amoguscorp/personage/backend/libs/go/log"
+	"github.com/Doremi203/personage/backend/libs/go/errors"
+	"github.com/Doremi203/personage/backend/libs/go/log"
 )
 
 type taskGenerationUseCase interface {

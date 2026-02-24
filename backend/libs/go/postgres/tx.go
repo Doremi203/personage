@@ -3,20 +3,26 @@ package postgres
 import (
 	"context"
 
+	"github.com/Doremi203/personage/backend/libs/go/errors"
+	"github.com/Doremi203/personage/backend/libs/go/log"
+	"github.com/Doremi203/personage/backend/libs/go/tx"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"gitlab.com/amoguscorp/personage/backend/libs/go/errors"
-	"gitlab.com/amoguscorp/personage/backend/libs/go/tx"
 )
 
-func NewTxProvider(db *pgxpool.Pool) *txProvider {
+func NewTxProvider(
+	db *pgxpool.Pool,
+	logger log.Logger,
+) *txProvider {
 	return &txProvider{
-		db: db,
+		db:     db,
+		logger: logger,
 	}
 }
 
 type txProvider struct {
-	db *pgxpool.Pool
+	db     *pgxpool.Pool
+	logger log.Logger
 }
 
 func (p *txProvider) RunWithTx(
@@ -44,7 +50,12 @@ func (p *txProvider) RunWithTx(
 			errors.Token("isolation", isolation),
 		)
 	}
-	defer tx.Rollback(ctx)
+	defer func() {
+		errRollback := tx.Rollback(ctx)
+		if errRollback != nil {
+			p.logger.Error(errors.WrapFail(errRollback, "rollback tx"))
+		}
+	}()
 
 	err = op(ContextWithTx(ctx, tx, txOptions))
 	if err != nil {

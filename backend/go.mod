@@ -1,4 +1,4 @@
-module gitlab.com/amoguscorp/personage/backend
+module github.com/Doremi203/personage/backend
 
 go 1.25.7
 
