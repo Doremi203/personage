@@ -62,8 +62,8 @@ jobs:
           name: codegen-output
           path: backend
 
-      - name: Run tests with coverage
-        run: BASE_MIGRATIONS_PATH=${{ github.workspace }}/backend go test ./... -race -coverprofile=coverage.txt -covermode=atomic -coverpkg=./...
+      - name: Run tests
+        run: BASE_MIGRATIONS_PATH=${{ github.workspace }}/backend go test ./... -race
 
   build:
     needs: codegen
