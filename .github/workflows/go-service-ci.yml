@@ -6,11 +6,6 @@ on:
         required: true
         type: string
         description: "Service name (e.g. tasker, notificator)"
-      additional_paths:
-        required: false
-        type: string
-        description: "Additional paths to trigger the workflow, comma-separated"
-        default: ""
 
 permissions:
   actions: read

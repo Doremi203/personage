@@ -1,0 +1,33 @@
+name: Tasker Service CI/CD
+
+on:
+  pull_request:
+    branches: ["main"]
+    paths:
+      - 'backend/tasker/**'
+      - 'backend/libs/**'
+      - 'backend/go.Dockerfile'
+      - 'backend/go.mod'
+      - 'backend/go.sum'
+      - '.github/workflows/tasker-ci.yml'
+      - '.github/actions/codegen/**'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    uses: ./.github/workflows/go-service-ci.yml
+    with:
+      service_name: auth
+    secrets: inherit
+
+  success:
+    name: CI success
+    needs:
+      - ci
+    runs-on: ubuntu-latest
+    steps:
+      - name: Success
+        run: echo "All required checks passed!"
