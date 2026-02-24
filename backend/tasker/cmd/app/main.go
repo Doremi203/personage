@@ -4,25 +4,25 @@ import (
 	"context"
 	"time"
 
+	"github.com/Doremi203/personage/backend/libs/go/errors"
+	"github.com/Doremi203/personage/backend/libs/go/postgres"
+	"github.com/Doremi203/personage/backend/libs/go/sqs"
+	"github.com/Doremi203/personage/backend/libs/go/webapp"
+	eventsPb "github.com/Doremi203/personage/backend/tasker/gen/api/events"
+	"github.com/Doremi203/personage/backend/tasker/internal/handlers/sqs/event"
+	clusterpostgres "github.com/Doremi203/personage/backend/tasker/internal/repo/cluster/postgres"
+	eventpostgres "github.com/Doremi203/personage/backend/tasker/internal/repo/event/postgres"
+	taskpostgres "github.com/Doremi203/personage/backend/tasker/internal/repo/task/postgres"
+	"github.com/Doremi203/personage/backend/tasker/internal/services/embedding"
+	"github.com/Doremi203/personage/backend/tasker/internal/services/llm"
+	"github.com/Doremi203/personage/backend/tasker/internal/usecase/clusterization"
+	"github.com/Doremi203/personage/backend/tasker/internal/usecase/taskgeneration"
+	"github.com/Doremi203/personage/backend/tasker/internal/workers/clusterclosure"
 	"github.com/cloudwego/eino-ext/components/embedding/openai"
 	"github.com/cloudwego/eino-ext/components/model/openrouter"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	pgxvec "github.com/pgvector/pgvector-go/pgx"
-	"gitlab.com/amoguscorp/personage/backend/libs/go/errors"
-	"gitlab.com/amoguscorp/personage/backend/libs/go/postgres"
-	"gitlab.com/amoguscorp/personage/backend/libs/go/sqs"
-	"gitlab.com/amoguscorp/personage/backend/libs/go/webapp"
-	eventsPb "gitlab.com/amoguscorp/personage/backend/tasker/gen/api/events"
-	"gitlab.com/amoguscorp/personage/backend/tasker/internal/handlers/sqs/event"
-	clusterpostgres "gitlab.com/amoguscorp/personage/backend/tasker/internal/repo/cluster/postgres"
-	eventpostgres "gitlab.com/amoguscorp/personage/backend/tasker/internal/repo/event/postgres"
-	taskpostgres "gitlab.com/amoguscorp/personage/backend/tasker/internal/repo/task/postgres"
-	"gitlab.com/amoguscorp/personage/backend/tasker/internal/services/embedding"
-	"gitlab.com/amoguscorp/personage/backend/tasker/internal/services/llm"
-	"gitlab.com/amoguscorp/personage/backend/tasker/internal/usecase/clusterization"
-	"gitlab.com/amoguscorp/personage/backend/tasker/internal/usecase/taskgeneration"
-	"gitlab.com/amoguscorp/personage/backend/tasker/internal/workers/clusterclosure"
 )
 
 func main() {
@@ -57,7 +57,7 @@ func main() {
 			return errors.WrapFail(err, "ping postgres health")
 		}
 
-		postgresTxProvider := postgres.NewTxProvider(dbClient.Pool)
+		postgresTxProvider := postgres.NewTxProvider(dbClient.Pool, app.Log)
 
 		postgresEventRepo := eventpostgres.NewRepo(dbClient)
 		postgresClusterRepo := clusterpostgres.NewRepo(dbClient)

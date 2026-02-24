@@ -1,0 +1,30 @@
+version: "2"
+
+linters:
+  enable:
+    - errcheck
+    - goconst
+    - gosec
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - protogetter
+  exclusions:
+    warn-unused: true
+  settings:
+    gosec:
+      excludes:
+        - G117
+
+formatters:
+  enable:
+    - goimports
+
+run:
+  timeout: 5m
+  modules-download-mode: readonly
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

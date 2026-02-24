@@ -9,12 +9,12 @@ import (
 	"strings"
 	"time"
 
-	"gitlab.com/amoguscorp/personage/backend/libs/go/log"
+	"github.com/Doremi203/personage/backend/libs/go/log"
 
+	"github.com/Doremi203/personage/backend/libs/go/errors"
 	"github.com/spf13/viper"
 	"github.com/yandex-cloud/go-genproto/yandex/cloud/lockbox/v1"
 	ycsdk "github.com/yandex-cloud/go-sdk"
-	"gitlab.com/amoguscorp/personage/backend/libs/go/errors"
 )
 
 type grpcConfig struct {
@@ -197,7 +197,7 @@ func loadConfig(
 	addIfExists := func(name string) {
 		fileName := fmt.Sprintf("%s.yaml", name)
 		path := filepath.Join(configsPath, fileName)
-		if _, err := os.Stat(path); err == nil {
+		if _, err := os.Stat(path); err == nil { //#nosec G703
 			configs = append(configs, name)
 		}
 	}

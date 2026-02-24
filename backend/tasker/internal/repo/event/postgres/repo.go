@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/Doremi203/personage/backend/libs/go/errors"
+	"github.com/Doremi203/personage/backend/libs/go/postgres"
+	"github.com/Doremi203/personage/backend/libs/go/slices"
+	"github.com/Doremi203/personage/backend/tasker/internal/domain"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/pgvector/pgvector-go"
-	"gitlab.com/amoguscorp/personage/backend/libs/go/errors"
-	"gitlab.com/amoguscorp/personage/backend/libs/go/postgres"
-	"gitlab.com/amoguscorp/personage/backend/libs/go/slices"
-	"gitlab.com/amoguscorp/personage/backend/tasker/internal/domain"
 )
 
 func NewRepo(client postgres.Client) *repo {
@@ -112,33 +112,5 @@ func (e entity) ToDomain() domain.Event {
 		Context:    domain.NormalizedEventContext(e.Context),
 		OccurredAt: e.OccurredAt,
 		ClusterID:  domain.ClusterID(e.ClusterID.String()),
-	}
-}
-
-type entityWithEmbedding struct {
-	EventID    uuid.UUID       `db:"event_id"`
-	UserID     uuid.UUID       `db:"user_id"`
-	Source     string          `db:"source"`
-	OccurredAt time.Time       `db:"occurred_at"`
-	Context    json.RawMessage `db:"context"`
-	Embedding  pgvector.Vector `db:"embedding"`
-	ClusterID  uuid.UUID       `db:"cluster_id"`
-}
-
-func (e entityWithEmbedding) ToDomain() domain.Event {
-	return domain.Event{
-		ID:         domain.EventID(e.EventID.String()),
-		UserID:     domain.UserID(e.UserID.String()),
-		Source:     domain.ParseEventSource(e.Source),
-		Context:    domain.NormalizedEventContext(e.Context),
-		OccurredAt: e.OccurredAt,
-		ClusterID:  domain.ClusterID(e.ClusterID.String()),
-	}
-}
-
-func (e entityWithEmbedding) ToDomainWithEmbedding() domain.EventWithEmbedding {
-	return domain.EventWithEmbedding{
-		Event:     e.ToDomain(),
-		Embedding: e.Embedding.Slice(),
 	}
 }

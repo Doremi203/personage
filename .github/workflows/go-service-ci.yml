@@ -24,27 +24,51 @@ jobs:
           name: codegen-output
           path: backend
 
-#  lint:
-#    needs: codegen
-#    runs-on: ubuntu-latest
-#    timeout-minutes: 5
-#    defaults:
-#      run:
-#        working-directory: backend/${{ inputs.service_name }}
-#    steps:
-#      - uses: actions/checkout@v6
-#
-#      - name: Download codegen results
-#        uses: actions/download-artifact@v6
-#        with:
-#          name: codegen-output
-#          path: backend
-#
-#      - name: golangci-lint
-#        uses: golangci/golangci-lint-action@v7
-#        with:
-#          version: latest
-#          working-directory: backend/${{ inputs.service_name }}
+  lint-service:
+    needs: codegen
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download codegen results
+        uses: actions/download-artifact@v6
+        with:
+          name: codegen-output
+          path: backend
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          install-mode: goinstall
+          version: latest
+          working-directory: backend/${{ inputs.service_name }}
+
+  lint-libs:
+    needs: codegen
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download codegen results
+        uses: actions/download-artifact@v6
+        with:
+          name: codegen-output
+          path: backend
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          install-mode: goinstall
+          version: latest
+          working-directory: backend/libs
 
   test:
     needs: codegen

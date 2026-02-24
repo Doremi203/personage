@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"gitlab.com/amoguscorp/personage/backend/libs/go/slices"
-	eventsPb "gitlab.com/amoguscorp/personage/backend/tasker/gen/api/events"
+	"github.com/Doremi203/personage/backend/libs/go/slices"
+	eventsPb "github.com/Doremi203/personage/backend/tasker/gen/api/events"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -60,7 +60,7 @@ func ParseEventSource(s string) EventSource {
 
 type NormalizedEventContext string
 
-func FromPB(e *eventsPb.Event) Event {
+func FromPB(e *eventsPb.Event) (Event, error) {
 	eventModel := Event{
 		ID:         EventID(e.GetId()),
 		UserID:     UserID(e.GetUserId()),
@@ -72,18 +72,39 @@ func FromPB(e *eventsPb.Event) Event {
 	sort.Strings(participantsStrs)
 
 	var builder strings.Builder
-	builder.WriteString(fmt.Sprintf("SOURCE: %s\n", eventModel.Source.String()))
-	builder.WriteString(fmt.Sprintf("SUBJECT: %s\n", e.GetContext().GetSubject().GetName()))
-	builder.WriteString(fmt.Sprintf("WHEN: %s\n", eventModel.OccurredAt.Format(time.RFC3339)))
-	builder.WriteString(fmt.Sprintf("SENDER: %s\n", formatParticipant(e.GetContext().GetSender())))
-	builder.WriteString(fmt.Sprintf("PARTICIPANTS: %s\n", strings.Join(participantsStrs, ", ")))
-	builder.WriteString(fmt.Sprintf("START TIME: %s\n", formatTimestamp(e.GetContext().GetTimeFrame().GetStart())))
-	builder.WriteString(fmt.Sprintf("END TIME: %s\n", formatTimestamp(e.GetContext().GetTimeFrame().GetEnd())))
-	builder.WriteString(fmt.Sprintf("TEXT:\n%s", e.GetContext().GetBody()))
+	text := []writtenStr{
+		{format: "SOURCE: %s\n", args: []any{eventModel.Source.String()}},
+		{format: "SUBJECT: %s\n", args: []any{e.GetContext().GetSubject().GetName()}},
+		{format: "WHEN: %s\n", args: []any{eventModel.OccurredAt.Format(time.RFC3339)}},
+		{format: "SENDER: %s\n", args: []any{formatParticipant(e.GetContext().GetSender())}},
+		{format: "PARTICIPANTS: %s\n", args: []any{strings.Join(participantsStrs, ", ")}},
+		{format: "START TIME: %s\n", args: []any{formatTimestamp(e.GetContext().GetTimeFrame().GetStart())}},
+		{format: "END TIME: %s\n", args: []any{formatTimestamp(e.GetContext().GetTimeFrame().GetEnd())}},
+		{format: "TEXT:\n%s", args: []any{e.GetContext().GetBody()}},
+	}
+
+	if err := writeToBuilder(&builder, text...); err != nil {
+		return Event{}, err
+	}
 
 	eventModel.Context = NormalizedEventContext(builder.String())
 
-	return eventModel
+	return eventModel, nil
+}
+
+type writtenStr struct {
+	format string
+	args   []any
+}
+
+func writeToBuilder(b *strings.Builder, strs ...writtenStr) error {
+	for _, str := range strs {
+		_, err := fmt.Fprintf(b, str.format, str.args...)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func formatParticipant(p *eventsPb.Context_Participant) string {

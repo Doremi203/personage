@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"gitlab.com/amoguscorp/personage/backend/libs/go/postgres"
-	"gitlab.com/amoguscorp/personage/backend/tasker/internal/domain"
+	"github.com/Doremi203/personage/backend/libs/go/postgres"
+	"github.com/Doremi203/personage/backend/tasker/internal/domain"
 )
 
 func NewRepo(client postgres.Client) *repo {

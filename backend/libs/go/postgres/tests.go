@@ -10,13 +10,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Doremi203/personage/backend/libs/go/errors"
 	"github.com/docker/go-connections/nat"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	pgxvec "github.com/pgvector/pgvector-go/pgx"
 	"github.com/pressly/goose/v3"
 	"github.com/stretchr/testify/require"
-	"gitlab.com/amoguscorp/personage/backend/libs/go/errors"
 
 	_ "github.com/lib/pq"
 	"github.com/testcontainers/testcontainers-go"
@@ -104,6 +104,12 @@ func SetupTests(m *testing.M, tester *Tester, serviceDir string) {
 	if err != nil {
 		log.Fatalf("couldn't create db migrations provider: %v", err)
 	}
+	defer func() {
+		err = migrator.Close()
+		if err != nil {
+			log.Printf("couldn't close db migrations provider: %v", err)
+		}
+	}()
 
 	if _, err = migrator.Up(ctx); err != nil {
 		log.Fatalf("couldn't run migrations: %v", err)

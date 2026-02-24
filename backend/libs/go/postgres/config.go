@@ -5,8 +5,8 @@ import "fmt"
 type Config struct {
 	Host     string
 	Port     int
-	User     string `env:"DATABASE_USER" secret:"db-user"`
-	Password string `env:"DATABASE_PASSWORD" secret:"db-password"`
+	User     string
+	Password string `json:"-"`
 	Database string
 	Options  string
 }

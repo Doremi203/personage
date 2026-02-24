@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"gitlab.com/amoguscorp/personage/backend/tasker/internal/domain"
+	"github.com/Doremi203/personage/backend/tasker/internal/domain"
 )
 
 func TestSchedule_EmptyTasks(t *testing.T) {

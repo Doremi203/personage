@@ -48,5 +48,5 @@ message SendProcessingSnapshotRequest {
 }
 
 message SendProcessingSnapshotResponse {
-    int32 events_count = 1;
+  int32 events_count = 1;
 }
