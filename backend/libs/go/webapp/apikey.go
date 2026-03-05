@@ -14,7 +14,7 @@ import (
 const xAPIKeyHeader = "x-api-key"
 
 type xAPIKeyConfig struct {
-	SecretAPIKey string
+	SecretKey string
 }
 
 func newUnaryAPIKeyInterceptor(

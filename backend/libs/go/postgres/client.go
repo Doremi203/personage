@@ -36,6 +36,11 @@ func NewClient(ctx context.Context, cfg *pgxpool.Config) (*client, error) {
 		return nil, errors.WrapFail(err, "create postgres client")
 	}
 
+	err = pgPool.Ping(ctx)
+	if err != nil {
+		return nil, errors.WrapFail(err, "ping postgres health")
+	}
+
 	return &client{
 		Pool: pgPool,
 	}, nil

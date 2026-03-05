@@ -15,23 +15,6 @@ resource "yandex_container_registry" "container_registry" {
   name = "internal-registry"
 }
 
-resource "yandex_container_repository" "tasker_repository" {
-  name = "${yandex_container_registry.container_registry.id}/tasker"
-}
-
-resource "yandex_container_repository_lifecycle_policy" "tasker" {
-  repository_id = yandex_container_repository.tasker_repository.id
-  status        = "active"
-
-  rule {
-    description = "delete images older than 24 hours"
-    expire_period = "24h"
-    tag_regexp   = ".*"
-    untagged = true
-    retained_top = 6
-  }
-}
-
 resource "yandex_container_repository" "fluentbit_repository" {
   name = "${yandex_container_registry.container_registry.id}/fluentbit"
 }

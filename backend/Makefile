@@ -55,7 +55,7 @@ define CLONE_PROTO_REPO
 	@rm -rf tmp
 endef
 
-generate: tasker/generate
+generate: tasker/generate notificator/generate
 
 services/deploy:
 	docker compose up
@@ -83,3 +83,24 @@ tasker/migrate/down-one:
 
 tasker/migrate/create:
 	cd $(TASKER_MIGRATIONS) && $(MIGRATE_CREATE)
+
+# Notificator
+notificator/run: notificator/generate
+	docker compose up notificator -d --build
+
+notificator/generate:
+	cd notificator && go generate ./...
+
+NOTIFICATOR_MIGRATIONS = notificator/migrations
+
+notificator/migrate/up:
+	goose -v -dir "$(NOTIFICATOR_MIGRATIONS)" "$(DB)notificator$(DB_PARAMS)" up
+
+notificator/migrate/down:
+	goose -v -dir "$(NOTIFICATOR_MIGRATIONS)" "$(DB)notificator$(DB_PARAMS)" reset
+
+notificator/migrate/down-one:
+	goose -v -dir "$(NOTIFICATOR_MIGRATIONS)" "$(DB)notificator$(DB_PARAMS)" down
+
+notificator/migrate/create:
+	cd $(NOTIFICATOR_MIGRATIONS) && $(MIGRATE_CREATE)

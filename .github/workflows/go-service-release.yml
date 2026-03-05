@@ -233,7 +233,7 @@ jobs:
           echo "🚀 Deploying ${{ inputs.service_name }} service"
           echo "   Release version: ${{ env.RELEASE_VERSION }}"
           
-          DOCKER_COMPOSE_FILE="terraform/pods-specs/docker-compose.go.yml"
+          DOCKER_COMPOSE_FILE="terraform/pods-specs/docker-compose.${{ inputs.service_name }}.yml"
           
           echo "📝 Updating image tag in ${DOCKER_COMPOSE_FILE}..."
           sed -i "s|image: cr.yandex/${{ vars.DOCKER_REGISTRY }}/${{ inputs.service_name }}:.*|image: cr.yandex/${{ vars.DOCKER_REGISTRY }}/${{ inputs.service_name }}:${{ env.RELEASE_VERSION }}|" "$DOCKER_COMPOSE_FILE"

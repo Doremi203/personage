@@ -15,6 +15,23 @@ locals {
   ])
 }
 
+resource "yandex_container_repository" "service_repository" {
+  name = "${var.container_registry_id}/${var.service_name}"
+}
+
+resource "yandex_container_repository_lifecycle_policy" "service" {
+  repository_id = yandex_container_repository.service_repository.id
+  status        = "active"
+
+  rule {
+    description = "delete images older than 24 hours"
+    expire_period = "24h"
+    tag_regexp   = ".*"
+    untagged = true
+    retained_top = 6
+  }
+}
+
 resource "yandex_iam_service_account" "service" {
   name = var.service_name
 }
