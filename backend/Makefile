@@ -84,6 +84,9 @@ tasker/migrate/down-one:
 tasker/migrate/create:
 	cd $(TASKER_MIGRATIONS) && $(MIGRATE_CREATE)
 
+tasker/create-test-tasks:
+	cd tasker/scripts && go run create_test_tasks.go
+
 # Notificator
 notificator/run: notificator/generate
 	docker compose up notificator -d --build

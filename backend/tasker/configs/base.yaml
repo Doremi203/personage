@@ -30,3 +30,7 @@ llm:
 embedding:
   model: openai/text-embedding-3-small
   apiKey: "secret:e6qd2ljggdrvefjgg0gf:e6q72jfficuq9om25sab:open-router"
+
+scheduling:
+  windowHours: 24
+  interval: 30s

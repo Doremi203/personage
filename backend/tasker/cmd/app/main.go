@@ -16,8 +16,10 @@ import (
 	"github.com/Doremi203/personage/backend/tasker/internal/services/embedding"
 	"github.com/Doremi203/personage/backend/tasker/internal/services/llm"
 	"github.com/Doremi203/personage/backend/tasker/internal/usecase/clusterization"
+	"github.com/Doremi203/personage/backend/tasker/internal/usecase/scheduling"
 	"github.com/Doremi203/personage/backend/tasker/internal/usecase/taskgeneration"
 	"github.com/Doremi203/personage/backend/tasker/internal/workers/clusterclosure"
+	schedulingworker "github.com/Doremi203/personage/backend/tasker/internal/workers/scheduling"
 	"github.com/cloudwego/eino-ext/components/embedding/openai"
 	"github.com/cloudwego/eino-ext/components/model/openrouter"
 	"github.com/jackc/pgx/v5"
@@ -169,6 +171,36 @@ func main() {
 				"cluster-closure-worker",
 				clusterClosureWorker.Process,
 			).WithInterval(clusterClosureConfig.Interval),
+		)
+
+		// Scheduling worker
+		type SchedulingConfig struct {
+			WindowHours int
+			Interval    time.Duration
+		}
+
+		schedulingConfig := SchedulingConfig{
+			WindowHours: 24,
+			Interval:    30 * time.Second,
+		}
+		err = app.Config.ReadSection(ctx, "scheduling", &schedulingConfig)
+		if err != nil {
+			app.Log.Infof("scheduling config not found, using defaults: %+v", schedulingConfig)
+		}
+
+		schedulingUseCase := scheduling.NewUseCase(
+			postgresTaskRepo,
+			time.Duration(schedulingConfig.WindowHours)*time.Hour,
+			app.Log,
+		)
+
+		schedulingWorker := schedulingworker.NewWorker(schedulingUseCase, app.Log)
+
+		app.AddBackgroundJob(
+			webapp.NewBackgroundJob(
+				"scheduling-worker",
+				schedulingWorker.Process,
+			).WithInterval(schedulingConfig.Interval),
 		)
 
 		return nil

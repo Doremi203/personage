@@ -112,7 +112,16 @@ func (bj backgroundJob) runIteration(ctx context.Context, logger log.Logger) err
 		}
 	}()
 
-	return bj.jobFunc(ctx)
+	logger.Infof("running %s iteration", errors.Token("background_job", bj.name))
+
+	err := bj.jobFunc(ctx)
+	if err != nil {
+		return err
+	}
+
+	logger.Infof("completed %s iteration", errors.Token("background_job", bj.name))
+
+	return nil
 }
 
 // App представляет основное приложение, включающее в себя настройки,
