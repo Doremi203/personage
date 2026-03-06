@@ -26,13 +26,10 @@ func NewWorker(useCase taskGenerationUseCase, batchSize int, logger log.Logger) 
 }
 
 func (w *Worker) Process(ctx context.Context) error {
-	w.logger.Infof("starting cluster closure processing")
-
 	err := w.useCase.ProcessClosableClusters(ctx, w.batchSize)
 	if err != nil {
 		return errors.WrapFail(err, "process closable clusters")
 	}
 
-	w.logger.Infof("cluster closure processing completed")
 	return nil
 }

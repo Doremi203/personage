@@ -181,6 +181,35 @@ func (r *repo) GetTasksByStatus(ctx context.Context, userID domain.UserID, statu
 	return tasks, nil
 }
 
+func (r *repo) GetUsersWithPendingTasks(ctx context.Context) ([]domain.UserID, error) {
+	query := `
+		SELECT DISTINCT user_id
+		FROM tasks
+		WHERE status = $1
+	`
+
+	rows, err := r.client.Query(ctx, query, domain.TaskStatusPending)
+	if err != nil {
+		return nil, fmt.Errorf("query users with pending tasks: %w", err)
+	}
+	defer rows.Close()
+
+	var userIDs []domain.UserID
+	for rows.Next() {
+		var userID domain.UserID
+		if err := rows.Scan(&userID); err != nil {
+			return nil, fmt.Errorf("scan user_id: %w", err)
+		}
+		userIDs = append(userIDs, userID)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate users with pending tasks: %w", err)
+	}
+
+	return userIDs, nil
+}
+
 func (r *repo) UpdateTaskSchedule(ctx context.Context, taskID domain.TaskID, startTime time.Time, status domain.TaskStatus) error {
 	query := `
 		UPDATE tasks

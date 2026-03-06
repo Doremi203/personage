@@ -17,10 +17,13 @@ type ClusterRepo interface {
 	UpdateClusterStatus(ctx context.Context, clusterID ClusterID, status ClusterStatus) error
 }
 
+//go:generate mockgen -source=repo.go -destination=mock/repo_mock.go -typed
+
 type TaskRepo interface {
 	CreateTask(ctx context.Context, task Task) error
 	GetTasksByUserID(ctx context.Context, userID UserID) ([]Task, error)
 	GetTasksByStatus(ctx context.Context, userID UserID, status TaskStatus) ([]Task, error)
+	GetUsersWithPendingTasks(ctx context.Context) ([]UserID, error)
 	UpdateTaskSchedule(ctx context.Context, taskID TaskID, startTime time.Time, status TaskStatus) error
 	UpdateTaskStatus(ctx context.Context, taskID TaskID, status TaskStatus) error
 }
