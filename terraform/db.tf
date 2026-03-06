@@ -40,6 +40,12 @@ resource "yandex_mdb_postgresql_database" "tasker" {
   }
 }
 
+resource "yandex_mdb_postgresql_database" "notificator" {
+  cluster_id = yandex_mdb_postgresql_cluster_v2.main_db.id
+  name       = "notificator"
+  owner      = yandex_mdb_postgresql_user.admin.name
+}
+
 resource "yandex_mdb_postgresql_user" "admin" {
   cluster_id = yandex_mdb_postgresql_cluster_v2.main_db.id
   name       = "main"
