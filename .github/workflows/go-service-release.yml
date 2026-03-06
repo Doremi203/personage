@@ -275,7 +275,7 @@ jobs:
           git checkout -b "$BRANCH"
           
           echo "💾 Committing release version..."
-          git add terraform/pods-specs/docker-compose.go.yml
+          git add terraform/pods-specs/docker-compose.${{ inputs.service_name }}.yml
           git commit -m "chore: update ${{ inputs.service_name }} to ${{ env.RELEASE_VERSION }} [skip ci]" || { echo "No changes to commit"; exit 0; }
           
           echo "📤 Pushing branch to repository..."
