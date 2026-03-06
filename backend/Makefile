@@ -104,3 +104,6 @@ notificator/migrate/down-one:
 
 notificator/migrate/create:
 	cd $(NOTIFICATOR_MIGRATIONS) && $(MIGRATE_CREATE)
+
+tests:
+	go test ./... -race
