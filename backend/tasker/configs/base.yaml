@@ -16,7 +16,7 @@ sqs:
   queueUrl: https://message-queue.api.cloud.yandex.net/b1gfkhf234165rrluh60/dj60000000bu18uu03cs/connector-events.fifo
 
 database:
-  host: db
+  host: localhost
   port: 5432
   user: user
   password: pass
@@ -24,7 +24,7 @@ database:
   options: sslmode=disable
 
 llm:
-  model: "xiaomi/mimo-v2-flash:free"
+  model: "tngtech/deepseek-r1t2-chimera:free"
   apiKey: "secret:e6qd2ljggdrvefjgg0gf:e6q72jfficuq9om25sab:open-router"
 
 embedding:

@@ -25,6 +25,7 @@ public abstract class TestClassBase : IDisposable
     //REST API
     protected ITestApi TestApi { get; }
     protected IGmailAuthApi GmailAuthApi { get; }
+    protected IInfrastructureApi InfrastructureApi { get; }
     
     //gRPC API
     protected TestService.TestServiceClient TestGrpcClient { get; }
@@ -38,6 +39,7 @@ public abstract class TestClassBase : IDisposable
         HttpClient = Factory.CreateClient();
         TestApi = RestClient.For<ITestApi>(HttpClient);
         GmailAuthApi = RestClient.For<IGmailAuthApi>(HttpClient);
+        InfrastructureApi = RestClient.For<IInfrastructureApi>(HttpClient);
         
         GrpcChannel = GrpcChannel.ForAddress("http://localhost", new GrpcChannelOptions
         {

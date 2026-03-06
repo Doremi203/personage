@@ -1,0 +1,260 @@
+@startuml Event to Task Processing Sequence Diagram
+title Диаграмма последовательности: Обработка событий в задачи
+
+' Styling
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 5
+skinparam maxmessagesize 250
+skinparam sequence {
+    ParticipantBorderColor #333333
+    ParticipantBackgroundColor #E8F4EA
+    ArrowColor #333333
+    LifeLineBorderColor #999999
+}
+
+' Participants
+participant "Connector\n(Gmail/Telegram/\nCalendar)" as Connector #FFE6E6
+queue "SQS Queue\n(connector-events.fifo)" as SQS #FFEBCC
+participant "SQS Worker\n(каждую 1с)" as SQSWorker #E6F3FF
+participant "Clusterization\nUseCase" as ClusterUC #E6FFE6
+participant "Embedding\nService" as EmbeddingService #FFF4E6
+participant "OpenRouter API\n(text-embedding-3-small)" as EmbeddingAPI #FFE6E6
+database "PostgreSQL\n+ pgvector" as DB #E6E6E6
+
+participant "Cluster Closure\nWorker (каждые 5с)" as ClosureWorker #E6F3FF
+participant "Task Generation\nUseCase" as TaskGenUC #E6FFE6
+participant "Task Generation\nService (LLM)" as TaskGenService #FFF4E6
+participant "OpenRouter API\n(mimo-v2-flash)" as LLMAPI #FFE6E6
+
+' === ЧАСТЬ 1: Получение и кластеризация события ===
+box "Фаза 1: Получение и кластеризация события" #F0F8FF
+    == UC-1: Получение события из очереди ==
+
+    Connector -> SQS : Publish Event\n(Protobuf: eventsPb.Event)
+    activate SQS
+
+    loop каждую секунду
+        SQSWorker -> SQS : Poll messages\n(max: 5 параллельно)
+        SQS --> SQSWorker : Protobuf message
+    end
+    deactivate SQS
+
+    activate SQSWorker
+    SQSWorker -> SQSWorker : Deserialize\nProtobuf → Event
+    SQSWorker -> SQSWorker : Validate fields\n(ID, UserID, ConnectorType)
+
+    == UC-2: Нормализация контекста события ==
+
+    SQSWorker -> SQSWorker : domain.FromPB(event)
+    note right
+        Нормализованный формат:
+        SOURCE: <источник>
+        SUBJECT: <тема>
+        WHEN: <RFC3339>
+        SENDER: [EMAIL, NAME, TAG]
+        PARTICIPANTS: [...]
+        START TIME: <RFC3339>
+        END TIME: <RFC3339>
+        TEXT: <тело>
+    end note
+
+    SQSWorker -> ClusterUC : ProcessEvent(ctx, event)
+    activate ClusterUC
+
+    == UC-3: Генерация embedding ==
+
+    ClusterUC -> EmbeddingService : GenerateEmbeddings(ctx,\n[normalizedContext])
+    activate EmbeddingService
+
+    EmbeddingService -> EmbeddingAPI : POST /embeddings\nmodel: text-embedding-3-small
+    activate EmbeddingAPI
+    EmbeddingAPI --> EmbeddingService : vector[1536] (float64)
+    deactivate EmbeddingAPI
+
+    EmbeddingService -> EmbeddingService : Convert float64 → float32
+    EmbeddingService --> ClusterUC : [][]float32
+    deactivate EmbeddingService
+
+    ClusterUC -> ClusterUC : Create EventWithEmbedding
+
+    == UC-4: Поиск похожих кластеров ==
+
+    ClusterUC -> DB : FindSimilarClusters(\nuserID, embedding, topK=5)
+    activate DB
+    note right of DB
+        SELECT *, 1 - (centroid <=> $embedding) as similarity
+        FROM clusters
+        WHERE user_id = $userID AND status = 'open'
+        ORDER BY centroid <=> $embedding
+        LIMIT 5
+    end note
+    DB --> ClusterUC : []ClusterWithSimilarity
+    deactivate DB
+
+    alt similarity >= 0.6 (UC-5 + UC-7)
+        ClusterUC -> ClusterUC : UC-5: Выбор существующего кластера
+        ClusterUC -> ClusterUC : UC-7: cluster.AddEvent()\nПересчет центроида:\nnew[i] = (old[i]*n + emb[i])/(n+1)
+    else similarity < 0.6 (UC-6)
+        ClusterUC -> ClusterUC : UC-6: Создание нового кластера\nCentroid = event.Embedding\nEventCount = 1\nStatus = "open"
+    end
+
+    ClusterUC -> ClusterUC : event.ClusterID = cluster.ID
+
+    == UC-8: Сохранение в БД (транзакция) ==
+
+    ClusterUC -> DB : BEGIN TRANSACTION\n(READ COMMITTED)
+    activate DB
+
+    ClusterUC -> DB : UpsertCluster(cluster)
+    note right
+        INSERT INTO clusters (...)
+        ON CONFLICT (cluster_id) DO UPDATE
+        SET centroid, event_count, updated_at
+    end note
+
+    ClusterUC -> DB : UpsertEvent(eventWithEmbedding)
+    note right
+        INSERT INTO events (...)
+        ON CONFLICT (event_id) DO UPDATE
+        SET cluster_id, ...
+    end note
+
+    ClusterUC -> DB : COMMIT
+    DB --> ClusterUC : Success
+    deactivate DB
+
+    ClusterUC --> SQSWorker : nil (success)
+    deactivate ClusterUC
+
+    SQSWorker -> SQS : Delete message
+    deactivate SQSWorker
+end box
+
+' === ЧАСТЬ 2: Генерация задачи ===
+box "Фаза 2: Генерация задачи из кластера" #FFF8F0
+    == UC-9: Поиск кластеров для закрытия ==
+
+    loop каждые 5 секунд
+        ClosureWorker -> TaskGenUC : ProcessClosableClusters(ctx, batchSize=10)
+        activate TaskGenUC
+
+        TaskGenUC -> DB : FindClosableClusters(\nmaxEventCount=5,\ninactivityTimeout=5min,\nlimit=10)
+        activate DB
+        note right of DB
+            SELECT * FROM clusters
+            WHERE status = 'open'
+            AND (event_count >= 5
+                 OR updated_at < now() - 5min)
+            ORDER BY updated_at ASC
+            LIMIT 10
+            FOR UPDATE SKIP LOCKED
+        end note
+        DB --> TaskGenUC : []Cluster
+        deactivate DB
+
+        loop для каждого кластера
+            == UC-10: Перевод в статус Processing ==
+
+            TaskGenUC -> DB : UpdateClusterStatus(\nclusterID, "processing")
+            activate DB
+            DB --> TaskGenUC : Success
+            deactivate DB
+
+            == UC-11: Получение событий кластера ==
+
+            TaskGenUC -> DB : GetEventsByClusterID(clusterID)
+            activate DB
+            note right
+                SELECT ... FROM events
+                WHERE cluster_id = $clusterID
+                ORDER BY occurred_at ASC
+            end note
+            DB --> TaskGenUC : []Event
+            deactivate DB
+
+            alt events пустой
+                TaskGenUC -> DB : UpdateClusterStatus(\nclusterID, "closed")
+            else events не пустой
+                == UC-12: Генерация задачи через LLM ==
+
+                TaskGenUC -> TaskGenService : GenerateTask(ctx, events)
+                activate TaskGenService
+
+                TaskGenService -> TaskGenService : formatEvents()\n"--- Event 1 ---\\n<context>\\n..."
+
+                TaskGenService -> TaskGenService : Format prompt\n(System + User messages)
+
+                TaskGenService -> LLMAPI : POST /chat/completions\nmodel: mimo-v2-flash\ntimeout: 30s
+                activate LLMAPI
+
+                LLMAPI --> TaskGenService : JSON response
+                note left
+                    {
+                      "title": "Review budget",
+                      "description": "...",
+                      "duration_minutes": 45,
+                      "priority": 7,
+                      "deadline": "ISO8601",
+                      "start_time": null
+                    }
+                end note
+                deactivate LLMAPI
+
+                TaskGenService -> TaskGenService : extractJSON()\nparseResponse()
+                TaskGenService --> TaskGenUC : GeneratedTask
+                deactivate TaskGenService
+
+                == UC-13: Создание задачи в БД ==
+
+                TaskGenUC -> TaskGenUC : Create domain.Task\n(ID, UserID, ClusterID,\nTitle, Description,\nDuration, Priority,\nDeadline, StartTime,\nStatus="pending")
+
+                TaskGenUC -> DB : CreateTask(task)
+                activate DB
+                note right
+                    INSERT INTO tasks
+                    (task_id, user_id, cluster_id,
+                     title, description, ...)
+                    VALUES (...)
+                end note
+                DB --> TaskGenUC : Success
+                deactivate DB
+
+                == UC-14: Закрытие кластера ==
+
+                TaskGenUC -> DB : UpdateClusterStatus(\nclusterID, "closed")
+                activate DB
+                DB --> TaskGenUC : Success
+                deactivate DB
+            end
+        end
+
+        TaskGenUC --> ClosureWorker : nil
+        deactivate TaskGenUC
+    end
+end box
+
+' === Альтернативные потоки (ошибки) ===
+box "Обработка ошибок (UC-15)" #FFF0F0
+    == При ошибке LLM или сохранения задачи ==
+
+    note over TaskGenUC, DB
+        При ошибке в GenerateTask() или CreateTask():
+        1. Логирование ошибки
+        2. UpdateClusterStatus(clusterID, "open") — откат
+        3. Кластер будет обработан в следующей итерации
+    end note
+end box
+
+' Legend
+legend right
+    |<#FFE6E6>| External Systems |
+    |<#E6F3FF>| Workers |
+    |<#E6FFE6>| Use Cases |
+    |<#FFF4E6>| Services |
+    |<#E6E6E6>| Storage |
+    |<#FFEBCC>| Message Queue |
+endlegend
+
+footer Tasker Service — Event to Task Processing\nGenerated: 27 January 2026
+
+@enduml
