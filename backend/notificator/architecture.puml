@@ -1,0 +1,95 @@
+@startuml Notificator Service Architecture
+
+' Styling
+skinparam componentStyle rectangle
+skinparam backgroundColor #FFFFFF
+skinparam component {
+    BackgroundColor<<external>> #FFE6E6
+    BorderColor<<external>> #CC0000
+    BackgroundColor<<worker>> #E6F3FF
+    BorderColor<<worker>> #0066CC
+    BackgroundColor<<usecase>> #E6FFE6
+    BorderColor<<usecase>> #00AA00
+    BackgroundColor<<service>> #FFF4E6
+    BorderColor<<service>> #FF8C00
+    BackgroundColor<<repo>> #F0E6FF
+    BorderColor<<repo>> #6600CC
+    BackgroundColor<<storage>> #E6E6E6
+    BorderColor<<storage>> #666666
+}
+
+' External Systems
+package "Extern`al Systems" {
+    component "Yandex Message Queue\n(Notificator Events)" as sqs <<external>>
+    component "Web Push Service\n(VAPID)" as webpush <<external>>
+}
+
+' Main Application
+package "Notificator Service" {
+
+    ' Workers
+    package "Workers" {
+        component "Event Processor\n\n+ ProcessMessages()" as events_worker <<worker>>
+    }
+
+    ' gRPC Services
+    package "gRPC Services" {
+        component "Subscription Service\n\n+ SubscribeV1()\n+ UnsubscribeV1()" as subscription_service <<service>>
+        component "Admin Service\n\n+ SendPushV1()" as admin_service <<service>>
+    }
+
+    ' Use Cases
+    package "Use Cases" {
+        component "Push Subscription UseCase\n\n+ Subscribe()\n+ Unsubscribe()\n+ GetRecipient()" as push_subscription_uc <<usecase>>
+        component "Push Sender UseCase\n\n+ Send()" as push_sender_uc <<usecase>>
+    }
+
+    ' Repositories
+    package "Repositories" {
+        component "Push Repository\n\n+ UpsertSubscription()\n+ DeleteSubscription()\n+ GetSubscriptionsByRecipientID()\n+ GetAllRecipients()" as push_repo <<repo>>
+    }
+
+    ' Infrastructure
+    component "Database Client" as db_client
+}
+
+' Storage
+package "Storage" {
+    database "PostgreSQL" as postgres <<storage>>
+}
+
+' Connections - External to Workers
+sqs --> events_worker
+
+' Connections - Workers to Use Cases
+events_worker --> push_sender_uc
+events_worker --> push_subscription_uc
+
+' Connections - gRPC Services to Use Cases
+subscription_service --> push_subscription_uc
+admin_service --> push_sender_uc
+admin_service --> push_repo
+
+' Connections - Use Cases to Repositories
+push_subscription_uc --> push_repo
+push_sender_uc --> push_repo
+
+' Connections - Use Cases to External Services
+push_sender_uc --> webpush
+
+' Connections - Repositories to Database
+push_repo --> db_client
+
+' Connections - Database Client to Storage
+db_client --> postgres
+
+legend right
+  |<#FFE6E6>   | External Systems |
+  |<#E6F3FF>   | Workers |
+  |<#E6FFE6>   | Use Cases |
+  |<#FFF4E6>   | gRPC Services |
+  |<#F0E6FF>   | Repositories |
+  |<#E6E6E6>   | Storage |
+endlegend
+
+@enduml

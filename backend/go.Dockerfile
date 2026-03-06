@@ -1,4 +1,4 @@
-FROM golang:alpine AS build
+FROM golang:1.25.7-alpine AS build
 ARG service
 WORKDIR /src
 

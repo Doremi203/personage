@@ -53,7 +53,7 @@ func (r *repo) FindSimilarClusters(
 		topK,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("find similar clusters: %w", err)
+		return nil, errors.WrapFail(err, "find similar clusters")
 	}
 	defer rows.Close()
 

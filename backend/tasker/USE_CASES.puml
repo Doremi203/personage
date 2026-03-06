@@ -1,0 +1,120 @@
+@startuml
+' Personage — Infrastructure / Deployment diagram
+skinparam shadowing false
+skinparam componentStyle rectangle
+skinparam defaultFontName Arial
+
+' ====== External actors / clients ======
+actor "Пользователь" as User
+
+node "Клиентские устройства" as Clients {
+  node "Web браузер" as WebClient
+}
+
+cloud "LLM Provider" as LLMCloud {
+  [OpenRouter API] as LLMAPI
+}
+
+cloud "Gitlab" as gitlab {
+  [Gitlab pipeline] as gitlab_pipeline
+}
+
+' ====== Cloud / VPS environment ======
+node "Облачная инфраструктура (VPS/Cloud)" as CloudEnv {
+
+  node "DNS" as dns {
+    component "CDN запись" as dns_cdn
+    component "L7 запись" as dns_l7
+    component "S3 запись" as dns_s3
+  }
+
+  node "L7 балансировщик" as l7 {
+    component "HTTPS слушатель" as l7_https_listener
+    component "HTTP слушатель\nперенаправляет на HTTPS" as l7_http_listener
+
+    component "HTTPS router" as l7_https_router
+    component "Tasker виртуальный хост" as tasker_virtual_host
+    component "Auth виртуальный хост" as auth_virtual_host
+    component "Notificator виртуальный хост" as notificator_virtual_host
+  }
+
+    node "Tasker группа ВМ" as tasker {
+      component "node 1" as tasker1
+      component "node 2" as tasker2
+    }
+
+    node "Notificator группа ВМ" as notificator {
+      component "node 1" as notificator1
+      component "node 2" as notificator2
+    }
+
+    node "Auth группа ВМ" as auth {
+      component "node 1" as auth1
+      component "node 2" as auth2
+    }
+
+    node "Traitex группа ВМ" as traitex {
+      component "node 1" as traitex1
+      component "node 2" as traitex2
+    }
+
+    node "Виртуальная машина для GitLab" as gitlab_vm {
+        component "GitLab CI Runner" as gitlab_ci
+    }
+
+    database "PostgreSQL" as PG
+    database "CDN" as cdn
+    database "Frontend S3\nстатические файлы" as s3
+    database "Terraform state S3" as tf_s3
+    queue "Connector events SQS" as connector_events_sqs
+    queue "Notification events SQS" as notification_events_sqs
+}
+
+' ====== Connections (clients) ======
+User --> WebClient
+
+' Web / Telegram access
+WebClient --> dns : HTTPS/HTTP\n*.persomanage.ru
+
+dns_cdn --> cdn
+cdn --> s3 : Кэширует статику
+
+dns_s3 --> s3 : persomanage.ru
+
+dns_l7 --> l7_https_listener : HTTPS\n*.persomanage.ru
+dns_l7 --> l7_http_listener : HTTP\n*.persomanage.ru
+l7_https_listener --> l7_https_router
+l7_https_router --> tasker_virtual_host : tasker.personamanage.ru/*
+l7_https_router --> auth_virtual_host : auth.personamanage.ru/*
+l7_https_router --> notificator_virtual_host : notificator.personamanage.ru/*
+tasker_virtual_host --> tasker1
+tasker_virtual_host --> tasker2
+auth_virtual_host --> auth1
+auth_virtual_host --> auth2
+notificator_virtual_host --> notificator1
+notificator_virtual_host --> notificator2
+
+' Service to service communication '
+tasker --> auth : GRPC
+notificator --> auth : GRPC
+traitex --> auth : GRPC
+
+' SQS reading/writing '
+connector_events_sqs --> tasker : Чтение событий
+traitex --> connector_events_sqs : Запись событий
+
+notification_events_sqs --> notificator : Чтение событий
+tasker --> notification_events_sqs : Запись событий
+
+' LLM API access '
+tasker --> LLMAPI : Запросы к LLM
+
+' ====== Data layer ======
+tasker --> PG : SQL
+auth --> PG : SQL
+notificator --> PG : SQL
+traitex --> PG : SQL
+
+' ====== DevOps ====== '
+gitlab_pipeline --> gitlab_ci : Запуск CI/CD задач
+@enduml

@@ -45,14 +45,6 @@ resource "yandex_vpc_address" "public_alb_static_address" {
   }
 }
 
-resource "yandex_dns_recordset" "alb-record" {
-  zone_id = yandex_dns_zone.main_domain_public_zone.id
-  name    = "${var.domain}."
-  ttl     = 600
-  type    = "A"
-  data    = [yandex_alb_load_balancer.main_alb.listener[0].endpoint[0].address[0].external_ipv4_address[0].address]
-}
-
 resource "yandex_alb_load_balancer" "main_alb" {
   name               = "main"
   network_id         = data.yandex_vpc_network.default.network_id
@@ -104,19 +96,4 @@ resource "yandex_alb_load_balancer" "main_alb" {
 
 resource "yandex_alb_http_router" "https_router" {
   name = "https-router"
-}
-
-resource "yandex_alb_virtual_host" "https_main_vhost" {
-  name           = "https-main"
-  http_router_id = yandex_alb_http_router.https_router.id
-  authority      = [var.domain]
-  route {
-    name = "main-route"
-    http_route {
-      direct_response_action {
-        status = 200
-        body   = "Persomanage main server"
-      }
-    }
-  }
 }
