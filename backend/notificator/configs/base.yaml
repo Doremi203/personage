@@ -19,9 +19,9 @@ sqs:
   queueUrl: https://message-queue.api.cloud.yandex.net/b1gfkhf234165rrluh60/dj60000000gqu7d103cs/notificator-commands
 
 web-push:
-  vapidPublicKey: "secret:e6qtjkq9e0ctmm4kmmom:e6qvi9n6tiacubvmcadb:public-key"
-  vapidPrivateKey: "secret:e6qtjkq9e0ctmm4kmmom:e6qvi9n6tiacubvmcadb:private-key"
-  subscriber: "secret:e6qtjkq9e0ctmm4kmmom:e6qvi9n6tiacubvmcadb:subscriber"
+  vapidPublicKey: "secret:e6qtjkq9e0ctmm4kmmom:e6q8rpmgb694bj92f6o0:public-key"
+  vapidPrivateKey: "secret:e6qtjkq9e0ctmm4kmmom:e6q8rpmgb694bj92f6o0:private-key"
+  subscriber: "secret:e6qtjkq9e0ctmm4kmmom:e6q8rpmgb694bj92f6o0:subscriber"
 
 database:
   host: localhost
