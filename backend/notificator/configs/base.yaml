@@ -9,7 +9,6 @@ logging:
   format: console
 
 swagger-ui:
-  path: /app/swagger-ui
   enabled: true
 
 sqs:
@@ -25,7 +24,7 @@ web-push:
   subscriber: "secret:e6qtjkq9e0ctmm4kmmom:e6qvi9n6tiacubvmcadb:subscriber"
 
 database:
-  host: db
+  host: localhost
   port: 5432
   user: user
   password: pass

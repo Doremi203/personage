@@ -316,7 +316,14 @@ func run(ctx context.Context, a *App, setupFunc func(ctx context.Context, app *A
 	grpcMux := runtime.NewServeMux(a.gatewayOptions...)
 
 	grpcServer, err := a.initGRPCServer(ctx, grpcMux)
-	a.initHTTPServer(grpcMux)
+	if err != nil {
+		return errors.WrapFail(err, "init grpc server")
+	}
+
+	err = a.initHTTPServer(grpcMux)
+	if err != nil {
+		return errors.WrapFail(err, "init http server")
+	}
 
 	a.startBackgroundJobs()
 
@@ -472,16 +479,13 @@ func (a *App) initGRPCServer(ctx context.Context, grpcMux *runtime.ServeMux) (*g
 	return grpcServer, nil
 }
 
-func (a *App) initHTTPServer(grpcMux *runtime.ServeMux) {
+func (a *App) initHTTPServer(grpcMux *runtime.ServeMux) error {
 	mux := http.NewServeMux()
 
-	if a.Config.swaggerUI.Enabled {
-		swaggerUIDir := http.Dir(a.Config.swaggerUI.Path)
-		fileServer := http.FileServer(swaggerUIDir)
-		mux.Handle("/swagger/", http.StripPrefix("/swagger/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Cache-Control", "public, max-age=30, must-revalidate")
-			fileServer.ServeHTTP(w, r)
-		})))
+	// Register embedded Swagger UI with dynamically discovered specs.
+	err := registerSwaggerUI(mux, a.Config.swaggerUI, a.Log)
+	if err != nil {
+		return errors.WrapFail(err, "register swagger UI")
 	}
 
 	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
@@ -518,6 +522,8 @@ func (a *App) initHTTPServer(grpcMux *runtime.ServeMux) {
 
 		return nil
 	}))
+
+	return nil
 }
 
 func (a *App) startBackgroundJobs() {
