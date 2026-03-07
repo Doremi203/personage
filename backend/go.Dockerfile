@@ -21,4 +21,5 @@ RUN apk add --no-cache wget && \
 
 COPY --from=build /src/app ./
 COPY --from=build /src/$service/configs configs
+COPY --from=build /src/$service/swagger swagger
 CMD ["./app"]

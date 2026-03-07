@@ -31,8 +31,8 @@ type loggingConfig struct {
 }
 
 type swaggerUIConfig struct {
-	Path    string
-	Enabled bool
+	SpecsDir string
+	Enabled  bool
 }
 
 type Config struct {
