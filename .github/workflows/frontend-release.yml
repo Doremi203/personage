@@ -85,7 +85,7 @@ jobs:
           artifact-name: frontend_build
           artifact-path: frontend/dist
           folder-id: ${{ secrets.YC_FOLDER_ID }}
-          s3-bucket: couply-frontend-testing
+          s3-bucket: persomanage.ru
           yc-service-key: ${{ secrets.YC_SERVICE_KEY }}
 
   publish-release:
