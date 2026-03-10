@@ -53,7 +53,7 @@ public class GmailAuthControllerTests : TestClassBase
         //arrange
         var userEmail = Fixture.Create<string>();
         var redirectUri = Fixture.Create<string>();
-        var user = await UserRepository.CreateUser(userEmail, CancellationToken.None);
+        var user = await UserRepository.CreateShortUser(userEmail, CancellationToken.None);
         var clientId = Fixture.Create<string>();
         var clientSecret = Fixture.Create<string>();
         var scopes = Fixture.CreateMany<string>().ToArray();
@@ -124,7 +124,7 @@ public class GmailAuthControllerTests : TestClassBase
     {
         //arrange
         var userEmail = Fixture.Create<string>();
-        var user = await UserRepository.CreateUser(userEmail, CancellationToken.None);
+        var user = await UserRepository.CreateShortUser(userEmail, CancellationToken.None);
         var state = Fixture.Create<string>();
         var redirectUri = Fixture.Create<string>();
         var accessToken = Fixture.Create<string>();

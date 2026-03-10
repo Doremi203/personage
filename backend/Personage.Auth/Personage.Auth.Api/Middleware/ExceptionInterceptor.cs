@@ -1,6 +1,7 @@
 using Grpc.Core;
 using Grpc.Core.Interceptors;
 using Personage.Auth.Domain.Exceptions;
+using Personage.Auth.Domain.Exceptions.Base;
 
 namespace Personage.Auth.Api.Middleware;
 
