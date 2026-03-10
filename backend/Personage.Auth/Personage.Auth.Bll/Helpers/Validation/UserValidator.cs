@@ -38,7 +38,7 @@ public static partial class UserValidator
             throw new ValidationException(ErrorCode.EmailValidationFail, "Invalid email. Your email should have the following format: email@example.com");
     }
     
-    private static void ValidatePassword(string password)
+    public static void ValidatePassword(string password)
     {
         if (string.IsNullOrWhiteSpace(password))
             throw new ValidationException(ErrorCode.PasswordValidationFail, "Password cannot be empty");

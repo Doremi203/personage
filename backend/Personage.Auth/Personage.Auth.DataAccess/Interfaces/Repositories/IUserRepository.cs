@@ -11,4 +11,5 @@ public interface IUserRepository
     Task<User> CreateUser(CreateUserRequest request, CancellationToken ct);
     Task<UserWithToken[]> GetUsersProcessedBeforeMoment(DateTime processedBeforeMoment, int limit, CancellationToken ct);
     Task MarkUsersAsProcessed((Guid UserId, DateTime ProcessedAt)[] users, CancellationToken ct);
+    Task UpdatePassword(Guid userId, string passwordHash, CancellationToken ct);
 }

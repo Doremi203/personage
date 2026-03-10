@@ -11,4 +11,6 @@ public interface IAuthService
     Task<PersonageTokenModel> AuthByPassword(string email, string password, CancellationToken ct);
     Task<PersonageTokenModel> RegisterWithPassword(RegisterUserRequestModel request, CancellationToken ct);
     Task<PersonageTokenModel> RefreshAccessToken(string refreshToken, CancellationToken ct);
+    Task InitiatePasswordReset(string email, string resetUrlBase, CancellationToken ct);
+    Task<PersonageTokenModel> ResetPassword(string token, string newPassword, CancellationToken ct);
 }

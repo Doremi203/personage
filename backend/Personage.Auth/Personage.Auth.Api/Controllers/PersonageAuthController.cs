@@ -6,7 +6,6 @@ using Personage.Auth.Domain.Models.Auth.Requests;
 
 namespace Personage.Auth.Api.Controllers;
 
-//TODO: add global exception filter
 [ApiController]
 [Route("auth/personage")]
 public class PersonageAuthController(IAuthService authService) : ControllerBase
@@ -58,6 +57,29 @@ public class PersonageAuthController(IAuthService authService) : ControllerBase
         {
             AccessToken = res.AccessToken,
             RefreshToken = res.RefreshToken,
+        };
+    }
+    
+    [HttpPost("forgot-password")]
+    public async Task<ActionResult> ForgotPassword(
+        [FromBody] ForgotPasswordRequest request,
+        CancellationToken ct)
+    {
+        await authService.InitiatePasswordReset(request.Email, request.ResetUrlBase, ct);
+        return Ok(new { message = "If the email exists, a reset link has been sent" });
+    }
+
+    [HttpPost("reset-password")]
+    public async Task<ActionResult<PersonageAuthResponse>> ResetPassword(
+        [FromBody] ResetPasswordRequest request,
+        CancellationToken ct)
+    {
+        var res = await authService.ResetPassword(request.Token, request.NewPassword, ct);
+    
+        return new PersonageAuthResponse
+        {
+            AccessToken = res.AccessToken,
+            RefreshToken = res.RefreshToken
         };
     }
 }

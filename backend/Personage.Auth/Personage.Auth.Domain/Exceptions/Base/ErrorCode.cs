@@ -17,5 +17,6 @@ public enum ErrorCode
     EmailValidationFail = 9,
     PasswordValidationFail = 10,
     UserNameValidationFail = 11,
-    PasswordNotSet = 12
+    PasswordNotSet = 12,
+    InvalidResetToken = 13,
 }

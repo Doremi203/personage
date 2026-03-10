@@ -156,4 +156,22 @@ public class UserRepository(IDbConnectionFactory connectionFactory) : IUserRepos
                 processedAtMoments = users.Select(u => u.ProcessedAt).ToArray()
             });
     }
+
+    public async Task UpdatePassword(Guid userId, string passwordHash, CancellationToken ct)
+    {
+        using var connection = await connectionFactory.CreateConnection(ct);
+        
+        await connection.ExecuteAsync(
+            """
+            --UserRepository.UpdatePassword
+            UPDATE "user"
+            SET password_hash = @passwordHash
+            WHERE id = @userId;
+            """,
+            new
+            {
+                userId,
+                passwordHash
+            });
+    }
 }

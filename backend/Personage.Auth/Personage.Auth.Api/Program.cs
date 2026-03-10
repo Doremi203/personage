@@ -1,4 +1,5 @@
 using DotNetEnv;
+using Personage.Auth.Api.Extensions;
 using Personage.Auth.Api.GrpcServices;
 using Personage.Auth.Api.Middleware;
 using Personage.Auth.Bll.Services;
@@ -64,6 +65,8 @@ public class Program
         ConfigureSettings(services, configuration, environment);
         AddRepositories(services);
         AddBllServices(services);
+        services.AddYandexCloudSdk(configuration);
+        
         AddReflectionAndSwagger(services);
         
         services.AddScoped<IMigrationRunner, MigrationRunner>();
@@ -131,6 +134,7 @@ public class Program
         services.AddScoped<IGmailTokenRepository, GmailTokenRepository>();
         services.AddScoped<IOAuthStateRepository, OAuthStateRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+        services.AddScoped<IPasswordResetTokenRepository, PasswordResetTokenRepository>();
     }
 
     private static void AddBllServices(IServiceCollection services)
@@ -138,6 +142,7 @@ public class Program
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IStateTrackingService, StateTrackingService>();
         services.AddScoped<IGoogleOAuthService, GoogleOAuthService>();
+        services.AddScoped<IPostboxService, PostboxService>();
         services.AddHttpClient<IGoogleOAuthService, GoogleOAuthService>();
     }
 
@@ -169,5 +174,6 @@ public class Program
         
         services.Configure<ConnectionFactorySettings>(configuration.GetSection(nameof(ConnectionFactorySettings)));
         services.Configure<JwtSettings>(configuration.GetSection(nameof(JwtSettings)));
+        services.Configure<PostboxSettings>(configuration.GetSection(nameof(PostboxSettings)));
     }
 }
