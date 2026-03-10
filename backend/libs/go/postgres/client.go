@@ -3,10 +3,10 @@ package postgres
 import (
 	"context"
 
+	"github.com/Doremi203/personage/backend/libs/go/errors"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"gitlab.com/amoguscorp/personage/backend/libs/go/errors"
 )
 
 type txKey struct{}
@@ -34,6 +34,11 @@ func NewClient(ctx context.Context, cfg *pgxpool.Config) (*client, error) {
 	pgPool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
 		return nil, errors.WrapFail(err, "create postgres client")
+	}
+
+	err = pgPool.Ping(ctx)
+	if err != nil {
+		return nil, errors.WrapFail(err, "ping postgres health")
 	}
 
 	return &client{

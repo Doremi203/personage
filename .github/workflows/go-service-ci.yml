@@ -1,0 +1,109 @@
+name: Go Service CI/CD
+on:
+  workflow_call:
+    inputs:
+      service_name:
+        required: true
+        type: string
+        description: "Service name (e.g. tasker, notificator)"
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  codegen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/codegen
+      - name: Upload codegen results
+        uses: actions/upload-artifact@v6
+        with:
+          name: codegen-output
+          path: backend
+
+  lint-service:
+    needs: codegen
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download codegen results
+        uses: actions/download-artifact@v6
+        with:
+          name: codegen-output
+          path: backend
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          install-mode: goinstall
+          version: latest
+          working-directory: backend/${{ inputs.service_name }}
+
+  lint-libs:
+    needs: codegen
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download codegen results
+        uses: actions/download-artifact@v6
+        with:
+          name: codegen-output
+          path: backend
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          install-mode: goinstall
+          version: latest
+          working-directory: backend/libs
+
+  test:
+    needs: codegen
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: backend/${{ inputs.service_name }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download codegen results
+        uses: actions/download-artifact@v6
+        with:
+          name: codegen-output
+          path: backend
+
+      - name: Run tests
+        run: BASE_MIGRATIONS_PATH=${{ github.workspace }}/backend go test ./... -race
+
+  build:
+    needs: codegen
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download codegen results
+        uses: actions/download-artifact@v6
+        with:
+          name: codegen-output
+          path: backend
+
+      - name: Build Docker image
+        run: docker build --build-arg service=${{ inputs.service_name }} -t ${{ inputs.service_name }}_service:${{ github.sha }} . -f go.Dockerfile

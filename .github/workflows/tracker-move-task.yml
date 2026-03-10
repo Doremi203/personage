@@ -1,0 +1,33 @@
+name: YC Tracker move task
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - closed
+
+jobs:
+  validate-rules-and-move-task:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Move Task When PR Opened
+        if: github.event.action != 'closed'
+        uses: evrone-erp/yandex-tracker-action@v1.5.0
+        with:
+          token: ${{secrets.GITHUB_TOKEN}}
+          task_url: true
+          yandex_org_id: ${{ secrets.YC_ORG_ID }}
+          yandex_oauth2_token: ${{ secrets.YC_TRACKER_OAUTH }}
+          to: inReview
+          is_yandex_cloud_org: true
+
+      - name: Move Task When PR Merged
+        if: github.event.pull_request.merged == true
+        uses: evrone-erp/yandex-tracker-action@v1.5.0
+        with:
+          token: ${{secrets.GITHUB_TOKEN}}
+          yandex_org_id: ${{ secrets.YC_ORG_ID }}
+          yandex_oauth2_token: ${{ secrets.YC_TRACKER_OAUTH }}
+          to: rc
+          is_yandex_cloud_org: true

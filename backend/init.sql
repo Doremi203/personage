@@ -1,1 +1,2 @@
 CREATE DATABASE tasker;
+CREATE DATABASE notificator;

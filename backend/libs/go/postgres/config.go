@@ -5,15 +5,15 @@ import "fmt"
 type Config struct {
 	Host     string
 	Port     int
-	User     string `env:"DATABASE_USER" secret:"db-user"`
-	Password string `env:"DATABASE_PASSWORD" secret:"db-password"`
+	User     string
+	Password string `json:"-"`
 	Database string
 	Options  string
 }
 
 func (c Config) ConnectionString() string {
 	return fmt.Sprintf(
-		"postgres://%s:%s@%s:%d/%s?%s",
+		"user=%s password=%s host=%s port=%d dbname=%s %s",
 		c.User,
 		c.Password,
 		c.Host,

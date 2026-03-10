@@ -10,20 +10,43 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Doremi203/personage/backend/libs/go/errors"
 	"github.com/docker/go-connections/nat"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	pgxvec "github.com/pgvector/pgvector-go/pgx"
 	"github.com/pressly/goose/v3"
 	"github.com/stretchr/testify/require"
-	"gitlab.com/amoguscorp/personage/backend/libs/go/errors"
 
 	_ "github.com/lib/pq"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
-func SetupTests(m *testing.M, tester *Tester, serviceDir string) {
+type SetupOption func(*setupConfig)
+
+type setupConfig struct {
+	afterConnect func(ctx context.Context, conn *pgx.Conn) error
+	image        string
+}
+
+func WithAfterConnect(fn func(ctx context.Context, conn *pgx.Conn) error) SetupOption {
+	return func(c *setupConfig) {
+		c.afterConnect = fn
+	}
+}
+
+func WithImage(image string) SetupOption {
+	return func(c *setupConfig) {
+		c.image = image
+	}
+}
+
+func SetupTests(
+	m *testing.M,
+	tester *Tester,
+	serviceDir string,
+	opts ...SetupOption,
+) {
 	start := time.Now()
 	ctx := context.Background()
 
@@ -36,8 +59,15 @@ func SetupTests(m *testing.M, tester *Tester, serviceDir string) {
 
 	dbPort := "5432/tcp"
 
+	sCfg := setupConfig{
+		image: "postgres",
+	}
+	for _, opt := range opts {
+		opt(&sCfg)
+	}
+
 	req := testcontainers.ContainerRequest{
-		Image:        "postgres",
+		Image:        sCfg.image,
 		ExposedPorts: []string{"5432/tcp"},
 		Env: map[string]string{
 			"POSTGRES_PASSWORD": cfg.Password,
@@ -104,12 +134,18 @@ func SetupTests(m *testing.M, tester *Tester, serviceDir string) {
 	if err != nil {
 		log.Fatalf("couldn't create db migrations provider: %v", err)
 	}
+	defer func() {
+		err = migrator.Close()
+		if err != nil {
+			log.Printf("couldn't close db migrations provider: %v", err)
+		}
+	}()
 
 	if _, err = migrator.Up(ctx); err != nil {
 		log.Fatalf("couldn't run migrations: %v", err)
 	}
 
-	t, err := newTester(ctx, cfg, baseDir)
+	t, err := newTester(ctx, cfg, baseDir, &sCfg)
 	if err != nil {
 		log.Fatalf("couldn't create tester: %v", err)
 	}
@@ -120,13 +156,13 @@ func SetupTests(m *testing.M, tester *Tester, serviceDir string) {
 	m.Run()
 }
 
-func newTester(ctx context.Context, cfg Config, baseDir string) (Tester, error) {
+func newTester(ctx context.Context, cfg Config, baseDir string, sCfg *setupConfig) (Tester, error) {
 	poolConfig, err := pgxpool.ParseConfig(cfg.ConnectionString())
 	if err != nil {
 		return Tester{}, errors.WrapFail(err, "create pool config")
 	}
-	poolConfig.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
-		return pgxvec.RegisterTypes(ctx, conn)
+	if sCfg.afterConnect != nil {
+		poolConfig.AfterConnect = sCfg.afterConnect
 	}
 	db, err := NewClient(ctx, poolConfig)
 	if err != nil {

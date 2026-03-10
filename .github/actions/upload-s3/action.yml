@@ -1,0 +1,79 @@
+name: 'Upload to s3'
+description: 'Upload build to Yandex Object Storage via AWS CLI'
+
+inputs:
+  artifact-name:
+    description: Name of the artifact
+    required: true
+  artifact-path:
+    description: Path to the artifact
+    required: true
+  folder-id:
+    description: Yandex Cloud folder ID
+    required: true
+  s3-bucket:
+    description: S3 bucket name
+    required: true
+  yc-service-key:
+    description: Yandex Cloud service key
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/checkout@v6
+
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: ${{ inputs.artifact-path }}
+
+    - name: Set release version
+      shell: bash
+      run: echo "RELEASE_VERSION=${{ github.run_number }}" >> $GITHUB_ENV
+
+    - name: Setup yc
+      shell: bash
+      run: |
+        curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash -s -- -i /opt/yc -n
+        echo '${{ inputs.yc-service-key }}' > sa-key.json
+        /opt/yc/bin/yc config set folder-id ${{ inputs.folder-id }}
+        /opt/yc/bin/yc config set service-account-key sa-key.json
+
+    - name: Get AWS credentials from Yandex Lockbox
+      shell: bash
+      run: |
+        echo "🔐 Fetching AWS credentials from Yandex Lockbox..."
+        AWS_ACCESS_KEY_ID=$(/opt/yc/bin/yc lockbox payload get --id e6q869h32umj7dap12qa --key access_key_id)
+        AWS_SECRET_ACCESS_KEY=$(/opt/yc/bin/yc lockbox payload get --id e6q869h32umj7dap12qa --key secret_key)
+        echo "AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}" >> $GITHUB_ENV
+        echo "AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}" >> $GITHUB_ENV
+        echo "✅ AWS credentials retrieved successfully"
+
+    - name: Deploy to Object Storage
+      shell: bash
+      run: |
+        ENDPOINT_URL="https://storage.yandexcloud.net"
+        BUCKET="s3://${{ inputs.s3-bucket }}"
+        SRC="./${{ inputs.artifact-path }}"
+
+        echo "🚀 Deploying to ${BUCKET}..."
+
+        # Sync hashed assets with long-lived cache (1 year)
+        aws s3 sync "$SRC" "$BUCKET" \
+          --endpoint-url "$ENDPOINT_URL" \
+          --delete \
+          --cache-control "max-age=31536000" \
+          --exclude "index.html" \
+          --exclude "*.json"
+
+        # Sync index.html and JSON manifests with no-cache so updates apply immediately
+        aws s3 sync "$SRC" "$BUCKET" \
+          --endpoint-url "$ENDPOINT_URL" \
+          --cache-control "no-cache, no-store, must-revalidate" \
+          --exclude "*" \
+          --include "index.html" \
+          --include "*.json"
+
+        echo "✅ Deployed successfully to ${BUCKET}"

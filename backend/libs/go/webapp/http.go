@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	"gitlab.com/amoguscorp/personage/backend/libs/go/errors"
+	"github.com/Doremi203/personage/backend/libs/go/errors"
 	"google.golang.org/protobuf/proto"
 )
 

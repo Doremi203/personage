@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package push;
+
+option go_package = "github.com/Doremi203/personage/backend/notificator/api/push";
+
+message Notification {
+  string recipient_id = 1;
+  string title = 2;
+  string body = 3;
+  string icon = 4;
+  string url = 5;
+}
