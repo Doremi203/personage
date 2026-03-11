@@ -4,6 +4,9 @@ grpc:
 http:
   port: 9090
 
+swagger-ui:
+  enabled: true
+
 logging:
   level: debug
   format: console

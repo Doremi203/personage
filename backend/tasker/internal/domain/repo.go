@@ -3,11 +3,16 @@ package domain
 import (
 	"context"
 	"time"
+
+	"github.com/Doremi203/personage/backend/libs/go/errors"
 )
+
+var ErrTaskNotFound = errors.Error("task not found")
 
 type EventRepo interface {
 	UpsertEvent(ctx context.Context, event EventWithEmbedding) error
 	GetEventsByClusterID(ctx context.Context, clusterID ClusterID) ([]Event, error)
+	DeleteEventsByClusterID(ctx context.Context, clusterID ClusterID) error
 }
 
 type ClusterRepo interface {
@@ -15,15 +20,20 @@ type ClusterRepo interface {
 	UpsertCluster(ctx context.Context, cluster Cluster) error
 	FindClosableClusters(ctx context.Context, maxEventCount int, inactivityDuration time.Duration, limit int) ([]Cluster, error)
 	UpdateClusterStatus(ctx context.Context, clusterID ClusterID, status ClusterStatus) error
+	DeleteCluster(ctx context.Context, clusterID ClusterID) error
 }
 
 //go:generate mockgen -source=repo.go -destination=mock/repo_mock.go -typed
 
 type TaskRepo interface {
 	CreateTask(ctx context.Context, task Task) error
+	GetTaskByID(ctx context.Context, taskID TaskID, userID UserID) (Task, error)
 	GetTasksByUserID(ctx context.Context, userID UserID) ([]Task, error)
 	GetTasksByStatus(ctx context.Context, userID UserID, status TaskStatus) ([]Task, error)
-	GetUsersWithPendingTasks(ctx context.Context) ([]UserID, error)
-	UpdateTaskSchedule(ctx context.Context, taskID TaskID, startTime time.Time, status TaskStatus) error
+	GetUsersWithUnplannedTasks(ctx context.Context) ([]UserID, error)
+	UpdateTaskSchedule(ctx context.Context, taskID TaskID, startTime time.Time, endTime time.Time, status TaskStatus) error
 	UpdateTaskStatus(ctx context.Context, taskID TaskID, status TaskStatus) error
+	UpdateTask(ctx context.Context, taskID TaskID, userID UserID, update TaskUpdate) (Task, error)
+	DeleteTask(ctx context.Context, taskID TaskID) error
+	ListTasks(ctx context.Context, filter TaskFilter, pagination Pagination) ([]Task, int, error)
 }

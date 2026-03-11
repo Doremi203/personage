@@ -7,8 +7,10 @@ import (
 	"github.com/Doremi203/personage/backend/libs/go/errors"
 	"github.com/Doremi203/personage/backend/libs/go/postgres"
 	"github.com/Doremi203/personage/backend/libs/go/sqs"
+	"github.com/Doremi203/personage/backend/libs/go/token"
 	"github.com/Doremi203/personage/backend/libs/go/webapp"
 	eventsPb "github.com/Doremi203/personage/backend/tasker/gen/api/events"
+	taskergrpc "github.com/Doremi203/personage/backend/tasker/internal/grpc"
 	"github.com/Doremi203/personage/backend/tasker/internal/handlers/sqs/event"
 	clusterpostgres "github.com/Doremi203/personage/backend/tasker/internal/repo/cluster/postgres"
 	eventpostgres "github.com/Doremi203/personage/backend/tasker/internal/repo/event/postgres"
@@ -18,6 +20,7 @@ import (
 	"github.com/Doremi203/personage/backend/tasker/internal/usecase/clusterization"
 	"github.com/Doremi203/personage/backend/tasker/internal/usecase/scheduling"
 	"github.com/Doremi203/personage/backend/tasker/internal/usecase/taskgeneration"
+	"github.com/Doremi203/personage/backend/tasker/internal/usecase/tasklist"
 	"github.com/Doremi203/personage/backend/tasker/internal/workers/clusterclosure"
 	schedulingworker "github.com/Doremi203/personage/backend/tasker/internal/workers/scheduling"
 	"github.com/cloudwego/eino-ext/components/embedding/openai"
@@ -173,7 +176,6 @@ func main() {
 			).WithInterval(clusterClosureConfig.Interval),
 		)
 
-		// Scheduling worker
 		type SchedulingConfig struct {
 			WindowHours int
 			Interval    time.Duration
@@ -201,6 +203,24 @@ func main() {
 				"scheduling-worker",
 				schedulingWorker.Process,
 			).WithInterval(schedulingConfig.Interval),
+		)
+
+		taskListUseCase := tasklist.NewUseCase(
+			postgresTaskRepo,
+			postgresEventRepo,
+			postgresClusterRepo,
+			postgresTxProvider,
+		)
+		tasksService := taskergrpc.NewTasksService(taskListUseCase, app.Log)
+
+		app.RegisterGRPCServices(tasksService)
+		app.AddGatewayHandlers(tasksService)
+		app.AddGRPCUnaryInterceptor(
+			token.NewUnaryTokenInterceptor(
+				token.NewVerifierStub(),
+				app.Log,
+				token.InterceptAllMethodsOption,
+			),
 		)
 
 		return nil
