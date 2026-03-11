@@ -95,6 +95,17 @@ func (r *repo) GetEventsByClusterID(ctx context.Context, clusterID domain.Cluste
 	return slices.Map(entities, entity.ToDomain), nil
 }
 
+func (r *repo) DeleteEventsByClusterID(ctx context.Context, clusterID domain.ClusterID) error {
+	query := `DELETE FROM events WHERE cluster_id = $1`
+
+	_, err := r.client.Exec(ctx, query, clusterID)
+	if err != nil {
+		return errors.WrapFail(err, "delete events by cluster id")
+	}
+
+	return nil
+}
+
 type entity struct {
 	EventID    uuid.UUID       `db:"event_id"`
 	UserID     uuid.UUID       `db:"user_id"`

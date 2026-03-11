@@ -49,9 +49,8 @@ func (s *pushSubscriptionService) SubscribeV1(
 	ctx context.Context,
 	req *pushpb.SubscribeV1Request,
 ) (*pushpb.SubscribeV1Response, error) {
-	t, err := token.FromGRPCCtx(ctx)
-	if err != nil {
-		s.logger.Warn(err)
+	t, ok := token.FromContext(ctx)
+	if !ok {
 		return nil, status.Error(codes.Unauthenticated, "missing token")
 	}
 
@@ -79,9 +78,8 @@ func (s *pushSubscriptionService) UnsubscribeV1(
 	ctx context.Context,
 	req *pushpb.UnsubscribeV1Request,
 ) (*pushpb.UnsubscribeV1Response, error) {
-	t, err := token.FromGRPCCtx(ctx)
-	if err != nil {
-		s.logger.Warn(err)
+	t, ok := token.FromContext(ctx)
+	if !ok {
 		return nil, status.Error(codes.Unauthenticated, "missing token")
 	}
 
@@ -91,7 +89,7 @@ func (s *pushSubscriptionService) UnsubscribeV1(
 
 	recipientID := push.RecipientID(t.GetUserID())
 
-	err = s.pushSubscriptionUseCase.Unsubscribe(ctx, push.Subscription{
+	err := s.pushSubscriptionUseCase.Unsubscribe(ctx, push.Subscription{
 		RecipientID: recipientID,
 		Endpoint:    push.Endpoint(req.GetEndpoint()),
 	})
