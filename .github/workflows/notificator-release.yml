@@ -1,0 +1,15 @@
+name: Notificator Service Release Flow
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  release:
+    uses: ./.github/workflows/go-service-release.yml
+    with:
+      service_name: notificator
+      db_name: notificator
+    secrets: inherit

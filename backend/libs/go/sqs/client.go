@@ -5,12 +5,12 @@ import (
 	"encoding/base64"
 	"encoding/json"
 
+	"github.com/Doremi203/personage/backend/libs/go/errors"
+	"github.com/Doremi203/personage/backend/libs/go/log"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
-	"gitlab.com/amoguscorp/personage/backend/libs/go/errors"
-	"gitlab.com/amoguscorp/personage/backend/libs/go/log"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -96,7 +96,7 @@ func (c *client[T]) ReadMessages(ctx context.Context, logger log.Logger, maxCoun
 
 	resp, err := c.client.ReceiveMessage(ctx, &sqs.ReceiveMessageInput{
 		QueueUrl:            aws.String(c.config.QueueURL),
-		MaxNumberOfMessages: int32(maxCount),
+		MaxNumberOfMessages: int32(maxCount), //#nosec G115
 	})
 	if err != nil {
 		return nil, errors.WrapFail(err, "recieve message from queue")

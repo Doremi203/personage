@@ -1,4 +1,4 @@
-import { Bell, Calendar, TrendingUp, CheckCircle, Clock } from 'lucide-react';
+import { Bell } from 'lucide-react';
 import NotificationList from '../components/NotificationList';
 import WeeklyDigest from '../components/WeeklyDigest';
 

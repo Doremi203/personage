@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/Doremi203/personage/backend/libs/go/errors"
+	"github.com/Doremi203/personage/backend/libs/go/postgres"
+	"github.com/Doremi203/personage/backend/libs/go/slices"
+	"github.com/Doremi203/personage/backend/tasker/internal/domain"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/pgvector/pgvector-go"
-	"gitlab.com/amoguscorp/personage/backend/libs/go/errors"
-	"gitlab.com/amoguscorp/personage/backend/libs/go/postgres"
-	"gitlab.com/amoguscorp/personage/backend/libs/go/slices"
-	"gitlab.com/amoguscorp/personage/backend/tasker/internal/domain"
 )
 
 func NewRepo(client postgres.Client) *repo {

@@ -30,15 +30,20 @@ aws s3 sync "$DIST_DIR" "s3://$BUCKET_NAME" \
     --delete \
     --cache-control "max-age=31536000" \
     --exclude "index.html" \
-    --exclude "*.json"
+    --exclude "*.json" \
+    --exclude "sw.js" \
+    --exclude "sw.js.map"
 
-# index.html и json файлы без кеширования (чтобы обновления применялись сразу)
+# index.html, json, and service worker files without caching (so updates apply immediately)
+# sw.js MUST NOT be cached — browsers need to fetch the latest version to detect updates
 aws s3 sync "$DIST_DIR" "s3://$BUCKET_NAME" \
     --endpoint-url "$ENDPOINT_URL" \
     --cache-control "no-cache, no-store, must-revalidate" \
     --exclude "*" \
     --include "index.html" \
-    --include "*.json"
+    --include "*.json" \
+    --include "sw.js" \
+    --include "sw.js.map"
 
 echo "✅ Frontend deployed successfully!"
 echo "🌐 https://$BUCKET_NAME"

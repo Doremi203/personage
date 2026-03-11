@@ -5,7 +5,7 @@ import (
 	"sort"
 	"time"
 
-	"gitlab.com/amoguscorp/personage/backend/tasker/internal/domain"
+	"github.com/Doremi203/personage/backend/tasker/internal/domain"
 )
 
 // CalculateSchedule takes a list of tasks and a planning window.

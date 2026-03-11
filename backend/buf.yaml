@@ -2,4 +2,5 @@ version: v2
 
 modules:
   - path: tasker
+  - path: notificator
   - path: libs/proto

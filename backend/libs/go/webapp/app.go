@@ -14,13 +14,13 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Doremi203/personage/backend/libs/go/errors"
+	"github.com/Doremi203/personage/backend/libs/go/log"
 	"github.com/go-resty/resty/v2"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/rs/cors"
 	ycsdk "github.com/yandex-cloud/go-sdk"
 	"github.com/yandex-cloud/go-sdk/pkg/retry/v1"
-	"gitlab.com/amoguscorp/personage/backend/libs/go/errors"
-	"gitlab.com/amoguscorp/personage/backend/libs/go/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/reflection"
@@ -112,7 +112,16 @@ func (bj backgroundJob) runIteration(ctx context.Context, logger log.Logger) err
 		}
 	}()
 
-	return bj.jobFunc(ctx)
+	logger.Infof("running %s iteration", errors.Token("background_job", bj.name))
+
+	err := bj.jobFunc(ctx)
+	if err != nil {
+		return err
+	}
+
+	logger.Infof("completed %s iteration", errors.Token("background_job", bj.name))
+
+	return nil
 }
 
 // App представляет основное приложение, включающее в себя настройки,
@@ -307,7 +316,14 @@ func run(ctx context.Context, a *App, setupFunc func(ctx context.Context, app *A
 	grpcMux := runtime.NewServeMux(a.gatewayOptions...)
 
 	grpcServer, err := a.initGRPCServer(ctx, grpcMux)
-	a.initHTTPServer(grpcMux)
+	if err != nil {
+		return errors.WrapFail(err, "init grpc server")
+	}
+
+	err = a.initHTTPServer(grpcMux)
+	if err != nil {
+		return errors.WrapFail(err, "init http server")
+	}
 
 	a.startBackgroundJobs()
 
@@ -423,8 +439,8 @@ func (a *App) initGRPCServer(ctx context.Context, grpcMux *runtime.ServeMux) (*g
 	if a.rateLimiter != nil {
 		defaultInerceptors = append(defaultInerceptors, newUnaryRateLimiterInterceptor(a.rateLimiter, a.Log))
 	}
-	if xApiCfg.SecretAPIKey != "" {
-		defaultInerceptors = append(defaultInerceptors, newUnaryAPIKeyInterceptor(xApiCfg.SecretAPIKey, a.protectedEndpoints...))
+	if xApiCfg.SecretKey != "" {
+		defaultInerceptors = append(defaultInerceptors, newUnaryAPIKeyInterceptor(xApiCfg.SecretKey, a.protectedEndpoints...))
 	}
 
 	grpcServer := grpc.NewServer(
@@ -463,16 +479,13 @@ func (a *App) initGRPCServer(ctx context.Context, grpcMux *runtime.ServeMux) (*g
 	return grpcServer, nil
 }
 
-func (a *App) initHTTPServer(grpcMux *runtime.ServeMux) {
+func (a *App) initHTTPServer(grpcMux *runtime.ServeMux) error {
 	mux := http.NewServeMux()
 
-	if a.Config.swaggerUI.Enabled {
-		swaggerUIDir := http.Dir(a.Config.swaggerUI.Path)
-		fileServer := http.FileServer(swaggerUIDir)
-		mux.Handle("/swagger/", http.StripPrefix("/swagger/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Cache-Control", "public, max-age=30, must-revalidate")
-			fileServer.ServeHTTP(w, r)
-		})))
+	// Register embedded Swagger UI with dynamically discovered specs.
+	err := registerSwaggerUI(mux, a.Config.swaggerUI, a.Log)
+	if err != nil {
+		return errors.WrapFail(err, "register swagger UI")
 	}
 
 	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
@@ -509,6 +522,8 @@ func (a *App) initHTTPServer(grpcMux *runtime.ServeMux) {
 
 		return nil
 	}))
+
+	return nil
 }
 
 func (a *App) startBackgroundJobs() {

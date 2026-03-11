@@ -3,7 +3,7 @@ package errors
 import (
 	"log/slog"
 
-	"gitlab.com/amoguscorp/personage/backend/libs/go/log"
+	"github.com/Doremi203/personage/backend/libs/go/log"
 )
 
 func Logger(base *slog.Logger) log.Logger {

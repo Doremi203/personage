@@ -20,7 +20,7 @@ resource "yandex_mdb_postgresql_cluster_v2" "main_db" {
     "host1d" = {
       zone      = "ru-central1-d"
       subnet_id = data.yandex_vpc_subnet.default-d.id
-      assign_public_ip = false
+      assign_public_ip = true
     }
   }
 
@@ -40,6 +40,12 @@ resource "yandex_mdb_postgresql_database" "tasker" {
   }
 }
 
+resource "yandex_mdb_postgresql_database" "notificator" {
+  cluster_id = yandex_mdb_postgresql_cluster_v2.main_db.id
+  name       = "notificator"
+  owner      = yandex_mdb_postgresql_user.admin.name
+}
+
 resource "yandex_mdb_postgresql_user" "admin" {
   cluster_id = yandex_mdb_postgresql_cluster_v2.main_db.id
   name       = "main"
@@ -51,9 +57,9 @@ resource "yandex_vpc_security_group" "postgres_db" {
   network_id = data.yandex_vpc_network.default.id
 
   ingress {
-    protocol       = "TCP"
-    description    = "Принимает трафик на 6432 порте от сервиса tasker"
-    port           = 6432
-    security_group_id = module.tasker.security_group_id
+    protocol = "TCP"
+    description = "Принимает трафик на 6432 порте из интернета"
+    port = 6432
+    v4_cidr_blocks = ["0.0.0.0/0"]
   }
 }

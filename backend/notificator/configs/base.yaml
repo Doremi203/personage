@@ -1,0 +1,35 @@
+grpc:
+  port: 8081
+
+http:
+  port: 9091
+
+logging:
+  level: debug
+  format: console
+
+swagger-ui:
+  enabled: true
+
+sqs:
+  endpoint: https://message-queue.api.cloud.yandex.net
+  region: ru-central1
+  accessKey: "secret:e6q869h32umj7dap12qa:e6q1l84sfb3f05qqu03e:access_key_id"
+  secretKey: "secret:e6q869h32umj7dap12qa:e6q1l84sfb3f05qqu03e:secret_key"
+  queueUrl: https://message-queue.api.cloud.yandex.net/b1gfkhf234165rrluh60/dj60000000gqu7d103cs/notificator-commands
+
+web-push:
+  vapidPublicKey: "secret:e6qtjkq9e0ctmm4kmmom:e6q8rpmgb694bj92f6o0:public-key"
+  vapidPrivateKey: "secret:e6qtjkq9e0ctmm4kmmom:e6q8rpmgb694bj92f6o0:private-key"
+  subscriber: "secret:e6qtjkq9e0ctmm4kmmom:e6q8rpmgb694bj92f6o0:subscriber"
+
+database:
+  host: localhost
+  port: 5432
+  user: user
+  password: pass
+  database: notificator
+  options: sslmode=disable
+
+x-api-key:
+  secretKey: "secret:e6q4bgtl41b9apekm33f:e6q8s03ba7lp7ktt0q16:secret-key"

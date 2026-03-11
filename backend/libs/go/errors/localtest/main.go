@@ -4,7 +4,7 @@ import (
 	"log/slog"
 	"os"
 
-	"gitlab.com/amoguscorp/personage/backend/libs/go/errors"
+	"github.com/Doremi203/personage/backend/libs/go/errors"
 )
 
 func main() {

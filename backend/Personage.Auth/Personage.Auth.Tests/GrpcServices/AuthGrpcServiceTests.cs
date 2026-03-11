@@ -50,7 +50,7 @@ public class AuthGrpcServiceTests : TestClassBase
     {
         //arrange
         var userEmail = Fixture.Create<string>();
-        var user = await UserRepository.CreateUser(userEmail, CancellationToken.None);
+        var user = await UserRepository.CreateShortUser(userEmail, CancellationToken.None);
         var accessToken = Fixture.Create<string>();
         var refreshToken = Fixture.Create<string>();
         var gmailEmail = Fixture.Create<string>();

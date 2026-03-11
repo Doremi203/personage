@@ -16,6 +16,23 @@ services:
       - "8080:8080"
       - "9090:9090"
 
+  notificator:
+    depends_on:
+      - db
+    build:
+      context: .
+      dockerfile: go.Dockerfile
+      args:
+        service: notificator
+    environment:
+      APP_ENV: dev
+      CONFIGS_PATH: /app/configs
+    env_file:
+      - ../secrets.env
+    ports:
+      - "8080:8080"
+      - "9090:9090"
+
   db:
     image: pgvector/pgvector:pg18-trixie
     healthcheck:

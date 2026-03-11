@@ -7,11 +7,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Doremi203/personage/backend/libs/go/errors"
+	"github.com/Doremi203/personage/backend/tasker/internal/domain"
 	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/components/prompt"
 	"github.com/cloudwego/eino/schema"
-	"gitlab.com/amoguscorp/personage/backend/libs/go/errors"
-	"gitlab.com/amoguscorp/personage/backend/tasker/internal/domain"
 )
 
 var taskGenerationTemplate = prompt.FromMessages(schema.GoTemplate,
@@ -50,7 +50,10 @@ type taskGenerationService struct {
 }
 
 func (s *taskGenerationService) GenerateTask(ctx context.Context, events []domain.Event) (domain.GeneratedTask, error) {
-	eventsText := s.formatEvents(events)
+	eventsText, err := s.formatEvents(events)
+	if err != nil {
+		return domain.GeneratedTask{}, err
+	}
 
 	messages, err := taskGenerationTemplate.Format(ctx, map[string]any{
 		"events": eventsText,
@@ -70,16 +73,17 @@ func (s *taskGenerationService) GenerateTask(ctx context.Context, events []domai
 	return s.parseResponse(response.Content)
 }
 
-func (s *taskGenerationService) formatEvents(events []domain.Event) string {
+func (s *taskGenerationService) formatEvents(events []domain.Event) (string, error) {
 	var builder strings.Builder
 
 	for i, event := range events {
-		builder.WriteString(fmt.Sprintf("\n--- Event %d ---\n", i+1))
-		builder.WriteString(string(event.Context))
-		builder.WriteString("\n")
+		_, err := fmt.Fprintf(&builder, "--- Event %d ---\n%s\n", i+1, event.Context)
+		if err != nil {
+			return "", errors.WrapFail(err, "format event")
+		}
 	}
 
-	return builder.String()
+	return builder.String(), nil
 }
 
 type llmTaskResponse struct {

@@ -4,11 +4,11 @@ import (
 	"context"
 	"time"
 
+	"github.com/Doremi203/personage/backend/libs/go/errors"
+	"github.com/Doremi203/personage/backend/libs/go/log"
+	"github.com/Doremi203/personage/backend/libs/go/tx"
+	"github.com/Doremi203/personage/backend/tasker/internal/domain"
 	"github.com/google/uuid"
-	"gitlab.com/amoguscorp/personage/backend/libs/go/errors"
-	"gitlab.com/amoguscorp/personage/backend/libs/go/log"
-	"gitlab.com/amoguscorp/personage/backend/libs/go/tx"
-	"gitlab.com/amoguscorp/personage/backend/tasker/internal/domain"
 )
 
 func NewUseCase(

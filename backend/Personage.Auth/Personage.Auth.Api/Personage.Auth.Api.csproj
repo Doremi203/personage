@@ -36,5 +36,8 @@
       <Content Update="appsettings.Testing.json">
         <DependentUpon>appsettings.json</DependentUpon>
       </Content>
+      <Content Update="appsettings.Production.json">
+        <DependentUpon>appsettings.json</DependentUpon>
+      </Content>
     </ItemGroup>
 </Project>
