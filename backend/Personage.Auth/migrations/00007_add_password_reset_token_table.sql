@@ -1,3 +1,5 @@
+-- +goose Up
+-- +goose StatementBegin
 CREATE TABLE password_reset_token
 (
     id         UUID PRIMARY KEY,
@@ -10,3 +12,11 @@ CREATE TABLE password_reset_token
 
 CREATE INDEX idx_password_reset_tokens_token ON password_reset_token (token);
 CREATE INDEX idx_password_reset_tokens_user_id ON password_reset_token (user_id);
+-- +goose StatementEnd
+
+-- +goose Down
+-- +goose StatementBegin
+DROP INDEX IF EXISTS idx_password_reset_tokens_user_id;
+DROP INDEX IF EXISTS idx_password_reset_tokens_token;
+DROP TABLE IF EXISTS password_reset_token;
+-- +goose StatementEnd

@@ -27,7 +27,6 @@
     <ItemGroup>
       <ProjectReference Include="..\Personage.Auth.Bll\Personage.Auth.Bll.csproj" />
       <ProjectReference Include="..\Personage.Auth.Domain\Personage.Auth.Domain.csproj" />
-      <ProjectReference Include="..\Personage.Auth.Migrations\Personage.Auth.Migrations.csproj" />
     </ItemGroup>
     <ItemGroup>
       <Content Update="appsettings.Development.json">

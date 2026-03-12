@@ -1,0 +1,6 @@
+services:
+  app:
+    image: cr.yandex/crp77qhpsda1m6ian417/auth:test
+    ports:
+      - "80:80"
+      - "5051:5051"

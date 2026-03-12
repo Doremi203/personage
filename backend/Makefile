@@ -108,5 +108,20 @@ notificator/migrate/down-one:
 notificator/migrate/create:
 	cd $(NOTIFICATOR_MIGRATIONS) && $(MIGRATE_CREATE)
 
+# Auth
+AUTH_MIGRATIONS = Personage.Auth/migrations
+
+auth/migrate/up:
+	goose -v -dir "$(AUTH_MIGRATIONS)" "$(DB)auth$(DB_PARAMS)" up
+
+auth/migrate/down:
+	goose -v -dir "$(AUTH_MIGRATIONS)" "$(DB)auth$(DB_PARAMS)" reset
+
+auth/migrate/down-one:
+	goose -v -dir "$(AUTH_MIGRATIONS)" "$(DB)auth$(DB_PARAMS)" down
+
+auth/migrate/create:
+	cd $(AUTH_MIGRATIONS) && $(MIGRATE_CREATE)
+
 tests:
 	go test ./... -race
