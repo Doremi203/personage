@@ -1,0 +1,99 @@
+name: Auth Service CI
+
+on:
+  pull_request:
+    branches: ["main"]
+    paths:
+      - 'backend/Personage.Auth/**'
+      - '.github/workflows/auth-ci.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: backend/Personage.Auth
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore -c Release
+
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: backend/Personage.Auth
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: authdb-test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Install goose
+        run: |
+          go install github.com/pressly/goose/v3/cmd/goose@latest
+          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+
+      - name: Run migrations
+        run: goose -dir migrations postgres "postgres://postgres:postgres@localhost:5432/authdb-test?sslmode=disable" up
+
+      - name: Setup yc
+        run: |
+          curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash -s -- -i /opt/yc -n
+          echo '${{ secrets.YC_SERVICE_KEY }}' > sa-key.json
+          /opt/yc/bin/yc config set service-account-key sa-key.json
+          /opt/yc/bin/yc config set folder-id ${{ secrets.YC_FOLDER_ID }}
+
+      - name: Fetch YC IAM token
+        run: echo "YC_TOKEN=$(/opt/yc/bin/yc iam create-token)" >> $GITHUB_ENV
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Run tests
+        run: dotnet test --no-restore --verbosity normal
+
+  success:
+    name: CI success
+    needs:
+      - build
+      - test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Success
+        run: echo "All required checks passed!"
