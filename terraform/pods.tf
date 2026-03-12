@@ -83,4 +83,15 @@ module "auth" {
   instance_cores         = 2
   instance_core_fraction = 20
   instance_disk_size     = 15
+
+  liveliness_check = {
+    healthy_threshold   = 2
+    unhealthy_threshold = 3
+    interval            = 2
+    timeout             = 1
+    http_options = {
+      path = "/liveness"
+      port = 80
+    }
+  }
 }
