@@ -1,4 +1,16 @@
 services:
+  auth:
+    image: cr.yandex/crp77qhpsda1m6ian417/auth:test
+    depends_on:
+      - db
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+    env_file:
+      - ../secrets.env
+    ports:
+      - "8082:8082"
+      - "9090:5051"
+
   tasker:
     depends_on:
       - db
