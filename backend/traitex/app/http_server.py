@@ -15,7 +15,7 @@ class HealthCheckServer:
             web.get("/health", self.health),
             web.get("/liveliness", self.liveliness),
         ])
-        self.runner = web.AppRunner(self.app)
+        self.runner = web.AppRunner(self.app, access_log=None)
         self.site: web.TCPSite | None = None
 
     async def health(self, request: web.Request) -> web.Response:
