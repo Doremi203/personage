@@ -1,3 +1,5 @@
+import { getTokens } from './authService';
+
 const SUBSCRIBE_ENDPOINT = 'https://notificator.persomanage.ru/v1/push/subscribe';
 const VAPID_PUBLIC_KEY = 'BKu7S4HSkG6p8oPbjTB8p1H5PyUCyc4qPzY1FmtOL1eKyV6hXvcGJ99kIfHW88Atd7n2Co4RMOFtR70fD8CLFHI'
 
@@ -83,11 +85,14 @@ export async function sendSubscriptionToBackend(
     auth_key: keys.auth,
   };
 
+  const tokens = getTokens();
   const response = await fetch(SUBSCRIBE_ENDPOINT, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'User-Token': "b8301ce7-7215-494e-8e2a-ff7abc8cc611"
+      ...(tokens?.accessToken
+        ? { 'User-Token': tokens.accessToken }
+        : {}),
     },
     body: JSON.stringify(body),
   });
