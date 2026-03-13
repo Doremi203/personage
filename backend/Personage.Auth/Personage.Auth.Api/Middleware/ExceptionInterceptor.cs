@@ -1,6 +1,5 @@
 using Grpc.Core;
 using Grpc.Core.Interceptors;
-using Personage.Auth.Domain.Exceptions;
 using Personage.Auth.Domain.Exceptions.Base;
 
 namespace Personage.Auth.Api.Middleware;
@@ -19,7 +18,7 @@ public class ExceptionInterceptor(ILogger<ExceptionInterceptor> logger) : Interc
         }
         catch (CustomException customEx)
         {
-            var statusCode = GetGrpcStatusCode(customEx.ErrorCode);
+            var statusCode = GetGrpcStatusCode(customEx);
             var logLevel = GetLogLevel(statusCode);
             
             logger.Log(logLevel, customEx, "Domain exception: {ErrorCode} - {Message}", 
@@ -39,9 +38,12 @@ public class ExceptionInterceptor(ILogger<ExceptionInterceptor> logger) : Interc
     }
 
 
-    private static StatusCode GetGrpcStatusCode(ErrorCode errorCode)
+    private static StatusCode GetGrpcStatusCode(CustomException customException)
     {
-        return errorCode switch
+        if(customException is NotFoundException)
+            return StatusCode.NotFound;
+        
+        return customException.ErrorCode switch
         {
             ErrorCode.TokenNotFound => StatusCode.NotFound,
             ErrorCode.OAuthError => StatusCode.InvalidArgument,

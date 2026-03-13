@@ -9,6 +9,7 @@ import "google/protobuf/timestamp.proto";
 enum ServiceType {
   ServiceType_Unknown = 0;
   ServiceType_Gmail = 1;
+  ServiceType_Telegram = 2;
 }
 
 message GmailTokens {
@@ -16,4 +17,8 @@ message GmailTokens {
   string refresh_token = 2;
   google.protobuf.Timestamp expires_at = 3;
   string gmail_email = 4;
+}
+
+message TelegramSession {
+  string session_string = 1;
 }

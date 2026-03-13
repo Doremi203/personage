@@ -24,9 +24,15 @@ message GetUsersForProcessingResponse {
 
 message UserForProcessing {
   string user_id = 1;
-  string user_email = 2;
-  GmailTokens tokens = 3;
-  google.protobuf.Timestamp last_processed_at = 4;
+  google.protobuf.Timestamp last_processed_at = 2;
+  ProcessingCredentials credentials = 3;  
+}
+
+message ProcessingCredentials {
+  oneof credentials {
+    GmailTokens gmail_tokens = 1;
+    TelegramSession  telegram_session = 2;
+  }
 }
 
 message MarkUsersAsProcessedRequest {

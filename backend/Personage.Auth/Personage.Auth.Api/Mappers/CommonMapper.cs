@@ -26,6 +26,7 @@ public static class CommonMapper
         {
             ServiceType.Unknown => ServiceTypeModel.Unknown,
             ServiceType.Gmail => ServiceTypeModel.Gmail,
+            ServiceType.Telegram => ServiceTypeModel.Telegram,
             _ => ServiceTypeModel.Unknown
         };
     }

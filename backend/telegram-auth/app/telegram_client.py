@@ -1,11 +1,10 @@
-# app/telegram_client.py
-from telethon import TelegramClient, events
-from telethon.sessions import StringSession
-from telethon.errors import SessionPasswordNeededError, FloodWaitError
-from telethon.tl.types import UpdateShortMessage
 import asyncio
-import structlog
 from typing import Optional, Dict
+
+import structlog
+from telethon import TelegramClient
+from telethon.sessions import StringSession
+
 from app.config import settings
 
 logger = structlog.get_logger()
