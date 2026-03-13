@@ -7,6 +7,7 @@ import grpc
 from app.core.configuration.config import Configuration
 from app.core.containers.ApplicationContainer import create_application_container
 from app.core.containers.GrpcServiceContainer import register_grpc_services
+from app.core.logging import setup_logging
 from app.http_server import HealthCheckServer
 
 logger = logging.getLogger(__name__)
@@ -89,11 +90,7 @@ async def serve() -> None:
         config = Configuration()
 
         logging_config = config.get_section("Logging")
-        logging.basicConfig(
-            level=getattr(logging, logging_config.get("Level", "INFO")),
-            format=logging_config.get("Format", '%(asctime)s - %(name)s - %(levelname)s - %(message)s'),
-            stream=sys.stdout
-        )
+        setup_logging(logging_config)
 
         logger.info(f"Application started. Environment: {os.getenv('APP_ENV', 'development')}")
 
