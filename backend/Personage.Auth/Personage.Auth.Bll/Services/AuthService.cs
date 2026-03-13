@@ -16,8 +16,6 @@ using Personage.Auth.Domain.Interfaces;
 using Personage.Auth.Domain.Models.Auth;
 using Personage.Auth.Domain.Models.Auth.Requests;
 using Personage.Auth.Domain.Models.Common;
-using Yandex.Cloud;
-using Yandex.Cloud.Lockbox.V1;
 
 namespace Personage.Auth.Bll.Services;
 
@@ -30,11 +28,9 @@ public class AuthService(
     IGoogleOAuthService googleOAuthService,
     IPostboxService postboxService,
     IOptionsMonitor<JwtSettings> jwtSettings,
-    Sdk yandexSdk,
     ILogger<AuthService> logger
 ) : IAuthService
 {
-    //TODO: register signing credentials once as singleton
     private SigningCredentials? _signingCredentials;
 
     private const int TokenExpirationThresholdMinutes = 5;
@@ -170,7 +166,7 @@ public class AuthService(
 
         return new PersonageTokenModel
         {
-            AccessToken = await GenerateAccessToken(user, ct),
+            AccessToken = GenerateAccessToken(user),
             RefreshToken = refreshToken.Token
         };
     }
@@ -187,7 +183,7 @@ public class AuthService(
         if (!PasswordHasher.VerifyPassword(password, user.PasswordHash))
             throw new AuthenticationException(ErrorCode.InvalidCredentials, "Invalid user credentials");
 
-        var accessToken = await GenerateAccessToken(user, ct);
+        var accessToken = GenerateAccessToken(user);
         var refreshToken = await GenerateAndStoreRefreshToken(user.Id, ct);
 
         return new PersonageTokenModel
@@ -210,7 +206,7 @@ public class AuthService(
         if (user is null)
             throw new AuthenticationException(ErrorCode.InvalidRefreshToken, "Invalid refresh token");
 
-        var newAccessToken = await GenerateAccessToken(user, ct);
+        var newAccessToken = GenerateAccessToken(user);
 
         return new PersonageTokenModel
         {
@@ -271,7 +267,7 @@ public class AuthService(
         await userRepository.UpdatePassword(user.Id, hashedPassword, ct);
 
         await passwordResetTokenRepository.InvalidateToken(token, ct);
-        var accessToken = await GenerateAccessToken(user, ct);
+        var accessToken = GenerateAccessToken(user);
         var refreshToken = await GenerateAndStoreRefreshToken(user.Id, ct);
 
         logger.LogInformation("Password reset completed for {Email}", user.Email);
@@ -283,7 +279,7 @@ public class AuthService(
         };
     }
 
-    private async Task<string> GenerateAccessToken(User user, CancellationToken ct)
+    private string GenerateAccessToken(User user)
     {
         var claims = new Claim[]
         {
@@ -291,7 +287,7 @@ public class AuthService(
         };
 
         var expiresAt = DateTime.UtcNow.AddMinutes(jwtSettings.CurrentValue.AccessTokenTtlMinutes);
-        return await GenerateToken(expiresAt, claims, ct);
+        return GenerateToken(expiresAt, claims);
     }
 
     private async Task<RefreshToken> GenerateAndStoreRefreshToken(Guid userId, CancellationToken ct)
@@ -314,10 +310,9 @@ public class AuthService(
         return await refreshTokenRepository.CreateRefreshToken(createTokenRequest, ct);
     }
 
-    private async Task<string> GenerateToken(
+    private string GenerateToken(
         DateTime expiresAt,
-        IEnumerable<Claim> claims,
-        CancellationToken ct
+        IEnumerable<Claim> claims
     )
     {
         var payload = new JwtPayload(
@@ -328,29 +323,25 @@ public class AuthService(
             expires: expiresAt,
             issuedAt: DateTime.UtcNow);
 
-        _signingCredentials ??= await GetSigningCredentialsFromLockbox(ct);
-        
+        _signingCredentials ??= GetSigningCredentials();
+
         var token = new JwtSecurityToken(new JwtHeader(_signingCredentials), payload);
         return JwtHandler.WriteToken(token);
     }
 
-    private async Task<SigningCredentials> GetSigningCredentialsFromLockbox(CancellationToken ct)
+    /// <summary>
+    /// Creates RSA signing credentials from the PEM key provided via configuration.
+    /// The PEM value is resolved from Lockbox by the configuration provider at startup.
+    /// </summary>
+    private SigningCredentials GetSigningCredentials()
     {
-        try
-        {
-            var payload = await yandexSdk.Services.Lockbox.PayloadService.GetAsync(
-                new GetPayloadRequest { SecretId = jwtSettings.CurrentValue.SecretId },
-                cancellationToken: ct
-            );
+        var pem = jwtSettings.CurrentValue.PrivateKeyPem;
+        if (string.IsNullOrWhiteSpace(pem))
+            throw new InvalidOperationException(
+                "JwtSettings:PrivateKeyPem is not configured. " +
+                "In production, use the secret:{id}:{version}:{key} format.");
 
-            var pem = payload.Entries.Single(e => e.Key == "jwt_private_key").TextValue;
-            return new SigningCredentials(CreateRsaSecurityKeyFromPem(pem), SecurityAlgorithms.RsaSha256);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to retrieve JWT keys from Lockbox");
-            throw;
-        }
+        return new SigningCredentials(CreateRsaSecurityKeyFromPem(pem), SecurityAlgorithms.RsaSha256);
     }
 
     private static string GenerateState()
