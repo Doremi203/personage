@@ -1,3 +1,4 @@
 CREATE DATABASE tasker;
 CREATE DATABASE notificator;
 CREATE DATABASE auth;
+CREATE DATABASE traitex;

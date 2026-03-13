@@ -229,6 +229,15 @@ resource "yandex_alb_virtual_host" "service_https" {
   authority      = ["${var.service_name}.${var.domain}"]
 
   route {
+    name = "grpc-route"
+    grpc_route {
+      grpc_route_action {
+        backend_group_id = yandex_alb_backend_group.service_grpc.id
+        max_timeout = var.backend_timeout
+      }
+    }
+  }
+  route {
     name = "main-route"
     http_route {
       http_route_action {
@@ -259,3 +268,22 @@ resource "yandex_alb_backend_group" "service_http" {
   }
 }
 
+resource "yandex_alb_backend_group" "service_grpc" {
+  name = "${var.service_name}-grpc"
+
+  grpc_backend {
+    name             = "${var.service_name}-grpc-backend"
+    weight           = 1
+    port             = var.grpc_port
+    target_group_ids = [yandex_compute_instance_group.service.application_load_balancer[0].target_group_id]
+
+    healthcheck {
+      interval         = var.health_check.interval
+      timeout          = var.health_check.timeout
+      healthcheck_port = var.health_check.healthcheck_port
+      http_healthcheck {
+        path = var.health_check.http_healthcheck.path
+      }
+    }
+  }
+}

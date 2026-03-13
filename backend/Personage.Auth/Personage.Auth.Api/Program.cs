@@ -1,4 +1,5 @@
 using DotNetEnv;
+using Microsoft.AspNetCore.HttpOverrides;
 using Personage.Auth.Api.Extensions;
 using Personage.Auth.Api.GrpcServices;
 using Personage.Auth.Api.Middleware;
@@ -17,19 +18,16 @@ public class Program
     public static async Task Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
+        builder.WebHost.ConfigureKestrel(serverOptions =>
+        {
+            serverOptions.AllowAlternateSchemes = true;
+        });
+        
         builder.Services.AddGrpc(options =>
         {
             options.EnableDetailedErrors = true;
             options.Interceptors.Add<ExceptionInterceptor>();
             options.IgnoreUnknownServices = true;
-        });
-        
-        builder.WebHost.ConfigureKestrel(options =>
-        {
-            options.ConfigureEndpointDefaults(defaultOptions =>
-            {
-                defaultOptions.Protocols = Microsoft.AspNetCore.Server.Kestrel.Core.HttpProtocols.Http1AndHttp2;
-            });
         });
         
         builder.Services.AddGrpcReflection();

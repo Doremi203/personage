@@ -123,5 +123,20 @@ auth/migrate/down-one:
 auth/migrate/create:
 	cd $(AUTH_MIGRATIONS) && $(MIGRATE_CREATE)
 
+# Traitex
+TRAITEX_MIGRATIONS = traitex/migrations
+
+traitex/migrate/up:
+	goose -v -dir "$(TRAITEX_MIGRATIONS)" "$(DB)traitex$(DB_PARAMS)" up
+
+traitex/migrate/down:
+	goose -v -dir "$(TRAITEX_MIGRATIONS)" "$(DB)traitex$(DB_PARAMS)" reset
+
+traitex/migrate/down-one:
+	goose -v -dir "$(TRAITEX_MIGRATIONS)" "$(DB)traitex$(DB_PARAMS)" down
+
+traitex/migrate/create:
+	cd $(TRAITEX_MIGRATIONS) && $(MIGRATE_CREATE)
+
 tests:
 	go test ./... -race
