@@ -143,6 +143,14 @@ resource "yandex_dns_recordset" "service_alb_record" {
   data    = [var.alb_ip_address]
 }
 
+resource "yandex_dns_recordset" "grpc_service_alb_record" {
+  zone_id = var.dns_zone_id
+  name    = "grpc.${var.service_name}.${var.domain}."
+  ttl     = 600
+  type    = "A"
+  data    = [var.alb_ip_address]
+}
+
 resource "yandex_compute_instance_group" "service" {
   name               = var.service_name
   service_account_id = yandex_iam_service_account.service.id
@@ -229,20 +237,27 @@ resource "yandex_alb_virtual_host" "service_https" {
   authority      = ["${var.service_name}.${var.domain}"]
 
   route {
-    name = "grpc-route"
-    grpc_route {
-      grpc_route_action {
-        backend_group_id = yandex_alb_backend_group.service_grpc.id
-        max_timeout = var.backend_timeout
-      }
-    }
-  }
-  route {
     name = "main-route"
     http_route {
       http_route_action {
         backend_group_id = yandex_alb_backend_group.service_http.id
         timeout          = var.backend_timeout
+      }
+    }
+  }
+}
+
+resource "yandex_alb_virtual_host" "service_grpc" {
+  name           = "grpc-${var.service_name}"
+  http_router_id = var.http_router_id
+  authority      = ["grpc.${var.service_name}.${var.domain}"]
+
+  route {
+    name = "main-route"
+    grpc_route {
+      grpc_route_action {
+        backend_group_id = yandex_alb_backend_group.service_grpc.id
+        max_timeout = var.backend_timeout
       }
     }
   }
