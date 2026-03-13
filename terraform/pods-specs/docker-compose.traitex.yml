@@ -4,3 +4,23 @@ services:
     ports:
       - "80:80"
       - "5051:5051"
+    depends_on:
+      - fluentbit
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: localhost:24224
+        tag: app.logs
+        fluentd-async: "true"
+        fluentd-async-reconnect-interval: "1s"
+        fluentd-request-ack: "true"
+
+  fluentbit:
+    image: cr.yandex/crp77qhpsda1m6ian417/fluentbit:1.1
+    ports:
+      - "24224:24224"
+      - "24224:24224/udp"
+    restart: always
+    environment:
+      YC_GROUP_ID: e23ciptjel3qb4if6lqk
+      SERVICE_NAME: traitex
