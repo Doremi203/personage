@@ -1,6 +1,6 @@
 services:
   auth:
-    image: cr.yandex/crp77qhpsda1m6ian417/auth:test
+    image: cr.yandex/crp77qhpsda1m6ian417/auth:dev
     depends_on:
       - db
     environment:
@@ -8,8 +8,8 @@ services:
     env_file:
       - ../secrets.env
     ports:
-      - "8082:8082"
-      - "9090:5051"
+      - "8082:5254"
+      - "50051:50051"
 
   tasker:
     depends_on:

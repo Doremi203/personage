@@ -1,0 +1,59 @@
+name: Traitex Service CI
+
+on:
+  pull_request:
+    branches: ["main"]
+    paths:
+      - 'backend/traitex/**'
+      - '.github/workflows/traitex-ci.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: backend/traitex
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+
+      - name: Install dependencies
+        run: pip install --no-cache-dir -r requirements.txt
+
+      - name: Check syntax
+        run: python -m py_compile app/runner.py
+
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: backend/traitex
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build Docker image
+        run: docker build -t traitex:ci-test .
+
+  success:
+    name: CI success
+    needs:
+      - lint
+      - build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Success
+        run: echo "All required checks passed!"

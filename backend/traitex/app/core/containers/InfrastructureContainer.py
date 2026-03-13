@@ -12,7 +12,8 @@ class InfrastructureContainer(containers.DeclarativeContainer):
         password=config.database.password,
         host=config.database.host,
         port=config.database.port.as_int(),
-        db=config.database.dbname
+        db=config.database.dbname,
+        options=config.database.options,
     )
 
     message_queue = providers.Singleton(

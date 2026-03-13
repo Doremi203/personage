@@ -9,13 +9,13 @@ from yc_lockbox import YandexLockboxClient
 
 logger = logging.getLogger(__name__)
 
+SECRET_PREFIX = "secret:"
+
 
 class Configuration:
     def __init__(self):
         self.config_dir = Path(__file__).parent.parent.parent.parent / "config"
         self._config = self._load_config()
-        self._iam_token_cache = None
-        self._iam_token_expires_at = 0
 
     GET_TOKEN_FROM_VM_METADATA_URL = "http://169.254.169.254/computeMetadata/v1/instance/service-accounts/default/token"
 
@@ -37,7 +37,7 @@ class Configuration:
                 self._deep_update(config, json.load(f))
 
         Configuration._apply_environment_overrides(config)
-        Configuration._apply_secret_store_overrides(config)
+        Configuration._resolve_secrets(config)
         return config
 
     def _deep_update(self, base: dict, updates: dict) -> None:
@@ -56,7 +56,6 @@ class Configuration:
 
         load_dotenv(personage_secrets)
         load_dotenv(traitex_secrets)
-
 
         for key, value in os.environ.items():
             if '__' in key:
@@ -100,29 +99,66 @@ class Configuration:
         return self.get(key)
 
     @staticmethod
-    def _apply_secret_store_overrides(config_overrides: dict) -> dict[str, Any]:
+    def _resolve_secrets(config: dict) -> None:
+        """Walk the config dict and resolve any string values with the 'secret:' prefix.
+
+        Secret format: ``secret:{secret_id}:{version_id}:{key}``
+
+        If no values require resolution, Lockbox is never contacted and no IAM
+        token is needed — so Development environments work without credentials.
+        """
+        secret_refs = Configuration._collect_secret_refs(config)
+        if not secret_refs:
+            logger.info("No secret references found in config, skipping Lockbox")
+            return
+
         iam_token = Configuration._get_iam_token_on_vm()
         if not iam_token:
-            logger.warning("Using fallback iam token from environment")
+            logger.warning("VM metadata unavailable, using IAM token from environment")
             iam_token = Configuration._get_iam_token_from_env()
 
-        ymq_config_section = 'YMQ'
-
-        aws_secret_id = 'e6q869h32umj7dap12qa'
-        YMQ_ACCESS_KEY_NAME = 'access_key_id'
-        YMQ_SECRET_KEY_NAME = 'secret_key'
-
         lockbox = YandexLockboxClient(iam_token)
-        payload = lockbox.get_secret_payload(aws_secret_id)
+        payload_cache: dict[str, Any] = {}
 
-        if ymq_config_section not in config_overrides:
-            config_overrides[ymq_config_section] = {}
+        for section_key, field_key, secret_spec in secret_refs:
+            parts = secret_spec.split(":")
+            if len(parts) != 4 or parts[0] != "secret":
+                raise ValueError(
+                    f"Invalid secret format for {section_key}.{field_key}: "
+                    f"expected 'secret:{{id}}:{{version}}:{{key}}', got '{secret_spec}'"
+                )
 
-        config_overrides[ymq_config_section]["AccessKeyId"] = payload.get(YMQ_ACCESS_KEY_NAME).text_value.get_secret_value()
-        config_overrides[ymq_config_section]["SecretAccessKey"] = payload.get(YMQ_SECRET_KEY_NAME).text_value.get_secret_value()
+            secret_id = parts[1]
+            version_id = parts[2]
+            payload_key = parts[3]
 
-        return {}
+            cache_key = f"{secret_id}:{version_id}"
+            if cache_key not in payload_cache:
+                payload_cache[cache_key] = lockbox.get_secret_payload(secret_id, version_id)
 
+            payload = payload_cache[cache_key]
+            entry = payload.get(payload_key)
+            if entry is None:
+                raise KeyError(
+                    f"Key '{payload_key}' not found in Lockbox secret {secret_id} "
+                    f"(version {version_id}) for config {section_key}.{field_key}"
+                )
+
+            config[section_key][field_key] = entry.text_value.get_secret_value()
+            logger.info(f"Resolved secret for {section_key}.{field_key}")
+
+    @staticmethod
+    def _collect_secret_refs(config: dict) -> list[tuple[str, str, str]]:
+        """Return a list of (section_key, field_key, secret_spec) for all
+        string values that start with the ``secret:`` prefix."""
+        refs = []
+        for section_key, section_value in config.items():
+            if not isinstance(section_value, dict):
+                continue
+            for field_key, field_value in section_value.items():
+                if isinstance(field_value, str) and field_value.startswith(SECRET_PREFIX):
+                    refs.append((section_key, field_key, field_value))
+        return refs
 
     @staticmethod
     def _get_iam_token_on_vm() -> str | None:
@@ -131,7 +167,7 @@ class Configuration:
             response = requests.get(Configuration.GET_TOKEN_FROM_VM_METADATA_URL, headers=headers, timeout=2)
             response.raise_for_status()
             return response.json()["access_token"]
-        except:
+        except Exception:
             logger.warning("Unable to get IAM token on VM")
             return None
 
@@ -139,6 +175,6 @@ class Configuration:
     def _get_iam_token_from_env() -> str:
         yc_token = os.environ.get("YC_TOKEN", None)
         if not yc_token:
-            raise Exception("YC_TOKEN environment variable not set")
+            raise RuntimeError("YC_TOKEN environment variable not set")
 
         return yc_token

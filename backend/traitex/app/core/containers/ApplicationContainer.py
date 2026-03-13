@@ -57,7 +57,8 @@ def create_application_container(config: Configuration) -> ApplicationContainer:
             "password": config.get("Database.Password"),
             "host": config.get("Database.Host"),
             "port": config.get("Database.Port"),
-            "dbname": config.get("Database.Database")
+            "dbname": config.get("Database.Database"),
+            "options": config.get("Database.Options", ""),
         },
         "state_tracking": {
             "endpoint": config.get("StateTracking.Endpoint")

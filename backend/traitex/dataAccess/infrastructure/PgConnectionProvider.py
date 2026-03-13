@@ -16,12 +16,14 @@ class PgConnectionProvider(IPgConnectionProvider):
             host: str,
             port: int,
             db: str,
+            options: str = "",
     ):
         self.username = username
         self.password = password
         self.host = host
         self.port = port
         self.db = db
+        self.options = options
 
     @asynccontextmanager
     async def get_connection(self) -> AsyncIterator[CommandsAsync]:
@@ -31,7 +33,8 @@ class PgConnectionProvider(IPgConnectionProvider):
                     password=self.password,
                     host=self.host,
                     port=self.port,
-                    dbname=self.db
+                    dbname=self.db,
+                    options=self.options,
                 )
         ) as connection:
             yield connection
@@ -42,6 +45,10 @@ class PgConnectionProvider(IPgConnectionProvider):
             password: str,
             host: str,
             port: int,
-            dbname: str
+            dbname: str,
+            options: str = "",
     ) -> str:
-        return f"postgresql+psycopg://{user}:{password}@{host}:{port}/{dbname}"
+        dsn = f"postgresql+psycopg://{user}:{password}@{host}:{port}/{dbname}"
+        if options:
+            dsn += f"?{options}"
+        return dsn
