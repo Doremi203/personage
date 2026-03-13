@@ -1,5 +1,5 @@
 from pathlib import Path
-
+import urllib.parse
 from pydantic_settings import BaseSettings
 from pydantic import Field
 from typing import Optional
@@ -54,7 +54,9 @@ class Settings(BaseSettings):
 
         lockbox_redis_password_key = "redis_pass"
         redis_secrets_payload = lockbox.get_secret_payload(self.REDIS_PASSWORD_SECRET_ID)
-        self.REDIS_PASSWORD = redis_secrets_payload.get(lockbox_redis_password_key).text_value.get_secret_value()
+        raw_redis_password = redis_secrets_payload.get(lockbox_redis_password_key).text_value.get_secret_value()
+        encoded_password = urllib.parse.quote(raw_redis_password, safe='')
+        self.REDIS_PASSWORD = encoded_password
 
 
     @staticmethod
