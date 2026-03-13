@@ -1,5 +1,7 @@
 using DotNetEnv;
-using Microsoft.AspNetCore.HttpOverrides;
+using Npgsql;
+using Microsoft.Extensions.Options;
+using Personage.Auth.Api.Configuration;
 using Personage.Auth.Api.Extensions;
 using Personage.Auth.Api.GrpcServices;
 using Personage.Auth.Api.Middleware;
@@ -23,6 +25,12 @@ public class Program
             serverOptions.AllowAlternateSchemes = true;
         });
         
+        // Add Lockbox secret resolution as the last configuration source.
+        // Any config value matching "secret:{id}:{version}:{key}" will be resolved
+        // from Yandex Cloud Lockbox before the application starts.
+        var useMetadataService = builder.Configuration.GetValue<bool>("YandexCloud:UseMetadataService");
+        builder.Configuration.AddLockboxSecrets(useMetadataService);
+        
         builder.Services.AddGrpc(options =>
         {
             options.EnableDetailedErrors = true;
@@ -40,11 +48,33 @@ public class Program
         
         var app = builder.Build();
 
-        await app.ResolveDatabaseSecrets();
+        // Merge the resolved Password into the ConnectionString if present.
+        MergeDatabasePassword(app);
 
         ConfigureMiddleware(app);
         
         await app.RunAsync();
+    }
+
+    /// <summary>
+    /// If <see cref="ConnectionFactorySettings.Password"/> is set (e.g., resolved from Lockbox),
+    /// merge it into the connection string. This keeps the config format consistent with
+    /// Go/traitex services where the password is a separate field.
+    /// </summary>
+    private static void MergeDatabasePassword(WebApplication app)
+    {
+        var settings = app.Services.GetRequiredService<IOptions<ConnectionFactorySettings>>().Value;
+        if (string.IsNullOrEmpty(settings.Password))
+            return;
+
+        var connBuilder = new NpgsqlConnectionStringBuilder(settings.ConnectionString)
+        {
+            Password = settings.Password
+        };
+        settings.ConnectionString = connBuilder.ConnectionString;
+
+        var logger = app.Services.GetRequiredService<ILogger<Program>>();
+        logger.LogInformation("Database password merged into connection string from configuration");
     }
 
     private static void ConfigureServices(
@@ -58,7 +88,6 @@ public class Program
         ConfigureSettings(services, configuration, environment);
         AddRepositories(services);
         AddBllServices(services);
-        services.AddYandexCloudSdk(configuration);
         
         AddReflectionAndSwagger(services);
         
