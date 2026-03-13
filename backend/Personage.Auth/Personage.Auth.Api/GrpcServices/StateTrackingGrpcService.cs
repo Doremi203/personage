@@ -1,5 +1,6 @@
 using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
+using Personage.Auth.Api.Grpc.Common;
 using Personage.Auth.Api.Grpc.State;
 using Personage.Auth.Api.Mappers;
 using Personage.Auth.Domain.Interfaces;
@@ -55,13 +56,31 @@ public class StateTrackingGrpcService(
         var res = new UserForProcessing
         {
             UserId = model.UserId.ToString(),
-            UserEmail = model.UserEmail,
-            Tokens = CommonMapper.ToGrpcGmailTokens(model.Tokens)
+            Credentials = GetProcessingCredentials(model.Credentials)
         };
         
         if(model.LastProcessedAt is not null)
             res.LastProcessedAt = Timestamp.FromDateTime(model.LastProcessedAt.Value);
 
         return res;
+    }
+
+    private static ProcessingCredentials GetProcessingCredentials(ProcessingCredentialsBase model)
+    {
+        return model switch
+        {
+            GmailProcessingCredentials gmailCredentials => new ProcessingCredentials
+            {
+                GmailTokens = CommonMapper.ToGrpcGmailTokens(gmailCredentials.Tokens)
+            },
+            TelegramProcessingCredentials telegramCredentials => new ProcessingCredentials
+            {
+                TelegramSession = new TelegramSession
+                {
+                    SessionString = telegramCredentials.SessionString
+                }
+            },
+            _ => throw new ArgumentOutOfRangeException(nameof(model), model, null)
+        };
     }
 }

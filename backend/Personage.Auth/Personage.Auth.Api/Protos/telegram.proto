@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package auth;
+option csharp_namespace = "Personage.Auth.Api.Grpc.Telegram";
+
+
+service TelegramService {
+  rpc StoreSession (StoreSessionRequest) returns (StoreSessionResponse);
+  rpc GetSession (GetSessionRequest) returns (GetSessionResponse);
+}
+
+message StoreSessionRequest {
+  string user_id = 1;
+  string session_string = 2;
+}
+
+message StoreSessionResponse {
+}
+
+message GetSessionRequest {
+  string user_id = 1;
+}
+
+message GetSessionResponse {
+  string session_string = 1;
+}
