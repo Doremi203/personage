@@ -1,34 +1,38 @@
-from fastapi import FastAPI, HTTPException, Depends, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import uuid
 import structlog
-import httpx
 import datetime
 import asyncio
 
 from starlette.responses import JSONResponse
 from telethon.errors import SessionPasswordNeededError
-from telethon.sessions import StringSession
-
+from app.auth_service_grpc_client import auth_service_grpc_client
 from app.config import settings
 from app.models import *
 from app.redis_client import redis_client
 from app.telegram_client import client_manager
-from app.dependencies import verify_internal_api_key
 
 logger = structlog.get_logger()
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_: FastAPI):
     logger.info("Starting Telegram Auth Service", environment=settings.ENVIRONMENT)
     await redis_client.connect()
     asyncio.create_task(cleanup_task())
 
+    try:
+        await auth_service_grpc_client.connect()
+    except Exception as e:
+        logger.error("Failed to connect to gRPC auth service", error=str(e))
+        raise
+
     yield
     logger.info("Shutting down Telegram Auth Service")
     await redis_client.close()
+    await auth_service_grpc_client.close()
 
     for login_id in list(client_manager.active_clients.keys()):
         await client_manager.close_client(login_id)
@@ -41,7 +45,7 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -52,6 +56,7 @@ app.add_middleware(
 
 
 async def cleanup_task():
+    """Background task for any periodic cleanup"""
     while True:
         try:
             await asyncio.sleep(60)
@@ -59,45 +64,24 @@ async def cleanup_task():
             logger.error("Error in cleanup task", error=str(e))
 
 
-@app.get("/health", response_model=HealthResponse)
+@app.get("/liveliness")
 async def health_check():
-    redis_ok = False
-    telegram_ok = False
+    return {'status': 'ok'}
 
-    try:
-        await redis_client.client.ping()
-        redis_ok = True
-    except:
-        pass
 
-    try:
-        from telethon import TelegramClient
-        client = TelegramClient(StringSession(), settings.TELEGRAM_API_ID, settings.TELEGRAM_API_HASH)
-        await client.connect()
-        telegram_ok = await client.is_user_authorized() is not None
-        await client.disconnect()
-    except:
-        pass
-
-    return HealthResponse(
-        status="healthy" if redis_ok and telegram_ok else "degraded",
-        version="1.0.0",
-        redis=redis_ok,
-        telegram_api=telegram_ok,
-        environment=settings.ENVIRONMENT
-    )
+@app.get("/health")
+async def health_check():
+    return {'status': 'ok'}
 
 
 @app.post("/v1/auth/initiate", response_model=InitiateAuthResponse)
 async def initiate_auth(request: InitiateAuthRequest):
+    """
+    Step 1: Initiate Telegram authentication
+    - For phone method: sends code to provided phone number
+    - For QR method: returns QR code URL
+    """
     login_id = str(uuid.uuid4())
-    active_logins = await redis_client.get_user_active_logins(request.user_id)
-    if len(active_logins) >= settings.MAX_ACTIVE_LOGINS_PER_USER:
-        raise HTTPException(
-            status_code=429,
-            detail=f"Too many active login attempts. Maximum: {settings.MAX_ACTIVE_LOGINS_PER_USER}"
-        )
-
     client = await client_manager.create_client(login_id)
 
     try:
@@ -109,11 +93,11 @@ async def initiate_auth(request: InitiateAuthRequest):
                 'type': 'phone',
                 'phone': request.phone,
                 'phone_code_hash': sent_code.phone_code_hash,
-                'created_at': datetime.datetime.now(datetime.UTC).isoformat()
+                'created_at': datetime.datetime.now(datetime.UTC).isoformat(),
+                'status': 'pending'
             }
 
             await redis_client.set_login_session(login_id, login_data)
-            await redis_client.set_user_active_login(request.user_id, login_id)
 
             return InitiateAuthResponse(
                 login_id=login_id,
@@ -128,13 +112,13 @@ async def initiate_auth(request: InitiateAuthRequest):
             login_data = {
                 'user_id': request.user_id,
                 'type': 'qr',
-                'created_at': datetime.datetime.now(datetime.UTC).isoformat()
+                'created_at': datetime.datetime.now(datetime.UTC).isoformat(),
+                'status': 'pending'
             }
 
             await redis_client.set_login_session(login_id, login_data)
-            await redis_client.set_user_active_login(request.user_id, login_id)
 
-            asyncio.create_task(wait_for_qr_login(login_id))
+            asyncio.create_task(wait_for_qr_login(login_id, qr_login))
 
             return InitiateAuthResponse(
                 login_id=login_id,
@@ -149,24 +133,26 @@ async def initiate_auth(request: InitiateAuthRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-async def wait_for_qr_login(login_id: str):
+async def wait_for_qr_login(login_id: str, qr_login):
+    """
+    Background task that waits for QR code to be scanned
+    """
     client = await client_manager.get_client(login_id)
     if not client:
         return
 
-    login_data = await redis_client.get_login_session(login_id)
-    if not login_data:
-        await client_manager.close_client(login_id)
-        return
-
     try:
-        qr_login = await client.qr_login()
         await asyncio.wait_for(
             qr_login.wait(),
             timeout=settings.LOGIN_TIMEOUT_SECONDS
         )
 
         session_string = client.session.save()
+
+        login_data = await redis_client.get_login_session(login_id)
+        if not login_data:
+            logger.warning("Login session expired before QR completion", login_id=login_id)
+            return
 
         await store_session_in_auth_service(
             user_id=login_data['user_id'],
@@ -177,7 +163,9 @@ async def wait_for_qr_login(login_id: str):
         login_data['session_stored'] = True
         await redis_client.set_login_session(login_id, login_data)
 
-        logger.info("QR login completed", user_id=login_data['user_id'], login_id=login_id)
+        logger.info("QR login completed",
+                    user_id=login_data['user_id'],
+                    login_id=login_id)
 
     except asyncio.TimeoutError:
         logger.info("QR login timeout", login_id=login_id)
@@ -185,12 +173,12 @@ async def wait_for_qr_login(login_id: str):
         logger.error("QR login failed", error=str(e), login_id=login_id)
     finally:
         await client_manager.close_client(login_id)
-        await redis_client.remove_user_active_login(login_data['user_id'], login_id)
+
 
 @app.post("/v1/auth/verify", response_model=VerifyCodeResponse)
 async def verify_code(request: VerifyCodeRequest):
     """
-    Step 2: Verify code (for phone flow)
+    Step 2: Verify code for phone flow
     """
     login_data = await redis_client.get_login_session(request.login_id)
     if not login_data:
@@ -221,7 +209,7 @@ async def verify_code(request: VerifyCodeRequest):
         )
 
         await redis_client.delete_login_session(request.login_id)
-        await redis_client.remove_user_active_login(login_data['user_id'], request.login_id)
+
         await client_manager.close_client(request.login_id)
 
         logger.info("Phone login completed", user_id=login_data['user_id'])
@@ -274,7 +262,7 @@ async def get_auth_status(login_id: str):
     if not login_data:
         return AuthStatusResponse(status='expired')
 
-    if login_data.get('session_stored'):
+    if login_data.get('status') == 'completed' or login_data.get('session_stored'):
         return AuthStatusResponse(
             status='completed',
             user_id=login_data['user_id']
@@ -283,32 +271,18 @@ async def get_auth_status(login_id: str):
     return AuthStatusResponse(status='pending')
 
 
-@app.post("/internal/sessions", response_model=dict)
-async def internal_store_session(
-        request: StoreSessionRequest,
-        _: bool = Depends(verify_internal_api_key)
-):
-    """
-    Internal endpoint for Personage.Auth to store session strings
-    """
-    logger.info("Session stored for user", user_id=request.user_id)
-    return {"status": "success"}
-
-
 async def store_session_in_auth_service(user_id: str, session_string: str):
-    """Call Personage.Auth to store the session string"""
+    """
+    Store Telegram session in Personage.Auth via gRPC
+    """
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"{settings.AUTH_SERVICE_URL}/internal/telegram-sessions",
-                json={"user_id": user_id, "session_string": session_string},
-                headers={"X-Internal-Api-Key": settings.AUTH_SERVICE_API_KEY},
-                timeout=10.0
-            )
-            response.raise_for_status()
-            logger.info("Session stored in Personage.Auth", user_id=user_id)
+        await auth_service_grpc_client.store_session(
+            user_id=user_id,
+            session_string=session_string
+        )
+
     except Exception as e:
-        logger.error("Failed to store session in Personage.Auth", error=str(e), user_id=user_id)
+        logger.error("Failed to store session via gRPC", error=str(e), user_id=user_id)
 
 
 @app.exception_handler(Exception)

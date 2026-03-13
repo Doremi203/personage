@@ -23,8 +23,6 @@ services:
       - TELEGRAM_API_HASH=${TELEGRAM_API_HASH}
       - REDIS_HOST=redis
       - REDIS_PASSWORD=redis_pass
-      - AUTH_SERVICE_URL=${AUTH_SERVICE_URL}
-      - AUTH_SERVICE_API_KEY=${AUTH_SERVICE_API_KEY}
       - ENVIRONMENT=${ENVIRONMENT:-production}
     depends_on:
       redis:

@@ -36,15 +36,3 @@ class AuthStatusResponse(BaseModel):
     user_id: Optional[str] = None
     error: Optional[str] = None
 
-
-class StoreSessionRequest(BaseModel):
-    user_id: str
-    session_string: str
-
-
-class HealthResponse(BaseModel):
-    status: str
-    version: str
-    redis: bool
-    telegram_api: bool
-    environment: str

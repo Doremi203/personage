@@ -35,13 +35,15 @@ class RedisClient:
             logger.error("Failed to connect to Redis", error=str(e))
             raise
 
-    async def set_login_session(self, login_id: str, data: dict, ttl: int = None):
-        ttl = ttl or settings.LOGIN_TIMEOUT_SECONDS
+    async def set_login_session(self, login_id: str, data: dict):
+        """Store login session data with expiration"""
+        ttl = settings.LOGIN_TIMEOUT_SECONDS
         key = f"login:{login_id}"
         await self.client.setex(key, ttl, json.dumps(data))
         logger.debug("Stored login session", login_id=login_id, ttl=ttl)
 
     async def get_login_session(self, login_id: str) -> dict | None:
+        """Retrieve login session data"""
         key = f"login:{login_id}"
         data = await self.client.get(key)
         if data:
@@ -49,31 +51,13 @@ class RedisClient:
         return None
 
     async def delete_login_session(self, login_id: str):
+        """Delete login session"""
         key = f"login:{login_id}"
         await self.client.delete(key)
         logger.debug("Deleted login session", login_id=login_id)
 
-    async def set_user_active_login(self, user_id: str, login_id: str):
-        key = f"user:{user_id}:active_logins"
-        await self.client.sadd(key, login_id)
-        await self.client.expire(key, settings.LOGIN_TIMEOUT_SECONDS)
-
-    async def get_user_active_logins(self, user_id: str) -> list:
-        key = f"user:{user_id}:active_logins"
-        return await self.client.smembers(key) or []
-
-    async def remove_user_active_login(self, user_id: str, login_id: str):
-        key = f"user:{user_id}:active_logins"
-        await self.client.srem(key, login_id)
-
-    async def cleanup_user_sessions(self, user_id: str):
-        active_logins = await self.get_user_active_logins(user_id)
-        for login_id in active_logins:
-            await self.delete_login_session(login_id)
-        key = f"user:{user_id}:active_logins"
-        await self.client.delete(key)
-
     async def close(self):
+        """Close Redis connection"""
         if self.client:
             await self.client.close()
             logger.info("Redis connection closed")

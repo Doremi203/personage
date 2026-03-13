@@ -17,17 +17,18 @@ class Settings(BaseSettings):
 
     REDIS_HOST: str = Field('localhost', env='REDIS_HOST')
     REDIS_PORT: int = Field(6379, env='REDIS_PORT')
+
     REDIS_PASSWORD: Optional[str] = Field(None, env='REDIS_PASSWORD')
+    REDIS_PASSWORD_SECRET_ID: str = "e6qvfihd6jhni4pugu4a"
+
     REDIS_DB: int = Field(0, env='REDIS_DB')
     REDIS_SSL: bool = Field(False, env='REDIS_SSL')
 
-    AUTH_SERVICE_URL: str = Field(..., env='AUTH_SERVICE_URL')
-    AUTH_SERVICE_API_KEY: str = Field(..., env='AUTH_SERVICE_API_KEY')
-
     LOGIN_TIMEOUT_SECONDS: int = Field(300, env='LOGIN_TIMEOUT_SECONDS')
-    MAX_ACTIVE_LOGINS_PER_USER: int = Field(3, env='MAX_ACTIVE_LOGINS_PER_USER')
-
     ENVIRONMENT: str = Field('development', env='ENVIRONMENT')
+
+    AUTH_SERVICE_GRPC_HOST: str = Field('localhost', env='AUTH_SERVICE_GRPC_HOST')
+    AUTH_SERVICE_GRPC_PORT: int = Field(50051, env='AUTH_SERVICE_GRPC_PORT')
 
     TELEGRAM_API_HASH: str | None = None
     TELEGRAM_API_ID: str | None = None
@@ -46,10 +47,15 @@ class Settings(BaseSettings):
             iam_token = Settings._get_iam_token_from_env()
 
         lockbox = YandexLockboxClient(iam_token)
-        payload = lockbox.get_secret_payload(self.AUTH_SECRETS_LOCKBOX_ID)
+        auth_secrets_payload = lockbox.get_secret_payload(self.AUTH_SECRETS_LOCKBOX_ID)
 
-        self.TELEGRAM_API_ID = payload.get(lockbox_telegram_id_key).text_value.get_secret_value()
-        self.TELEGRAM_API_HASH = payload.get(lockbox_telegram_hash_key).text_value.get_secret_value()
+        self.TELEGRAM_API_ID = auth_secrets_payload.get(lockbox_telegram_id_key).text_value.get_secret_value()
+        self.TELEGRAM_API_HASH = auth_secrets_payload.get(lockbox_telegram_hash_key).text_value.get_secret_value()
+
+        lockbox_redis_password_key = "redis_pass"
+        redis_secrets_payload = lockbox.get_secret_payload(self.REDIS_PASSWORD_SECRET_ID)
+        self.REDIS_PASSWORD = redis_secrets_payload.get(lockbox_redis_password_key).text_value.get_secret_value()
+
 
     @staticmethod
     def _get_iam_token_on_vm() -> str | None:
