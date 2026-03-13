@@ -31,7 +31,7 @@ class AuthServiceGrpcClient:
 
             self.stub = telegram_pb2_grpc.TelegramServiceStub(self.channel)
 
-    async def store_session(self, user_id: str, session_string: str) -> bool:
+    async def store_session(self, user_id: str, session_string: str):
         """
         Store Telegram session in Personage.Auth via gRPC
         """
@@ -44,22 +44,8 @@ class AuthServiceGrpcClient:
                 session_string=session_string
             )
 
-            response = await self.stub.StoreSession(request)
-
-            if response.success:
-                logger.info(
-                    "Session stored via gRPC",
-                    user_id=user_id,
-                    session_id=response.session_id
-                )
-                return True
-            else:
-                logger.error(
-                    "Failed to store session via gRPC",
-                    user_id=user_id,
-                    message=response.message
-                )
-                return False
+            await self.stub.StoreSession(request)
+            return
 
         except grpc.RpcError as e:
             logger.error(
