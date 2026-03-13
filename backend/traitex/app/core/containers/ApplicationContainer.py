@@ -61,7 +61,8 @@ def create_application_container(config: Configuration) -> ApplicationContainer:
             "options": config.get("Database.Options", ""),
         },
         "state_tracking": {
-            "endpoint": config.get("StateTracking.Endpoint")
+            "endpoint": config.get("StateTracking.Endpoint"),
+            "use_tls": config.get("StateTracking.UseTls", False)
         },
         "gmail": {
             "max_messages_per_user": config.get("Gmail.MaxMessagesPerUser", 100),
