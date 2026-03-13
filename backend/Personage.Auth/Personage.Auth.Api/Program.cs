@@ -1,9 +1,11 @@
 using DotNetEnv;
 using Npgsql;
+using Microsoft.Extensions.Logging.Console;
 using Microsoft.Extensions.Options;
 using Personage.Auth.Api.Configuration;
 using Personage.Auth.Api.Extensions;
 using Personage.Auth.Api.GrpcServices;
+using Personage.Auth.Api.Logging;
 using Personage.Auth.Api.Middleware;
 using Personage.Auth.Bll.Services;
 using Personage.Auth.DataAccess;
@@ -24,10 +26,16 @@ public class Program
         {
             serverOptions.AllowAlternateSchemes = true;
         });
-        
-        // Add Lockbox secret resolution as the last configuration source.
-        // Any config value matching "secret:{id}:{version}:{key}" will be resolved
-        // from Yandex Cloud Lockbox before the application starts.
+
+        if (builder.Environment.IsProduction())
+        {
+            builder.Logging.AddConsoleFormatter<CompactJsonConsoleFormatter, ConsoleFormatterOptions>();
+            builder.Logging.AddConsole(options =>
+            {
+                options.FormatterName = CompactJsonConsoleFormatter.FormatterName;
+            });
+        }
+
         var useMetadataService = builder.Configuration.GetValue<bool>("YandexCloud:UseMetadataService");
         builder.Configuration.AddLockboxSecrets(useMetadataService);
         
