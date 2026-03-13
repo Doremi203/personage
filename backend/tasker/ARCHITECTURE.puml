@@ -8,6 +8,10 @@ skinparam component {
     BorderColor<<external>> #CC0000
     BackgroundColor<<worker>> #E6F3FF
     BorderColor<<worker>> #0066CC
+    BackgroundColor<<handler>> #E6F3FF
+    BorderColor<<handler>> #0066CC
+    BackgroundColor<<api>> #DCEEFB
+    BorderColor<<api>> #2277BB
     BackgroundColor<<usecase>> #E6FFE6
     BorderColor<<usecase>> #00AA00
     BackgroundColor<<service>> #FFF4E6
@@ -21,42 +25,58 @@ skinparam component {
 ' External Systems
 package "External Systems" {
     component "Yandex Message Queue" as sqs <<external>>
-    component "OpenRouter API" as openrouter <<external>>
+    component "OpenRouter API\n(LLM + Embeddings)" as openrouter <<external>>
+}
+
+' Clients
+package "Clients" {
+    component "Frontend / Mobile" as clients <<external>>
 }
 
 ' Main Application
 package "Tasker Service" {
 
+    ' API Layer
+    package "API Layer (gRPC + HTTP Gateway)" {
+        component "Tasks gRPC Service\n\n+ ListTasksV1()" as grpc_tasks <<api>>
+    }
+
+    ' Handlers
+    package "Handlers" {
+        component "SQS Event Handler\n\n+ Process()" as sqs_handler <<handler>>
+    }
+
     ' Workers
     package "Workers" {
-        component "SQS Worker" as sqs_worker <<worker>>
-        component "Cluster Closure Worker" as closure_worker <<worker>>
-        component "Planning Worker" as planning_worker <<worker>>
+        component "SQS Worker\n(background job)" as sqs_worker <<worker>>
+        component "Cluster Closure Worker\n(background job)\n\n+ Process()" as closure_worker <<worker>>
+        component "Scheduling Worker\n(background job)\n\n+ Process()" as scheduling_worker <<worker>>
     }
 
     ' Use Cases
     package "Use Cases" {
         component "Clusterization UseCase\n\n+ ProcessEvent()" as clusterization_uc <<usecase>>
         component "Task Generation UseCase\n\n+ ProcessClosableClusters()" as taskgen_uc <<usecase>>
-        component "Planning UseCase\n\n+ CalculateSchedule()" as planning_uc <<usecase>>
+        component "Scheduling UseCase\n\n+ SchedulePendingTasks()" as scheduling_uc <<usecase>>
+        component "Task List UseCase\n\n+ ListTasks()" as tasklist_uc <<usecase>>
     }
 
     ' Services
     package "Services" {
         component "Embedding Service\n\n+ GenerateEmbeddings()" as embedding_service <<service>>
-        component "Task Generation Service\n\n+ GenerateTask()" as task_service <<service>>
-        component "Scheduler Service\n\n+ CalculateSchedule()" as scheduler_service <<service>>
+        component "Task Generation Service (LLM)\n\n+ GenerateTask()" as task_service <<service>>
+        component "Scheduler (pure function)\n\n+ CalculateSchedule()" as scheduler_service <<service>>
     }
 
     ' Repositories
     package "Repositories" {
         component "Event Repository\n\n+ UpsertEvent()\n+ GetEventsByClusterID()" as event_repo <<repo>>
         component "Cluster Repository\n\n+ FindSimilarClusters()\n+ UpsertCluster()\n+ FindClosableClusters()\n+ UpdateClusterStatus()" as cluster_repo <<repo>>
-        component "Task Repository\n\n+ CreateTask()\n+ GetTasksByUserID()\n+ GetTasksByStatus()\n+ UpdateTaskSchedule()\n+ UpdateTaskStatus()" as task_repo <<repo>>
+        component "Task Repository\n\n+ CreateTask()\n+ GetTasksByUserID()\n+ GetTasksByStatus()\n+ GetUsersWithUnplannedTasks()\n+ UpdateTaskSchedule()\n+ UpdateTaskStatus()\n+ ListTasks()" as task_repo <<repo>>
     }
 
     ' Infrastructure
-    component "Database Client" as db_client
+    component "Database Client\n(pgxpool + pgvector)" as db_client
 }
 
 ' Storage
@@ -64,30 +84,50 @@ package "Storage" {
     database "PostgreSQL + pgvector" as postgres <<storage>>
 }
 
-' Connections
-sqs --> sqs_worker
-sqs_worker --> clusterization_uc
+' === Connections ===
 
+' Client connections
+clients --> grpc_tasks : gRPC / HTTP
+
+' API layer connections
+grpc_tasks --> tasklist_uc
+
+' SQS ingestion path
+sqs --> sqs_worker
+sqs_worker --> sqs_handler
+sqs_handler --> clusterization_uc
+
+' Cluster closure path
 closure_worker --> taskgen_uc
 
-planning_worker --> planning_uc
+' Scheduling path
+scheduling_worker --> scheduling_uc
 
+' Clusterization use case dependencies
 clusterization_uc --> embedding_service
 clusterization_uc --> cluster_repo
 clusterization_uc --> event_repo
 
+' Embedding service external call
 embedding_service --> openrouter
 
+' Task generation use case dependencies
 taskgen_uc --> cluster_repo
 taskgen_uc --> event_repo
 taskgen_uc --> task_service
 taskgen_uc --> task_repo
 
+' Task generation service external call
 task_service --> openrouter
 
-planning_uc --> task_repo
-planning_uc --> scheduler_service
+' Scheduling use case dependencies
+scheduling_uc --> task_repo
+scheduling_uc ..> scheduler_service : calls pure function
 
+' Task list use case dependencies
+tasklist_uc --> task_repo
+
+' Repository to DB
 event_repo --> db_client
 cluster_repo --> db_client
 task_repo --> db_client
@@ -96,7 +136,8 @@ db_client --> postgres
 
 legend right
   |<#FFE6E6>   | External Systems |
-  |<#E6F3FF>   | Workers |
+  |<#DCEEFB>   | API Layer (gRPC + HTTP) |
+  |<#E6F3FF>   | Workers / Handlers |
   |<#E6FFE6>   | Use Cases |
   |<#FFF4E6>   | Services |
   |<#F0E6FF>   | Repositories |

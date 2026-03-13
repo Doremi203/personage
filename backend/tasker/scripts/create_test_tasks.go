@@ -123,7 +123,8 @@ func insertUserData(
 			Priority:    t.Priority,
 			Deadline:    t.Deadline,
 			StartTime:   nil,
-			Status:      domain.TaskStatusPending,
+			Status:      domain.TaskStatusUnplanned,
+			Category:    domain.TaskCategoryPersonal,
 			CreatedAt:   now,
 			UpdatedAt:   now,
 		}

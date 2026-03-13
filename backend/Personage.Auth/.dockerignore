@@ -1,0 +1,27 @@
+# Test project — not needed in production image
+Personage.Auth.Tests/
+
+# Build artifacts
+**/bin/
+**/obj/
+**/out/
+
+# IDE and editor files
+.idea/
+.vs/
+*.sln.iml
+*.user
+*.suo
+*.DotSettings.user
+
+# Docker files (avoid recursive context)
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+*.md

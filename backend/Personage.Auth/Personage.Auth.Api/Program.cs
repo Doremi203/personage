@@ -9,7 +9,6 @@ using Personage.Auth.DataAccess.Interfaces.Repositories;
 using Personage.Auth.DataAccess.Repositories;
 using Personage.Auth.Domain.Configuration;
 using Personage.Auth.Domain.Interfaces;
-using Personage.Auth.Migrations.Runner;
 
 namespace Personage.Auth.Api;
 
@@ -42,12 +41,8 @@ public class Program
         ConfigureServices(services, configuration, environment);
         
         var app = builder.Build();
-        
-        if (args.Contains("migrate"))
-        {
-            await MigrateDatabase(app);
-            return;
-        }
+
+        await app.ResolveDatabaseSecrets();
 
         ConfigureMiddleware(app);
         
@@ -69,30 +64,9 @@ public class Program
         
         AddReflectionAndSwagger(services);
         
-        services.AddScoped<IMigrationRunner, MigrationRunner>();
         services.AddControllers();
     }
 
-    private static async Task MigrateDatabase(WebApplication app)
-    {
-        var logger = app.Logger;
-        logger.LogInformation("Running database migrations...");
-    
-        using var scope = app.Services.CreateScope();
-        var migrationRunner = scope.ServiceProvider.GetRequiredService<IMigrationRunner>();
-    
-        try
-        {
-            await migrationRunner.RunMigrations();
-            logger.LogInformation("Migrations completed successfully!");
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Migrations failed");
-            throw;
-        }
-    }
-    
     private static void ConfigureMiddleware(WebApplication app)
     {
         app.UseSwagger();

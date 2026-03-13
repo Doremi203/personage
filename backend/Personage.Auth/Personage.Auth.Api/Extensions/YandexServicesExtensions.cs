@@ -22,7 +22,7 @@ public static class YandexServicesExtensions
         
         if (useMetadataService)
         {
-            services.AddScoped<Sdk>(_ => new Sdk(new MetadataCredentialsProvider()));
+            services.AddSingleton<Sdk>(_ => new Sdk(new MetadataCredentialsProvider()));
         }
         else
         {
@@ -36,7 +36,7 @@ public static class YandexServicesExtensions
                            ?? throw new InvalidOperationException($"{TokenEnvVariableName} environment variable is not set");
             
             
-            services.AddScoped<Sdk>(_ => new Sdk(new IamTokenCredentialsProvider(iamToken)));
+            services.AddSingleton<Sdk>(_ => new Sdk(new IamTokenCredentialsProvider(iamToken)));
         }
     }
 }

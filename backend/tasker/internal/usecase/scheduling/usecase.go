@@ -11,9 +11,9 @@ import (
 )
 
 type taskRepo interface {
-	GetUsersWithPendingTasks(ctx context.Context) ([]domain.UserID, error)
+	GetUsersWithUnplannedTasks(ctx context.Context) ([]domain.UserID, error)
 	GetTasksByStatus(ctx context.Context, userID domain.UserID, status domain.TaskStatus) ([]domain.Task, error)
-	UpdateTaskSchedule(ctx context.Context, taskID domain.TaskID, startTime time.Time, status domain.TaskStatus) error
+	UpdateTaskSchedule(ctx context.Context, taskID domain.TaskID, startTime time.Time, endTime time.Time, status domain.TaskStatus) error
 }
 
 type UseCase struct {
@@ -35,7 +35,7 @@ func NewUseCase(
 }
 
 func (uc *UseCase) SchedulePendingTasks(ctx context.Context) error {
-	userIDs, err := uc.taskRepo.GetUsersWithPendingTasks(ctx)
+	userIDs, err := uc.taskRepo.GetUsersWithUnplannedTasks(ctx)
 	if err != nil {
 		return errors.WrapFail(err, "get users with pending tasks")
 	}
@@ -59,7 +59,7 @@ func (uc *UseCase) SchedulePendingTasks(ctx context.Context) error {
 }
 
 func (uc *UseCase) scheduleForUser(ctx context.Context, userID domain.UserID) error {
-	pendingTasks, err := uc.taskRepo.GetTasksByStatus(ctx, userID, domain.TaskStatusPending)
+	pendingTasks, err := uc.taskRepo.GetTasksByStatus(ctx, userID, domain.TaskStatusUnplanned)
 	if err != nil {
 		return errors.WrapFail(err, "get pending tasks")
 	}
@@ -76,7 +76,8 @@ func (uc *UseCase) scheduleForUser(ctx context.Context, userID domain.UserID) er
 			ctx,
 			planned.ID,
 			planned.Start,
-			domain.TaskStatusScheduled,
+			planned.End,
+			domain.TaskStatusPlanned,
 		); err != nil {
 			return errors.WrapFailf(
 				err,

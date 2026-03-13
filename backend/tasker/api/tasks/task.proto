@@ -1,0 +1,264 @@
+syntax = "proto3";
+
+package api.tasks;
+
+option go_package = "github.com/Doremi203/personage/backend/tasker/gen/api/tasks";
+
+import "google/api/annotations.proto";
+import "google/api/field_behavior.proto";
+import "google/protobuf/timestamp.proto";
+import "protoc-gen-openapiv2/options/annotations.proto";
+import "validate/validate.proto";
+
+service Tasks {
+  rpc ListTasksV1(ListTasksV1Request) returns (ListTasksV1Response) {
+    option (google.api.http) = {
+      get: "/v1/tasks"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "List tasks with filters and pagination";
+      description: "Returns a paginated list of tasks matching the specified filters.";
+      parameters: {
+        headers: {
+          name: "User-Token"
+          description: "User authentication token"
+          type: STRING
+          required: true
+        }
+      }
+    };
+  }
+
+  rpc GetTaskV1(GetTaskV1Request) returns (GetTaskV1Response) {
+    option (google.api.http) = {
+      get: "/v1/tasks/{id}"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Get task by ID";
+      description: "Returns a single task by its identifier.";
+      parameters: {
+        headers: {
+          name: "User-Token"
+          description: "User authentication token"
+          type: STRING
+          required: true
+        }
+      }
+    };
+  }
+
+  rpc UpdateTaskV1(UpdateTaskV1Request) returns (UpdateTaskV1Response) {
+    option (google.api.http) = {
+      patch: "/v1/tasks/{id}"
+      body: "*"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Update task by ID";
+      description: "Partially updates a task by its identifier. Only provided fields are updated.";
+      parameters: {
+        headers: {
+          name: "User-Token"
+          description: "User authentication token"
+          type: STRING
+          required: true
+        }
+      }
+    };
+  }
+
+  rpc PostponeTaskV1(PostponeTaskV1Request) returns (PostponeTaskV1Response) {
+    option (google.api.http) = {
+      post: "/v1/tasks/{id}/postpone"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Postpone a task";
+      description: "Sets the task status to unplanned, effectively postponing it.";
+      parameters: {
+        headers: {
+          name: "User-Token"
+          description: "User authentication token"
+          type: STRING
+          required: true
+        }
+      }
+    };
+  }
+
+  rpc DeleteTaskV1(DeleteTaskV1Request) returns (DeleteTaskV1Response) {
+    option (google.api.http) = {
+      delete: "/v1/tasks/{id}"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Delete task by ID";
+      description: "Deletes a task and its associated cluster and events by task identifier.";
+      parameters: {
+        headers: {
+          name: "User-Token"
+          description: "User authentication token"
+          type: STRING
+          required: true
+        }
+      }
+    };
+  }
+
+  rpc CompleteTaskV1(CompleteTaskV1Request) returns (CompleteTaskV1Response) {
+    option (google.api.http) = {
+      post: "/v1/tasks/{id}/complete"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Complete a task";
+      description: "Sets the task status to completed.";
+      parameters: {
+        headers: {
+          name: "User-Token"
+          description: "User authentication token"
+          type: STRING
+          required: true
+        }
+      }
+    };
+  }
+}
+
+enum TaskStatusFilter {
+  TASK_STATUS_FILTER_UNSPECIFIED = 0;
+  TASK_STATUS_FILTER_UNPLANNED = 1;
+  TASK_STATUS_FILTER_PLANNED = 2;
+  TASK_STATUS_FILTER_COMPLETED = 3;
+}
+
+enum TaskCategoryFilter {
+  TASK_CATEGORY_FILTER_UNSPECIFIED = 0;
+  TASK_CATEGORY_FILTER_WORK = 1;
+  TASK_CATEGORY_FILTER_STUDY = 2;
+  TASK_CATEGORY_FILTER_PERSONAL = 3;
+}
+
+enum TaskPriority {
+  TASK_PRIORITY_UNSPECIFIED = 0;
+  TASK_PRIORITY_LOW = 1;
+  TASK_PRIORITY_MID = 2;
+  TASK_PRIORITY_HIGH = 3;
+}
+
+enum TaskStatus {
+  TASK_STATUS_UNSPECIFIED = 0;
+  TASK_STATUS_UNPLANNED = 1;
+  TASK_STATUS_PLANNED = 2;
+  TASK_STATUS_COMPLETED = 3;
+}
+
+enum TaskCategory {
+  TASK_CATEGORY_UNSPECIFIED = 0;
+  TASK_CATEGORY_WORK = 1;
+  TASK_CATEGORY_STUDY = 2;
+  TASK_CATEGORY_PERSONAL = 3;
+}
+
+message TaskItem {
+  string id = 1;
+  string title = 2;
+  string description = 3;
+  optional google.protobuf.Timestamp start_time = 4;
+  optional google.protobuf.Timestamp end_time = 5;
+  optional google.protobuf.Timestamp deadline = 6;
+  TaskPriority priority = 7;
+  TaskStatus status = 8;
+  TaskCategory category = 9;
+  google.protobuf.Timestamp updated_at = 10;
+  google.protobuf.Timestamp created_at = 11;
+}
+
+message   ListTasksV1Request {
+  TaskStatusFilter status = 1 [
+    (validate.rules).enum.defined_only = true
+  ];
+  TaskCategoryFilter category = 2 [
+    (validate.rules).enum.defined_only = true
+  ];
+  string text = 3;        // full-text search query
+  string from = 4 [
+    (validate.rules).string = {
+      pattern: "^$|^\\d{2}-\\d{2}-\\d{4}$"
+    }
+  ];
+  string till = 5 [
+    (validate.rules).string = {
+      pattern: "^$|^\\d{2}-\\d{2}-\\d{4}$"
+    }
+  ];
+  int32 page_size = 6 [
+    (validate.rules).int32 = {gte: 1, lte: 20}
+  ];
+  int32 page = 7 [
+    (validate.rules).int32 = {gte: 1}
+  ];
+}
+
+message ListTasksV1Response {
+  repeated TaskItem tasks = 1;
+  int32 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message GetTaskV1Request {
+  string id = 1 [
+    (validate.rules).string = {min_len: 1},
+    (google.api.field_behavior) = REQUIRED
+  ];
+}
+
+message GetTaskV1Response {
+  TaskItem task = 1;
+}
+
+message UpdateTaskV1Request {
+  string id = 1 [
+    (validate.rules).string = {min_len: 1},
+    (google.api.field_behavior) = REQUIRED
+  ];
+  optional string title = 2;
+  optional string description = 3;
+  optional google.protobuf.Timestamp start_time = 4;
+  optional google.protobuf.Timestamp end_time = 5;
+  TaskCategory category = 6 [
+    (validate.rules).enum.defined_only = true
+  ];
+}
+
+message UpdateTaskV1Response {
+  TaskItem task = 1;
+}
+
+message PostponeTaskV1Request {
+  string id = 1 [
+    (validate.rules).string = {min_len: 1},
+    (google.api.field_behavior) = REQUIRED
+  ];
+}
+
+message PostponeTaskV1Response {
+  TaskItem task = 1;
+}
+
+message DeleteTaskV1Request {
+  string id = 1 [
+    (validate.rules).string = {min_len: 1},
+    (google.api.field_behavior) = REQUIRED
+  ];
+}
+
+message DeleteTaskV1Response {}
+
+message CompleteTaskV1Request {
+  string id = 1 [
+    (validate.rules).string = {min_len: 1},
+    (google.api.field_behavior) = REQUIRED
+  ];
+}
+
+message CompleteTaskV1Response {
+  TaskItem task = 1;
+}

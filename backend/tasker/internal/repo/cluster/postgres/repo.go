@@ -161,6 +161,21 @@ func (r *repo) UpdateClusterStatus(ctx context.Context, clusterID domain.Cluster
 	return nil
 }
 
+func (r *repo) DeleteCluster(ctx context.Context, clusterID domain.ClusterID) error {
+	query := `DELETE FROM clusters WHERE cluster_id = $1`
+
+	result, err := r.client.Exec(ctx, query, clusterID)
+	if err != nil {
+		return errors.WrapFail(err, "delete cluster")
+	}
+
+	if result.RowsAffected() == 0 {
+		return errors.Errorf("cluster not found: %s", clusterID)
+	}
+
+	return nil
+}
+
 type clusterEntity struct {
 	ClusterID  uuid.UUID       `db:"cluster_id"`
 	UserID     uuid.UUID       `db:"user_id"`

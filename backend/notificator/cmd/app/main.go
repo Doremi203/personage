@@ -7,6 +7,7 @@ import (
 	"github.com/Doremi203/personage/backend/libs/go/errors"
 	"github.com/Doremi203/personage/backend/libs/go/postgres"
 	"github.com/Doremi203/personage/backend/libs/go/sqs"
+	"github.com/Doremi203/personage/backend/libs/go/token"
 	"github.com/Doremi203/personage/backend/libs/go/webapp"
 	pushpb "github.com/Doremi203/personage/backend/notificator/gen/api/push"
 	"github.com/Doremi203/personage/backend/notificator/internal/grpc"
@@ -103,6 +104,14 @@ func main() {
 		)
 
 		app.AddAPIKeyProtectedEndpoints(pushpb.Admin_SendPushV1_FullMethodName)
+		app.AddGRPCUnaryInterceptor(
+			token.NewUnaryTokenInterceptor(
+				token.NewVerifierStub(),
+				app.Log,
+				pushpb.Subscription_SubscribeV1_FullMethodName,
+				pushpb.Subscription_UnsubscribeV1_FullMethodName,
+			),
+		)
 		app.RegisterGRPCServices(
 			pushSubscriptionService,
 			pushAdminService,
