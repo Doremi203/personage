@@ -86,8 +86,8 @@ public class Program
     }
 
     private static void ConfigureServices(
-        IServiceCollection services, 
-        ConfigurationManager configuration, 
+        IServiceCollection services,
+        ConfigurationManager configuration,
         IWebHostEnvironment environment)
     {
         services.AddScoped<IDbConnectionFactory, DbConnectionFactory>();
@@ -98,6 +98,7 @@ public class Program
         AddBllServices(services);
         
         AddReflectionAndSwagger(services);
+        AddCors(services, configuration);
         
         services.AddControllers();
     }
@@ -112,7 +113,8 @@ public class Program
             c.DisplayRequestDuration();
         });
         
-
+        app.UseCors();
+        
         app.UseGrpcWeb();
         app.MapGrpcReflectionService();
         app.MapGrpcService<TestGrpcService>().EnableGrpcWeb();
@@ -184,5 +186,40 @@ public class Program
         services.Configure<ConnectionFactorySettings>(configuration.GetSection(nameof(ConnectionFactorySettings)));
         services.Configure<JwtSettings>(configuration.GetSection(nameof(JwtSettings)));
         services.Configure<PostboxSettings>(configuration.GetSection(nameof(PostboxSettings)));
+    }
+
+    private static void AddCors(IServiceCollection services, ConfigurationManager configuration)
+    {
+        var corsSettings = configuration.GetSection("Cors");
+        var allowedOrigins = corsSettings.GetSection("AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
+        var allowedMethods = corsSettings.GetSection("AllowedMethods").Get<string[]>() ?? new[] { "GET", "POST", "PUT", "DELETE", "OPTIONS" };
+        var allowedHeaders = corsSettings.GetSection("AllowedHeaders").Get<string[]>() ?? new[] { "Content-Type", "Authorization" };
+        var allowCredentials = corsSettings.GetValue<bool>("AllowCredentials", true);
+        var exposedHeaders = corsSettings.GetSection("ExposedHeaders").Get<string[]>() ?? Array.Empty<string>();
+
+        services.AddCors(options =>
+        {
+            options.AddDefaultPolicy(policy =>
+            {
+                if (allowedOrigins.Length > 0)
+                {
+                    policy.WithOrigins(allowedOrigins)
+                          .WithMethods(allowedMethods)
+                          .WithHeaders(allowedHeaders)
+                          .AllowCredentials();
+                    
+                    if (exposedHeaders.Length > 0)
+                    {
+                        policy.WithExposedHeaders(exposedHeaders);
+                    }
+                }
+                else
+                {
+                    policy.AllowAnyOrigin()
+                          .AllowAnyMethod()
+                          .AllowAnyHeader();
+                }
+            });
+        });
     }
 }
