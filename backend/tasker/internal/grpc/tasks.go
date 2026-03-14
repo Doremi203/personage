@@ -137,20 +137,20 @@ func (s *tasksService) UpdateTaskV1(
 
 	update := domain.TaskUpdate{}
 
-	if req.Title != nil {
-		update.Title = req.Title
+	if title := req.GetTitle(); title != "" {
+		update.Title = &title
 	}
 
-	if req.Description != nil {
-		update.Description = req.Description
+	if desc := req.GetDescription(); desc != "" {
+		update.Description = &desc
 	}
 
-	if req.StartTime != nil {
+	if req.GetStartTime() != nil {
 		st := req.GetStartTime().AsTime()
 		update.StartTime = &st
 	}
 
-	if req.EndTime != nil {
+	if req.GetEndTime() != nil {
 		et := req.GetEndTime().AsTime()
 		update.EndTime = &et
 	}

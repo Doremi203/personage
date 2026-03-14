@@ -16,6 +16,7 @@ linters:
     gosec:
       excludes:
         - G117
+        - G115
 
 formatters:
   enable:

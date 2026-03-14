@@ -27,7 +27,7 @@ database:
   options: sslmode=disable
 
 llm:
-  model: "tngtech/deepseek-r1t2-chimera:free"
+  model: stepfun/step-3.5-flash:free
   apiKey: "secret:e6qd2ljggdrvefjgg0gf:e6q72jfficuq9om25sab:open-router"
 
 embedding:
@@ -37,3 +37,21 @@ embedding:
 scheduling:
   windowHours: 24
   interval: 30s
+
+notifications:
+  upcomingEventMinPriority: 5
+  upcomingEventIntervals:
+    - 60m
+    - 15m
+    - 5m
+  scheduleChangesEnabled: true
+
+notifications-worker:
+  interval: 1m
+
+sqs-notificator:
+  endpoint: https://message-queue.api.cloud.yandex.net
+  region: ru-central1
+  accessKey: "secret:e6q869h32umj7dap12qa:e6q1l84sfb3f05qqu03e:access_key_id"
+  secretKey: "secret:e6q869h32umj7dap12qa:e6q1l84sfb3f05qqu03e:secret_key"
+  queueUrl: https://message-queue.api.cloud.yandex.net/b1gfkhf234165rrluh60/dj60000000gqu7d103cs/notificator-commands

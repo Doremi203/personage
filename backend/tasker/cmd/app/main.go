@@ -9,7 +9,9 @@ import (
 	"github.com/Doremi203/personage/backend/libs/go/sqs"
 	"github.com/Doremi203/personage/backend/libs/go/token"
 	"github.com/Doremi203/personage/backend/libs/go/webapp"
+	pushpb "github.com/Doremi203/personage/backend/notificator/gen/api/push"
 	eventsPb "github.com/Doremi203/personage/backend/tasker/gen/api/events"
+	"github.com/Doremi203/personage/backend/tasker/internal/domain"
 	taskergrpc "github.com/Doremi203/personage/backend/tasker/internal/grpc"
 	"github.com/Doremi203/personage/backend/tasker/internal/handlers/sqs/event"
 	clusterpostgres "github.com/Doremi203/personage/backend/tasker/internal/repo/cluster/postgres"
@@ -17,6 +19,7 @@ import (
 	taskpostgres "github.com/Doremi203/personage/backend/tasker/internal/repo/task/postgres"
 	"github.com/Doremi203/personage/backend/tasker/internal/services/embedding"
 	"github.com/Doremi203/personage/backend/tasker/internal/services/llm"
+	"github.com/Doremi203/personage/backend/tasker/internal/services/notifications"
 	"github.com/Doremi203/personage/backend/tasker/internal/usecase/clusterization"
 	"github.com/Doremi203/personage/backend/tasker/internal/usecase/scheduling"
 	"github.com/Doremi203/personage/backend/tasker/internal/usecase/taskgeneration"
@@ -28,6 +31,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	pgxvec "github.com/pgvector/pgvector-go/pgx"
+	"golang.org/x/text/language"
+	"golang.org/x/text/message"
 )
 
 func main() {
@@ -176,6 +181,66 @@ func main() {
 			).WithInterval(clusterClosureConfig.Interval),
 		)
 
+		sqsNotificatorConfig := sqs.Config{}
+		err = app.Config.ReadSection(ctx, "sqs-notificator", &sqsNotificatorConfig)
+		if err != nil {
+			return err
+		}
+
+		notificatorSQSClient, err := sqs.New(
+			ctx,
+			sqsNotificatorConfig,
+			func() *pushpb.Notification { return &pushpb.Notification{} },
+		)
+		if err != nil {
+			return errors.WrapFail(err, "create notificator sqs client")
+		}
+
+		notificationConfig := domain.NotificationConfig{}
+		err = app.Config.ReadSection(ctx, "notifications", &notificationConfig)
+		if err != nil {
+			return err
+		}
+
+		var ruPrinter = message.NewPrinter(language.Russian)
+
+		notificationSender := notifications.NewNotificatorPushService(notificatorSQSClient)
+
+		upcomingEventNotifier, err := notifications.NewUpcomingEventNotifier(
+			notificationSender,
+			notificationConfig,
+			ruPrinter,
+		)
+		if err != nil {
+			return err
+		}
+		scheduleChangeNotifier := notifications.NewScheduleChangeNotifier(
+			notificationSender,
+			notificationConfig,
+		)
+
+		type NotificationWorkerConfig struct {
+			Interval time.Duration
+		}
+		notificationWorkerConfig := NotificationWorkerConfig{}
+		err = app.Config.ReadSection(ctx, "notifications-worker", &notificationWorkerConfig)
+		if err != nil {
+			return err
+		}
+
+		notificationWorker := notifications.NewWorker(
+			app.Log,
+			postgresTaskRepo,
+			upcomingEventNotifier,
+			scheduleChangeNotifier,
+		)
+		app.AddBackgroundJob(
+			webapp.NewBackgroundJob(
+				"notification-worker",
+				notificationWorker.Process,
+			).WithInterval(notificationWorkerConfig.Interval),
+		)
+
 		type SchedulingConfig struct {
 			WindowHours int
 			Interval    time.Duration
@@ -191,9 +256,10 @@ func main() {
 		}
 
 		schedulingUseCase := scheduling.NewUseCase(
-			postgresTaskRepo,
-			time.Duration(schedulingConfig.WindowHours)*time.Hour,
 			app.Log,
+			postgresTaskRepo,
+			notificationSender,
+			time.Duration(schedulingConfig.WindowHours)*time.Hour,
 		)
 
 		schedulingWorker := schedulingworker.NewWorker(schedulingUseCase, app.Log)

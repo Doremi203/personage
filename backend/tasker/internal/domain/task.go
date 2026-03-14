@@ -18,6 +18,19 @@ const (
 
 type TaskCategory string
 
+func (t TaskCategory) String() string {
+	switch t {
+	case TaskCategoryWork:
+		return "Работа"
+	case TaskCategoryStudy:
+		return "Учеба"
+	case TaskCategoryPersonal:
+		return "Личное"
+	default:
+		return ""
+	}
+}
+
 const (
 	TaskCategoryWork     TaskCategory = "work"
 	TaskCategoryStudy    TaskCategory = "study"

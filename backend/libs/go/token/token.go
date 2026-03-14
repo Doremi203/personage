@@ -41,10 +41,7 @@ func fromGRPCCtx(
 		return "", errors.Error("failed to find user-token in grpc metadata")
 	}
 
-	rawToken := authValues[0]
-	if strings.HasPrefix(rawToken, "Bearer ") {
-		rawToken = strings.TrimPrefix(rawToken, "Bearer ")
-	}
+	rawToken := strings.TrimPrefix(authValues[0], "Bearer ")
 
 	return rawToken, nil
 }
