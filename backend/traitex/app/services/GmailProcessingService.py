@@ -52,7 +52,8 @@ class GmailProcessingService(IGmailProcessingService):
     async def get_users_for_processing(self) -> list[UserForGmailProcessingModel]:
         return await self.state_tracking_client.get_users_for_processing(
             batch_size=GmailProcessingService.USERS_FOR_PROCESSING_BATCH_SIZE,
-            seconds_since_last_process=GmailProcessingService.SECONDS_SINCE_LAST_PROCESS
+            seconds_since_last_process=GmailProcessingService.SECONDS_SINCE_LAST_PROCESS,
+            service_type=ConnectorTypeModel.Gmail,
         )
 
     async def process_users_events(self, users_for_processing: list[UserForGmailProcessingModel]) -> None:

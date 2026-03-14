@@ -26,7 +26,7 @@ from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__
 import common_pb2 as common__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x14state_tracking.proto\x12\x04\x61uth\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x0c\x63ommon.proto\"\x83\x01\n\x1cGetUsersForProcessingRequest\x12\x12\n\nbatch_size\x18\x01 \x01(\x05\x12&\n\x1emin_seconds_since_last_process\x18\x02 \x01(\x05\x12\'\n\x0cservice_type\x18\x03 \x01(\x0e\x32\x11.auth.ServiceType\"G\n\x1dGetUsersForProcessingResponse\x12&\n\x05users\x18\x01 \x03(\x0b\x32\x17.auth.UserForProcessing\"\x92\x01\n\x11UserForProcessing\x12\x0f\n\x07user_id\x18\x01 \x01(\t\x12\x12\n\nuser_email\x18\x02 \x01(\t\x12!\n\x06tokens\x18\x03 \x01(\x0b\x32\x11.auth.GmailTokens\x12\x35\n\x11last_processed_at\x18\x04 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\"j\n\x1bMarkUsersAsProcessedRequest\x12\"\n\x05users\x18\x01 \x03(\x0b\x32\x13.auth.ProcessedUser\x12\'\n\x0cservice_type\x18\x02 \x01(\x0e\x32\x11.auth.ServiceType\"R\n\rProcessedUser\x12\x0f\n\x07user_id\x18\x01 \x01(\t\x12\x30\n\x0cprocessed_at\x18\x02 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\"\x1e\n\x1cMarkUsersAsProcessedResponse2\xdb\x01\n\x14StateTrackingService\x12\x62\n\x15GetUsersForProcessing\x12\".auth.GetUsersForProcessingRequest\x1a#.auth.GetUsersForProcessingResponse\"\x00\x12_\n\x14MarkUsersAsProcessed\x12!.auth.MarkUsersAsProcessedRequest\x1a\".auth.MarkUsersAsProcessedResponse\"\x00\x42 \xaa\x02\x1dPersonage.Auth.Api.Grpc.Stateb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x14state_tracking.proto\x12\x04\x61uth\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x0c\x63ommon.proto\"\x83\x01\n\x1cGetUsersForProcessingRequest\x12\x12\n\nbatch_size\x18\x01 \x01(\x05\x12&\n\x1emin_seconds_since_last_process\x18\x02 \x01(\x05\x12\'\n\x0cservice_type\x18\x03 \x01(\x0e\x32\x11.auth.ServiceType\"G\n\x1dGetUsersForProcessingResponse\x12&\n\x05users\x18\x01 \x03(\x0b\x32\x17.auth.UserForProcessing\"\x8d\x01\n\x11UserForProcessing\x12\x0f\n\x07user_id\x18\x01 \x01(\t\x12\x35\n\x11last_processed_at\x18\x02 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12\x30\n\x0b\x63redentials\x18\x03 \x01(\x0b\x32\x1b.auth.ProcessingCredentials\"\x84\x01\n\x15ProcessingCredentials\x12)\n\x0cgmail_tokens\x18\x01 \x01(\x0b\x32\x11.auth.GmailTokensH\x00\x12\x31\n\x10telegram_session\x18\x02 \x01(\x0b\x32\x15.auth.TelegramSessionH\x00\x42\r\n\x0b\x63redentials\"j\n\x1bMarkUsersAsProcessedRequest\x12\"\n\x05users\x18\x01 \x03(\x0b\x32\x13.auth.ProcessedUser\x12\'\n\x0cservice_type\x18\x02 \x01(\x0e\x32\x11.auth.ServiceType\"R\n\rProcessedUser\x12\x0f\n\x07user_id\x18\x01 \x01(\t\x12\x30\n\x0cprocessed_at\x18\x02 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\"\x1e\n\x1cMarkUsersAsProcessedResponse2\xdb\x01\n\x14StateTrackingService\x12\x62\n\x15GetUsersForProcessing\x12\".auth.GetUsersForProcessingRequest\x1a#.auth.GetUsersForProcessingResponse\"\x00\x12_\n\x14MarkUsersAsProcessed\x12!.auth.MarkUsersAsProcessedRequest\x1a\".auth.MarkUsersAsProcessedResponse\"\x00\x42 \xaa\x02\x1dPersonage.Auth.Api.Grpc.Stateb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -39,13 +39,15 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_GETUSERSFORPROCESSINGRESPONSE']._serialized_start=211
   _globals['_GETUSERSFORPROCESSINGRESPONSE']._serialized_end=282
   _globals['_USERFORPROCESSING']._serialized_start=285
-  _globals['_USERFORPROCESSING']._serialized_end=431
-  _globals['_MARKUSERSASPROCESSEDREQUEST']._serialized_start=433
-  _globals['_MARKUSERSASPROCESSEDREQUEST']._serialized_end=539
-  _globals['_PROCESSEDUSER']._serialized_start=541
-  _globals['_PROCESSEDUSER']._serialized_end=623
-  _globals['_MARKUSERSASPROCESSEDRESPONSE']._serialized_start=625
-  _globals['_MARKUSERSASPROCESSEDRESPONSE']._serialized_end=655
-  _globals['_STATETRACKINGSERVICE']._serialized_start=658
-  _globals['_STATETRACKINGSERVICE']._serialized_end=877
+  _globals['_USERFORPROCESSING']._serialized_end=426
+  _globals['_PROCESSINGCREDENTIALS']._serialized_start=429
+  _globals['_PROCESSINGCREDENTIALS']._serialized_end=561
+  _globals['_MARKUSERSASPROCESSEDREQUEST']._serialized_start=563
+  _globals['_MARKUSERSASPROCESSEDREQUEST']._serialized_end=669
+  _globals['_PROCESSEDUSER']._serialized_start=671
+  _globals['_PROCESSEDUSER']._serialized_end=753
+  _globals['_MARKUSERSASPROCESSEDRESPONSE']._serialized_start=755
+  _globals['_MARKUSERSASPROCESSEDRESPONSE']._serialized_end=785
+  _globals['_STATETRACKINGSERVICE']._serialized_start=788
+  _globals['_STATETRACKINGSERVICE']._serialized_end=1007
 # @@protoc_insertion_point(module_scope)
