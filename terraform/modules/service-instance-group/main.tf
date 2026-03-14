@@ -133,6 +133,17 @@ resource "yandex_vpc_security_group" "service" {
     security_group_id = var.postgres_security_group_id
     port = 6432
   }
+
+  dynamic "egress" {
+    for_each = var.egress_ports
+    content {
+      protocol          = egress.value.protocol
+      description       = egress.value.description
+      port              = egress.value.port
+      v4_cidr_blocks    = try(egress.value.v4_cidr_blocks, null)
+      security_group_id = try(egress.value.security_group_id, null)
+    }
+  }
 }
 
 resource "yandex_dns_recordset" "service_alb_record" {

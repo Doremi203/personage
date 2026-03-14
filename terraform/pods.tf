@@ -19,12 +19,12 @@ module "tasker" {
   http_router_id = yandex_alb_http_router.https_router.id
   alb_ip_address = yandex_alb_load_balancer.main_alb.listener[0].endpoint[0].address[0].external_ipv4_address[0].address
 
-  network_id                = data.yandex_vpc_network.default.network_id
-  folder_id                 = data.yandex_vpc_network.default.folder_id
-  subnet_id                 = yandex_vpc_subnet.services_central1_d.id
-  alb_security_group_id     = yandex_vpc_security_group.alb.id
+  network_id                 = data.yandex_vpc_network.default.network_id
+  folder_id                  = data.yandex_vpc_network.default.folder_id
+  subnet_id                  = yandex_vpc_subnet.services_central1_d.id
+  alb_security_group_id      = yandex_vpc_security_group.alb.id
   postgres_security_group_id = yandex_vpc_security_group.postgres_db.id
-  bastion_security_group_id = data.yandex_vpc_security_group.default.id
+  bastion_security_group_id  = data.yandex_vpc_security_group.default.id
 
   instance_count         = 2
   instance_memory        = 1
@@ -45,12 +45,12 @@ module "notificator" {
   http_router_id = yandex_alb_http_router.https_router.id
   alb_ip_address = yandex_alb_load_balancer.main_alb.listener[0].endpoint[0].address[0].external_ipv4_address[0].address
 
-  network_id                = data.yandex_vpc_network.default.network_id
-  folder_id                 = data.yandex_vpc_network.default.folder_id
-  subnet_id                 = yandex_vpc_subnet.services_central1_d.id
-  alb_security_group_id     = yandex_vpc_security_group.alb.id
+  network_id                 = data.yandex_vpc_network.default.network_id
+  folder_id                  = data.yandex_vpc_network.default.folder_id
+  subnet_id                  = yandex_vpc_subnet.services_central1_d.id
+  alb_security_group_id      = yandex_vpc_security_group.alb.id
   postgres_security_group_id = yandex_vpc_security_group.postgres_db.id
-  bastion_security_group_id = data.yandex_vpc_security_group.default.id
+  bastion_security_group_id  = data.yandex_vpc_security_group.default.id
 
   instance_count         = 2
   instance_memory        = 1
@@ -71,12 +71,12 @@ module "auth" {
   http_router_id = yandex_alb_http_router.https_router.id
   alb_ip_address = yandex_alb_load_balancer.main_alb.listener[0].endpoint[0].address[0].external_ipv4_address[0].address
 
-  network_id                = data.yandex_vpc_network.default.network_id
-  folder_id                 = data.yandex_vpc_network.default.folder_id
-  subnet_id                 = yandex_vpc_subnet.services_central1_d.id
-  alb_security_group_id     = yandex_vpc_security_group.alb.id
+  network_id                 = data.yandex_vpc_network.default.network_id
+  folder_id                  = data.yandex_vpc_network.default.folder_id
+  subnet_id                  = yandex_vpc_subnet.services_central1_d.id
+  alb_security_group_id      = yandex_vpc_security_group.alb.id
   postgres_security_group_id = yandex_vpc_security_group.postgres_db.id
-  bastion_security_group_id = data.yandex_vpc_security_group.default.id
+  bastion_security_group_id  = data.yandex_vpc_security_group.default.id
 
   instance_count         = 2
   instance_memory        = 1
@@ -94,6 +94,21 @@ module "auth" {
       port = 80
     }
   }
+
+  egress_ports = [
+    {
+      port           = 587
+      protocol       = "TCP"
+      description    = "Postbox port for SMTP"
+      v4_cidr_blocks = ["0.0.0.0/0"]
+    },
+    {
+      port           = 80
+      protocol       = "TCP"
+      description    = "For downloading CRL certs"
+      v4_cidr_blocks = ["0.0.0.0/0"]
+    },
+  ]
 }
 
 module "traitex" {
@@ -108,12 +123,12 @@ module "traitex" {
   http_router_id = yandex_alb_http_router.https_router.id
   alb_ip_address = yandex_alb_load_balancer.main_alb.listener[0].endpoint[0].address[0].external_ipv4_address[0].address
 
-  network_id                = data.yandex_vpc_network.default.network_id
-  folder_id                 = data.yandex_vpc_network.default.folder_id
-  subnet_id                 = yandex_vpc_subnet.services_central1_d.id
-  alb_security_group_id     = yandex_vpc_security_group.alb.id
+  network_id                 = data.yandex_vpc_network.default.network_id
+  folder_id                  = data.yandex_vpc_network.default.folder_id
+  subnet_id                  = yandex_vpc_subnet.services_central1_d.id
+  alb_security_group_id      = yandex_vpc_security_group.alb.id
   postgres_security_group_id = yandex_vpc_security_group.postgres_db.id
-  bastion_security_group_id = data.yandex_vpc_security_group.default.id
+  bastion_security_group_id  = data.yandex_vpc_security_group.default.id
 
   instance_count         = 2
   instance_memory        = 1

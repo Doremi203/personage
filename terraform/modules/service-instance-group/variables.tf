@@ -165,4 +165,16 @@ variable "preemptible" {
   default     = true
 }
 
+variable "egress_ports" {
+  description = "List of ports that should be open for egress traffic"
+  type        = list(object({
+    port        = number
+    protocol    = string
+    description = string
+    v4_cidr_blocks = optional(list(string))
+    security_group_id = optional(string)
+  }))
+  default     = []
+}
+
 
