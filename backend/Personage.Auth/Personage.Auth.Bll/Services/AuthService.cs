@@ -283,7 +283,7 @@ public class AuthService(
     {
         var claims = new Claim[]
         {
-            new(ClaimNames.Id, user.Id.ToString())
+            new(ClaimNames.UserId, user.Id.ToString())
         };
 
         var expiresAt = DateTime.UtcNow.AddMinutes(jwtSettings.CurrentValue.AccessTokenTtlMinutes);
