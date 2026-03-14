@@ -148,17 +148,17 @@ func TestSchedule_PrioritySorting(t *testing.T) {
 	tasks := []domain.Task{
 		{
 			ID:       "low",
-			Duration: 20 * time.Minute,
+			Duration: 15 * time.Minute,
 			Priority: 1,
 		},
 		{
 			ID:       "high",
-			Duration: 20 * time.Minute,
+			Duration: 15 * time.Minute,
 			Priority: 10,
 		},
 		{
 			ID:       "medium",
-			Duration: 20 * time.Minute,
+			Duration: 15 * time.Minute,
 			Priority: 5,
 		},
 	}
@@ -183,7 +183,7 @@ func TestSchedule_PrioritySorting(t *testing.T) {
 	if medium == nil {
 		t.Fatal("medium priority task not found")
 	}
-	expectedMediumStart := start.Add(20 * time.Minute)
+	expectedMediumStart := start.Add(15 * time.Minute)
 	if !medium.Start.Equal(expectedMediumStart) {
 		t.Errorf("Medium priority task should start at %v, got %v", expectedMediumStart, medium.Start)
 	}
@@ -193,7 +193,7 @@ func TestSchedule_PrioritySorting(t *testing.T) {
 	if low == nil {
 		t.Fatal("low priority task not found")
 	}
-	expectedLowStart := start.Add(40 * time.Minute)
+	expectedLowStart := start.Add(30 * time.Minute)
 	if !low.Start.Equal(expectedLowStart) {
 		t.Errorf("Low priority task should start at %v, got %v", expectedLowStart, low.Start)
 	}
@@ -335,13 +335,13 @@ func TestSchedule_DeadlineRespected(t *testing.T) {
 	tasks := []domain.Task{
 		{
 			ID:        "fixed",
-			Duration:  20 * time.Minute,
+			Duration:  15 * time.Minute,
 			StartTime: &fixedStart,
 			Priority:  1,
 		},
 		{
 			ID:       "with_deadline",
-			Duration: 20 * time.Minute,
+			Duration: 15 * time.Minute,
 			Priority: 1,
 			Deadline: &deadline,
 		},
@@ -359,8 +359,8 @@ func TestSchedule_DeadlineRespected(t *testing.T) {
 		t.Fatal("with_deadline task not found")
 	}
 
-	// Should start at 9:20 and end at 9:40, which is before the 9:50 deadline
-	expectedStart := time.Date(2026, 1, 22, 9, 20, 0, 0, time.UTC)
+	// Should start at 9:15 and end at 9:30, which is before the 9:50 deadline
+	expectedStart := time.Date(2026, 1, 22, 9, 15, 0, 0, time.UTC)
 	if !withDeadline.Start.Equal(expectedStart) {
 		t.Errorf("Expected start at %v, got %v", expectedStart, withDeadline.Start)
 	}
@@ -415,7 +415,7 @@ func TestSchedule_PartiallyOutsideWindow_StartBefore(t *testing.T) {
 		},
 		{
 			ID:       "flex",
-			Duration: 10 * time.Minute,
+			Duration: 15 * time.Minute,
 			Priority: 1,
 		},
 	}
@@ -426,12 +426,12 @@ func TestSchedule_PartiallyOutsideWindow_StartBefore(t *testing.T) {
 		t.Fatalf("Expected 2 planned tasks, got %d", len(result.Planned))
 	}
 
-	// Flexible task should be scheduled after the fixed task ends (9:20)
+	// Flexible task should be scheduled after the fixed task ends (9:30, next 15-min slot after 9:20)
 	flex := findPlannedTask(result.Planned, "flex")
 	if flex == nil {
 		t.Fatal("flex task not found")
 	}
-	expectedStart := time.Date(2026, 1, 22, 9, 20, 0, 0, time.UTC)
+	expectedStart := time.Date(2026, 1, 22, 9, 30, 0, 0, time.UTC)
 	if !flex.Start.Equal(expectedStart) {
 		t.Errorf("Expected flex to start at %v, got %v", expectedStart, flex.Start)
 	}
@@ -479,12 +479,12 @@ func TestSchedule_DurationRoundingUp(t *testing.T) {
 	tasks := []domain.Task{
 		{
 			ID:       "task1",
-			Duration: 12 * time.Minute, // Should round up to 2 slots (20 minutes)
+			Duration: 20 * time.Minute, // Should round up to 2 slots (30 minutes)
 			Priority: 1,
 		},
 		{
 			ID:       "task2",
-			Duration: 5 * time.Minute, // Should round up to 1 slot (10 minutes)
+			Duration: 5 * time.Minute, // Should round up to 1 slot (15 minutes)
 			Priority: 1,
 		},
 	}
@@ -502,8 +502,8 @@ func TestSchedule_DurationRoundingUp(t *testing.T) {
 		t.Fatal("Tasks not found in planned")
 	}
 
-	// task1 starts at 9:00, task2 should start at 9:20 (after 2 slots)
-	expectedTask2Start := time.Date(2026, 1, 22, 9, 20, 0, 0, time.UTC)
+	// task1 starts at 9:00, task2 should start at 9:30 (after 2 slots)
+	expectedTask2Start := time.Date(2026, 1, 22, 9, 30, 0, 0, time.UTC)
 	if !task2.Start.Equal(expectedTask2Start) {
 		t.Errorf("Expected task2 to start at %v (after rounded task1), got %v", expectedTask2Start, task2.Start)
 	}
@@ -517,13 +517,13 @@ func TestSchedule_ExactSlotBoundary(t *testing.T) {
 	tasks := []domain.Task{
 		{
 			ID:        "fixed",
-			Duration:  20 * time.Minute, // Exactly 2 slots
+			Duration:  30 * time.Minute, // Exactly 2 slots
 			StartTime: &fixedStart,
 			Priority:  1,
 		},
 		{
 			ID:       "flex",
-			Duration: 10 * time.Minute,
+			Duration: 15 * time.Minute,
 			Priority: 1,
 		},
 	}
@@ -539,8 +539,8 @@ func TestSchedule_ExactSlotBoundary(t *testing.T) {
 		t.Fatal("flex task not found")
 	}
 
-	// Should start exactly at 9:20
-	expectedStart := time.Date(2026, 1, 22, 9, 20, 0, 0, time.UTC)
+	// Should start exactly at 9:30
+	expectedStart := time.Date(2026, 1, 22, 9, 30, 0, 0, time.UTC)
 	if !flex.Start.Equal(expectedStart) {
 		t.Errorf("Expected flex to start at %v, got %v", expectedStart, flex.Start)
 	}
@@ -553,29 +553,29 @@ func TestSchedule_MultipleUnscheduledTasks(t *testing.T) {
 	tasks := []domain.Task{
 		{
 			ID:       "task1",
-			Duration: 20 * time.Minute,
+			Duration: 15 * time.Minute,
 			Priority: 1,
 		},
 		{
 			ID:       "task2",
-			Duration: 20 * time.Minute,
+			Duration: 15 * time.Minute,
 			Priority: 1,
 		},
 		{
 			ID:       "task3",
-			Duration: 20 * time.Minute,
+			Duration: 15 * time.Minute,
 			Priority: 1,
 		},
 	}
 
 	result := CalculateSchedule(tasks, start, window)
 
-	// Only 1 task can fit in 30 minutes
-	if len(result.Planned) != 1 {
-		t.Errorf("Expected 1 planned task, got %d", len(result.Planned))
+	// Only 2 tasks can fit in 30 minutes (2 slots)
+	if len(result.Planned) != 2 {
+		t.Errorf("Expected 2 planned tasks, got %d", len(result.Planned))
 	}
-	if len(result.Unscheduled) != 2 {
-		t.Fatalf("Expected 2 unscheduled tasks, got %d", len(result.Unscheduled))
+	if len(result.Unscheduled) != 1 {
+		t.Fatalf("Expected 1 unscheduled task, got %d", len(result.Unscheduled))
 	}
 }
 
@@ -721,7 +721,7 @@ func TestSchedule_TableDriven(t *testing.T) {
 				},
 				{
 					ID:       "low_priority",
-					Duration: 20 * time.Minute,
+					Duration: 15 * time.Minute,
 					Priority: 1,
 				},
 			},
@@ -834,20 +834,20 @@ func TestSchedule_TableDriven(t *testing.T) {
 			tasks: []domain.Task{
 				{
 					ID:        "meeting1",
-					Duration:  20 * time.Minute,
-					StartTime: ptr(baseStart.Add(20 * time.Minute)),
+					Duration:  15 * time.Minute,
+					StartTime: ptr(baseStart.Add(15 * time.Minute)),
 					Priority:  5,
 				},
 				{
 					ID:        "meeting2",
-					Duration:  20 * time.Minute,
+					Duration:  15 * time.Minute,
 					StartTime: ptr(baseStart.Add(1 * time.Hour)),
 					Priority:  5,
 				},
 				{
 					ID:        "meeting3",
-					Duration:  20 * time.Minute,
-					StartTime: ptr(baseStart.Add(100 * time.Minute)),
+					Duration:  15 * time.Minute,
+					StartTime: ptr(baseStart.Add(105 * time.Minute)),
 					Priority:  5,
 				},
 				{
@@ -857,7 +857,7 @@ func TestSchedule_TableDriven(t *testing.T) {
 				},
 				{
 					ID:       "medium_task",
-					Duration: 25 * time.Minute,
+					Duration: 30 * time.Minute,
 					Priority: 5,
 				},
 			},
@@ -911,22 +911,22 @@ func TestSchedule_TableDriven(t *testing.T) {
 			tasks: []domain.Task{
 				{
 					ID:       "task_1min",
-					Duration: 1 * time.Minute, // Rounds to 1 slot (10 min)
+					Duration: 1 * time.Minute, // Rounds to 1 slot (15 min)
 					Priority: 5,
 				},
 				{
-					ID:       "task_11min",
-					Duration: 11 * time.Minute, // Rounds to 2 slots (20 min)
+					ID:       "task_16min",
+					Duration: 16 * time.Minute, // Rounds to 2 slots (30 min)
 					Priority: 5,
 				},
 				{
-					ID:       "task_19min",
-					Duration: 19 * time.Minute, // Rounds to 2 slots (20 min)
+					ID:       "task_29min",
+					Duration: 29 * time.Minute, // Rounds to 2 slots (30 min)
 					Priority: 5,
 				},
 				{
-					ID:       "task_20min",
-					Duration: 20 * time.Minute, // Exactly 2 slots
+					ID:       "task_30min",
+					Duration: 30 * time.Minute, // Exactly 2 slots
 					Priority: 5,
 				},
 			},
@@ -977,7 +977,7 @@ func TestSchedule_TableDriven(t *testing.T) {
 				},
 				{
 					ID:       "flex1",
-					Duration: 20 * time.Minute,
+					Duration: 15 * time.Minute,
 					Priority: 10,
 				},
 			},
@@ -1051,7 +1051,7 @@ func TestSchedule_TableDriven(t *testing.T) {
 				// Urgent bug fix - must be done before standup
 				{
 					ID:       "critical_bug",
-					Duration: 25 * time.Minute,
+					Duration: 30 * time.Minute,
 					Priority: 10,
 					Deadline: ptr(baseStart.Add(30 * time.Minute)),
 				},
@@ -1114,7 +1114,7 @@ func TestSchedule_TableDriven(t *testing.T) {
 			tasks: []domain.Task{
 				{
 					ID:       "task1",
-					Duration: 10 * time.Minute,
+					Duration: 15 * time.Minute,
 					Priority: 5,
 				},
 			},

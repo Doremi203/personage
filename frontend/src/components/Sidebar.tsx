@@ -1,15 +1,18 @@
-import { CheckSquare, Calendar, Bell, Settings, Sparkles, Menu, X } from 'lucide-react';
+import { CheckSquare, Calendar, Bell, Settings, Sparkles, Menu, X, LogOut } from 'lucide-react';
 import { useState } from 'react';
+import { getUserInfo } from '../utils/authService';
 
 type Screen = 'tasks' | 'schedule' | 'notifications' | 'settings';
 
 interface SidebarProps {
   currentScreen: Screen;
   onScreenChange: (screen: Screen) => void;
+  onLogout: () => void;
 }
 
-const Sidebar = ({ currentScreen, onScreenChange }: SidebarProps) => {
+const Sidebar = ({ currentScreen, onScreenChange, onLogout }: SidebarProps) => {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const userInfo = getUserInfo();
 
   const menuItems = [
     { id: 'tasks' as Screen, icon: CheckSquare, label: 'Задачи' },
@@ -22,6 +25,10 @@ const Sidebar = ({ currentScreen, onScreenChange }: SidebarProps) => {
     onScreenChange(screen);
     setIsMobileOpen(false);
   };
+
+  const userInitial = userInfo?.name
+    ? userInfo.name.charAt(0).toUpperCase()
+    : (userInfo?.email?.charAt(0).toUpperCase() ?? 'П');
 
   return (
     <>
@@ -61,11 +68,24 @@ const Sidebar = ({ currentScreen, onScreenChange }: SidebarProps) => {
 
         <div className="p-6 border-t border-white/10">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-[#4CB782] to-[#5CC792] rounded-full" />
-            <div>
-              <p className="font-medium text-sm">Пользователь</p>
-              <p className="text-xs text-white/60">user@email.com</p>
+            <div className="w-10 h-10 bg-gradient-to-br from-[#4CB782] to-[#5CC792] rounded-full flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
+              {userInitial}
             </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-sm truncate">
+                {userInfo?.name ?? 'Пользователь'}
+              </p>
+              <p className="text-xs text-white/60 truncate">
+                {userInfo?.email ?? ''}
+              </p>
+            </div>
+            <button
+              onClick={onLogout}
+              title="Выйти"
+              className="p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition-colors flex-shrink-0"
+            >
+              <LogOut size={16} />
+            </button>
           </div>
         </div>
       </aside>
@@ -117,11 +137,24 @@ const Sidebar = ({ currentScreen, onScreenChange }: SidebarProps) => {
 
         <div className="p-4 border-t border-white/10">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-[#4CB782] to-[#5CC792] rounded-full" />
-            <div>
-              <p className="font-medium text-sm">Пользователь</p>
-              <p className="text-xs text-white/60">user@email.com</p>
+            <div className="w-10 h-10 bg-gradient-to-br from-[#4CB782] to-[#5CC792] rounded-full flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
+              {userInitial}
             </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-sm truncate">
+                {userInfo?.name ?? 'Пользователь'}
+              </p>
+              <p className="text-xs text-white/60 truncate">
+                {userInfo?.email ?? ''}
+              </p>
+            </div>
+            <button
+              onClick={onLogout}
+              title="Выйти"
+              className="p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition-colors flex-shrink-0"
+            >
+              <LogOut size={16} />
+            </button>
           </div>
         </div>
       </nav>
