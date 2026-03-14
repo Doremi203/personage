@@ -41,12 +41,12 @@ jobs:
     timeout-minutes: 10
     defaults:
       run:
-        working-directory: backend/traitex
+        working-directory: backend
     steps:
       - uses: actions/checkout@v6
 
       - name: Build Docker image
-        run: docker build -t traitex:ci-test .
+        run: docker build -t traitex:ci-test -f traitex/Dockerfile .
 
   success:
     name: CI success

@@ -16,7 +16,7 @@ jobs:
     timeout-minutes: 10
     defaults:
       run:
-        working-directory: backend/traitex
+        working-directory: backend
     steps:
       - uses: actions/checkout@v6
 
@@ -35,7 +35,7 @@ jobs:
           echo $(/opt/yc/bin/yc iam create-token)|docker login --username iam --password-stdin cr.yandex
 
       - name: Build Docker image
-        run: docker build -t cr.yandex/${{ vars.DOCKER_REGISTRY }}/traitex:${{ env.RELEASE_VERSION }} --push .
+        run: docker build -t cr.yandex/${{ vars.DOCKER_REGISTRY }}/traitex:${{ env.RELEASE_VERSION }} --push -f traitex/Dockerfile .
 
   migrate-up:
     runs-on: ubuntu-latest
