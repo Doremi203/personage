@@ -164,27 +164,6 @@ public class UserRepository(IDbConnectionFactory connectionFactory) : IUserRepos
         return results.ToArray();
     }
 
-    public async Task MarkUsersAsProcessed((Guid UserId, DateTime ProcessedAt)[] users, CancellationToken ct)
-    {
-        using var connection = await connectionFactory.CreateConnection(ct);
-        
-        await connection.ExecuteAsync(
-            """
-            --UserRepository.MarkUsersAsProcessed
-            UPDATE gmail_token gt
-            SET last_processed_at = batch.processed_at
-            FROM (select
-                unnest(@userIds) AS user_id,
-                unnest(@processedAtMoments) AS processed_at
-            ) AS batch
-            WHERE gt.user_id = batch.user_id;
-            """,
-            new
-            {
-                userIds = users.Select(u => u.UserId).ToArray(),
-                processedAtMoments = users.Select(u => u.ProcessedAt).ToArray()
-            });
-    }
 
     public async Task UpdatePassword(Guid userId, string passwordHash, CancellationToken ct)
     {
