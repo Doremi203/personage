@@ -145,7 +145,7 @@ resource "yandex_dns_recordset" "service_alb_record" {
 
 resource "yandex_dns_recordset" "grpc_service_alb_record" {
   zone_id = var.dns_zone_id
-  name    = "grpc.${var.service_name}.${var.domain}."
+  name    = "grpc-${var.service_name}.${var.domain}."
   ttl     = 600
   type    = "A"
   data    = [var.alb_ip_address]
@@ -250,7 +250,7 @@ resource "yandex_alb_virtual_host" "service_https" {
 resource "yandex_alb_virtual_host" "service_grpc" {
   name           = "grpc-${var.service_name}"
   http_router_id = var.http_router_id
-  authority      = ["grpc.${var.service_name}.${var.domain}"]
+  authority      = ["grpc-${var.service_name}.${var.domain}"]
 
   route {
     name = "main-route"
