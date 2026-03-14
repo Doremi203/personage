@@ -6,7 +6,6 @@ secrets:
 	"AWS_SECRET_ACCESS_KEY=$$(yc lockbox payload get --id e6q869h32umj7dap12qa --key secret_key)" \
 	> secrets.env
 
-# Frontend commands
 frontend-build:
 	cd frontend && npm run build
 
