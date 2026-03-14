@@ -68,7 +68,7 @@ func (uc *UseCase) scheduleForUser(ctx context.Context, userID domain.UserID) er
 		return nil
 	}
 
-	now := time.Now()
+	now := time.Now().Truncate(domain.TimeSlotSize)
 	schedule := scheduler.CalculateSchedule(pendingTasks, now, uc.windowDuration)
 
 	for _, planned := range schedule.Planned {

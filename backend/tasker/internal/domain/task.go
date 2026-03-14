@@ -62,7 +62,7 @@ type Task struct {
 	UpdatedAt   time.Time
 }
 
-const TimeSlotSize = 10 * time.Minute
+const TimeSlotSize = 15 * time.Minute
 
 type PlannedTask struct {
 	ID    TaskID
