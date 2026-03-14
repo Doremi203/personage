@@ -7,6 +7,8 @@ import grpc
 from app.core.configuration.config import Configuration
 from app.core.containers.ApplicationContainer import create_application_container
 from app.core.containers.GrpcServiceContainer import register_grpc_services
+from app.core.logging import setup_logging
+from app.http_server import HealthCheckServer
 
 logger = logging.getLogger(__name__)
 
@@ -18,8 +20,15 @@ class ApplicationRunner:
         self.container = create_application_container(config)
         self.shutdown_event = asyncio.Event()
         self.server: grpc.Server | None = None
+        self.http_server: HealthCheckServer | None = None
 
     async def start(self) -> None:
+        # Start HTTP health check server
+        http_port = self.config.get("Hosting.HttpPort", 8080)
+        self.http_server = HealthCheckServer(port=http_port)
+        await self.http_server.start()
+
+        # Start gRPC server
         self.server = grpc.aio.server()
         register_grpc_services(self.container, self.server)
         grpc_port = self.config.get("Hosting.ServerGrpcPort")
@@ -60,6 +69,9 @@ class ApplicationRunner:
         for consumer in self.container.consumers.all_consumers():
             await consumer.stop()
 
+        if self.http_server:
+            await self.http_server.stop()
+
         await self.server.stop(GRACE_PERIOD_IN_SECOND)
         logger.info("Service shutdown complete")
 
@@ -78,11 +90,7 @@ async def serve() -> None:
         config = Configuration()
 
         logging_config = config.get_section("Logging")
-        logging.basicConfig(
-            level=getattr(logging, logging_config.get("Level", "INFO")),
-            format=logging_config.get("Format", '%(asctime)s - %(name)s - %(levelname)s - %(message)s'),
-            stream=sys.stdout
-        )
+        setup_logging(logging_config)
 
         logger.info(f"Application started. Environment: {os.getenv('APP_ENV', 'development')}")
 

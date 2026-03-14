@@ -5,9 +5,9 @@ class BaseGrpcClient:
     def __init__(
             self,
             endpoint: str,
-            use_ssl: bool = False
+            use_tls: bool = False
     ):
-        if use_ssl:
+        if use_tls:
             self._channel = aio.secure_channel(endpoint, ssl_channel_credentials())
         else:
             self._channel = aio.insecure_channel(endpoint)

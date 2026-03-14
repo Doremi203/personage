@@ -1,6 +1,11 @@
 using DotNetEnv;
+using Npgsql;
+using Microsoft.Extensions.Logging.Console;
+using Microsoft.Extensions.Options;
+using Personage.Auth.Api.Configuration;
 using Personage.Auth.Api.Extensions;
 using Personage.Auth.Api.GrpcServices;
+using Personage.Auth.Api.Logging;
 using Personage.Auth.Api.Middleware;
 using Personage.Auth.Bll.Services;
 using Personage.Auth.DataAccess;
@@ -17,19 +22,28 @@ public class Program
     public static async Task Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
+        builder.WebHost.ConfigureKestrel(serverOptions =>
+        {
+            serverOptions.AllowAlternateSchemes = true;
+        });
+
+        if (builder.Environment.IsProduction())
+        {
+            builder.Logging.AddConsoleFormatter<CompactJsonConsoleFormatter, ConsoleFormatterOptions>();
+            builder.Logging.AddConsole(options =>
+            {
+                options.FormatterName = CompactJsonConsoleFormatter.FormatterName;
+            });
+        }
+
+        var useMetadataService = builder.Configuration.GetValue<bool>("YandexCloud:UseMetadataService");
+        builder.Configuration.AddLockboxSecrets(useMetadataService);
+        
         builder.Services.AddGrpc(options =>
         {
             options.EnableDetailedErrors = true;
             options.Interceptors.Add<ExceptionInterceptor>();
             options.IgnoreUnknownServices = true;
-        });
-        
-        builder.WebHost.ConfigureKestrel(options =>
-        {
-            options.ConfigureEndpointDefaults(defaultOptions =>
-            {
-                defaultOptions.Protocols = Microsoft.AspNetCore.Server.Kestrel.Core.HttpProtocols.Http1AndHttp2;
-            });
         });
         
         builder.Services.AddGrpcReflection();
@@ -42,16 +56,38 @@ public class Program
         
         var app = builder.Build();
 
-        await app.ResolveDatabaseSecrets();
+        // Merge the resolved Password into the ConnectionString if present.
+        MergeDatabasePassword(app);
 
         ConfigureMiddleware(app);
         
         await app.RunAsync();
     }
 
+    /// <summary>
+    /// If <see cref="ConnectionFactorySettings.Password"/> is set (e.g., resolved from Lockbox),
+    /// merge it into the connection string. This keeps the config format consistent with
+    /// Go/traitex services where the password is a separate field.
+    /// </summary>
+    private static void MergeDatabasePassword(WebApplication app)
+    {
+        var settings = app.Services.GetRequiredService<IOptions<ConnectionFactorySettings>>().Value;
+        if (string.IsNullOrEmpty(settings.Password))
+            return;
+
+        var connBuilder = new NpgsqlConnectionStringBuilder(settings.ConnectionString)
+        {
+            Password = settings.Password
+        };
+        settings.ConnectionString = connBuilder.ConnectionString;
+
+        var logger = app.Services.GetRequiredService<ILogger<Program>>();
+        logger.LogInformation("Database password merged into connection string from configuration");
+    }
+
     private static void ConfigureServices(
-        IServiceCollection services, 
-        ConfigurationManager configuration, 
+        IServiceCollection services,
+        ConfigurationManager configuration,
         IWebHostEnvironment environment)
     {
         services.AddScoped<IDbConnectionFactory, DbConnectionFactory>();
@@ -60,9 +96,9 @@ public class Program
         ConfigureSettings(services, configuration, environment);
         AddRepositories(services);
         AddBllServices(services);
-        services.AddYandexCloudSdk(configuration);
         
         AddReflectionAndSwagger(services);
+        AddCors(services, configuration);
         
         services.AddControllers();
     }
@@ -77,7 +113,8 @@ public class Program
             c.DisplayRequestDuration();
         });
         
-
+        app.UseCors();
+        
         app.UseGrpcWeb();
         app.MapGrpcReflectionService();
         app.MapGrpcService<TestGrpcService>().EnableGrpcWeb();
@@ -152,5 +189,40 @@ public class Program
         services.Configure<ConnectionFactorySettings>(configuration.GetSection(nameof(ConnectionFactorySettings)));
         services.Configure<JwtSettings>(configuration.GetSection(nameof(JwtSettings)));
         services.Configure<PostboxSettings>(configuration.GetSection(nameof(PostboxSettings)));
+    }
+
+    private static void AddCors(IServiceCollection services, ConfigurationManager configuration)
+    {
+        var corsSettings = configuration.GetSection("Cors");
+        var allowedOrigins = corsSettings.GetSection("AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
+        var allowedMethods = corsSettings.GetSection("AllowedMethods").Get<string[]>() ?? new[] { "GET", "POST", "PUT", "DELETE", "OPTIONS" };
+        var allowedHeaders = corsSettings.GetSection("AllowedHeaders").Get<string[]>() ?? new[] { "Content-Type", "Authorization" };
+        var allowCredentials = corsSettings.GetValue<bool>("AllowCredentials", true);
+        var exposedHeaders = corsSettings.GetSection("ExposedHeaders").Get<string[]>() ?? Array.Empty<string>();
+
+        services.AddCors(options =>
+        {
+            options.AddDefaultPolicy(policy =>
+            {
+                if (allowedOrigins.Length > 0)
+                {
+                    policy.WithOrigins(allowedOrigins)
+                          .WithMethods(allowedMethods)
+                          .WithHeaders(allowedHeaders)
+                          .AllowCredentials();
+                    
+                    if (exposedHeaders.Length > 0)
+                    {
+                        policy.WithExposedHeaders(exposedHeaders);
+                    }
+                }
+                else
+                {
+                    policy.AllowAnyOrigin()
+                          .AllowAnyMethod()
+                          .AllowAnyHeader();
+                }
+            });
+        });
     }
 }

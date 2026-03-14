@@ -8,21 +8,14 @@ using MimeKit;
 using Personage.Auth.Domain.Configuration;
 using Personage.Auth.Domain.Interfaces;
 using Personage.Auth.Domain.Models.Postbox.Requests;
-using Yandex.Cloud;
-using Yandex.Cloud.Lockbox.V1;
 
 namespace Personage.Auth.Bll.Services;
 
 public class PostboxService(
     IOptions<PostboxSettings> settings,
-    ILogger<PostboxService> logger,
-    Sdk yandexSdk
+    ILogger<PostboxService> logger
 ) : IPostboxService
 {
-    private string? _cachedAccessKeyId;
-    private string? _cachedSecretKey;
-    private DateTime _keysExpiry = DateTime.MinValue;
-
     public async Task SendEmailAsync(
         SendEmailRequestModel request,
         CancellationToken ct
@@ -33,7 +26,8 @@ public class PostboxService(
 
         try
         {
-            var (accessKeyId, secretKey) = await GetKeysFromLockboxAsync(ct);
+            var accessKeyId = settings.Value.AccessKeyId;
+            var secretKey = settings.Value.SecretKey;
             var smtpPassword = GenerateSmtpPassword(secretKey);
 
             var message = new MimeMessage();
@@ -87,35 +81,6 @@ public class PostboxService(
             Subject = subject,
             HtmlBody = htmlBody
         }, ct);
-    }
-
-    private async Task<(string AccessKeyId, string SecretKey)> GetKeysFromLockboxAsync(CancellationToken ct)
-    {
-        if (_keysExpiry > DateTime.UtcNow &&
-            _cachedAccessKeyId != null &&
-            _cachedSecretKey != null)
-        {
-            return (_cachedAccessKeyId, _cachedSecretKey);
-        }
-
-        try
-        {
-            var payload = await yandexSdk.Services.Lockbox.PayloadService.GetAsync(
-                new GetPayloadRequest { SecretId = settings.Value.SecretId },
-                cancellationToken: ct
-            );
-
-            _cachedAccessKeyId = payload.Entries.First(e => e.Key == "access_key_id").TextValue;
-            _cachedSecretKey = payload.Entries.First(e => e.Key == "secret_key").TextValue;
-            _keysExpiry = DateTime.UtcNow.AddHours(1);
-
-            return (_cachedAccessKeyId, _cachedSecretKey);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to retrieve keys from Lockbox");
-            throw;
-        }
     }
 
     private static string GenerateSmtpPassword(string secretKey)

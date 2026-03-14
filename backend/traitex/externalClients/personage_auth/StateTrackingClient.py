@@ -30,8 +30,9 @@ class StateTrackingClient(BaseGrpcClient):
     def __init__(
             self,
             endpoint: str,
+            use_tls: bool = False,
     ):
-        super().__init__(endpoint)
+        super().__init__(endpoint, use_tls=use_tls)
         self._stub = state_tracking_pb2_grpc.StateTrackingServiceStub(self._channel)
 
     async def get_users_for_processing(

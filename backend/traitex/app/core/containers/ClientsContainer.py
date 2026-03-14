@@ -8,7 +8,8 @@ class ClientsContainer(containers.DeclarativeContainer):
 
     state_tracking_client = providers.Singleton(
         StateTrackingClient,
-        endpoint=config.state_tracking.endpoint
+        endpoint=config.state_tracking.endpoint,
+        use_tls=config.state_tracking.use_tls.as_(bool)
     )
 
     gmail_api_client = providers.Singleton(
