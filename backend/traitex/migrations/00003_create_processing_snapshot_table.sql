@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS processing_snapshot (
     finish TIMESTAMPTZ NOT NULL
 );
 
-CREATE INDEX idx_processing_snapshot_active_period
+CREATE INDEX IF NOT EXISTS idx_processing_snapshot_active_period
     ON processing_snapshot (start, finish);
 -- +goose StatementEnd
 
