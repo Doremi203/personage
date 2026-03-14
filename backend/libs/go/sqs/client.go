@@ -3,7 +3,6 @@ package sqs
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
 
 	"github.com/Doremi203/personage/backend/libs/go/errors"
 	"github.com/Doremi203/personage/backend/libs/go/log"
@@ -15,7 +14,7 @@ import (
 )
 
 type ClientWriter[T any] interface {
-	SendMessage(ctx context.Context, groupID string, deduplicationID string, data T) error
+	SendMessage(ctx context.Context, data T, opts ...SendMessageOption) error
 }
 
 type ClientReader[T any] interface {
@@ -25,6 +24,20 @@ type ClientReader[T any] interface {
 
 type constraint interface {
 	proto.Message
+}
+
+type SendMessageOption func(*sqs.SendMessageInput)
+
+func WithGroupID(groupID string) SendMessageOption {
+	return func(input *sqs.SendMessageInput) {
+		input.MessageGroupId = aws.String(groupID)
+	}
+}
+
+func WithDeduplicationID(deduplicationID string) SendMessageOption {
+	return func(input *sqs.SendMessageInput) {
+		input.MessageDeduplicationId = aws.String(deduplicationID)
+	}
 }
 
 func New[T constraint](
@@ -67,20 +80,23 @@ type client[T constraint] struct {
 
 func (c *client[T]) SendMessage(
 	ctx context.Context,
-	groupID string,
-	deduplicationID string,
 	data T,
+	opts ...SendMessageOption,
 ) error {
-	messageBody, err := json.Marshal(data)
+	messageBody, err := proto.Marshal(data)
 	if err != nil {
 		return errors.WrapFail(err, "marshal message")
 	}
 
+	encoded := base64.StdEncoding.EncodeToString(messageBody)
+
 	input := &sqs.SendMessageInput{
-		MessageGroupId:         aws.String(groupID),
-		MessageDeduplicationId: aws.String(deduplicationID),
-		MessageBody:            aws.String(string(messageBody)),
-		QueueUrl:               aws.String(c.config.QueueURL),
+		MessageBody: aws.String(encoded),
+		QueueUrl:    aws.String(c.config.QueueURL),
+	}
+
+	for _, opt := range opts {
+		opt(input)
 	}
 
 	_, err = c.client.SendMessage(ctx, input)

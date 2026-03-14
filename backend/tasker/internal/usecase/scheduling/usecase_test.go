@@ -17,8 +17,10 @@ func TestSchedulePendingTasks_NoUsers(t *testing.T) {
 
 	repo := mock_domain.NewMockTaskRepo(ctrl)
 	repo.EXPECT().GetUsersWithUnplannedTasks(gomock.Any()).Return(nil, nil)
+	notificationSender := mock_domain.NewMockNotificationsService(ctrl)
+	notificationSender.EXPECT().Send(gomock.Any(), gomock.Any()).Times(0)
 
-	uc := NewUseCase(repo, 24*time.Hour, log.Stub{})
+	uc := NewUseCase(log.Stub{}, repo, notificationSender, 24*time.Hour)
 
 	err := uc.SchedulePendingTasks(t.Context())
 	if err != nil {
@@ -45,7 +47,10 @@ func TestSchedulePendingTasks_SingleUserSingleTask(t *testing.T) {
 	repo.EXPECT().GetTasksByStatus(gomock.Any(), userID, domain.TaskStatusUnplanned).Return(tasks, nil)
 	repo.EXPECT().UpdateTaskSchedule(gomock.Any(), domain.TaskID("task-1"), gomock.Any(), gomock.Any(), domain.TaskStatusPlanned).Return(nil)
 
-	uc := NewUseCase(repo, 24*time.Hour, log.Stub{})
+	notificationSender := mock_domain.NewMockNotificationsService(ctrl)
+	notificationSender.EXPECT().Send(gomock.Any(), gomock.Any()).Return(nil)
+
+	uc := NewUseCase(log.Stub{}, repo, notificationSender, 24*time.Hour)
 
 	err := uc.SchedulePendingTasks(t.Context())
 	if err != nil {
@@ -74,7 +79,10 @@ func TestSchedulePendingTasks_MultipleUsers(t *testing.T) {
 	repo.EXPECT().UpdateTaskSchedule(gomock.Any(), domain.TaskID("task-2"), gomock.Any(), gomock.Any(), domain.TaskStatusPlanned).Return(nil)
 	repo.EXPECT().UpdateTaskSchedule(gomock.Any(), domain.TaskID("task-3"), gomock.Any(), gomock.Any(), domain.TaskStatusPlanned).Return(nil)
 
-	uc := NewUseCase(repo, 24*time.Hour, log.Stub{})
+	notificationSender := mock_domain.NewMockNotificationsService(ctrl)
+	notificationSender.EXPECT().Send(gomock.Any(), gomock.Any()).Return(nil).Times(2)
+
+	uc := NewUseCase(log.Stub{}, repo, notificationSender, 24*time.Hour)
 
 	err := uc.SchedulePendingTasks(t.Context())
 	if err != nil {
@@ -88,7 +96,10 @@ func TestSchedulePendingTasks_GetUsersError(t *testing.T) {
 	repo := mock_domain.NewMockTaskRepo(ctrl)
 	repo.EXPECT().GetUsersWithUnplannedTasks(gomock.Any()).Return(nil, fmt.Errorf("db connection failed"))
 
-	uc := NewUseCase(repo, 24*time.Hour, log.Stub{})
+	notificationSender := mock_domain.NewMockNotificationsService(ctrl)
+	notificationSender.EXPECT().Send(gomock.Any(), gomock.Any()).Times(0)
+
+	uc := NewUseCase(log.Stub{}, repo, notificationSender, 24*time.Hour)
 
 	err := uc.SchedulePendingTasks(t.Context())
 	if err == nil {
@@ -114,7 +125,10 @@ func TestSchedulePendingTasks_GetTasksErrorContinuesWithNextUser(t *testing.T) {
 	}, nil)
 	repo.EXPECT().UpdateTaskSchedule(gomock.Any(), domain.TaskID("task-2"), gomock.Any(), gomock.Any(), domain.TaskStatusPlanned).Return(nil)
 
-	uc := NewUseCase(repo, 24*time.Hour, log.Stub{})
+	notificationSender := mock_domain.NewMockNotificationsService(ctrl)
+	notificationSender.EXPECT().Send(gomock.Any(), gomock.Any()).Return(nil).Times(1)
+
+	uc := NewUseCase(log.Stub{}, repo, notificationSender, 24*time.Hour)
 
 	// Should not return error — per-user errors are logged and skipped
 	err := uc.SchedulePendingTasks(t.Context())
@@ -135,7 +149,10 @@ func TestSchedulePendingTasks_TaskTooLargeForWindow(t *testing.T) {
 	}, nil)
 	// No UpdateTaskSchedule call expected — task doesn't fit
 
-	uc := NewUseCase(repo, 24*time.Hour, log.Stub{})
+	notificationSender := mock_domain.NewMockNotificationsService(ctrl)
+	notificationSender.EXPECT().Send(gomock.Any(), gomock.Any()).Return(nil).Times(1)
+
+	uc := NewUseCase(log.Stub{}, repo, notificationSender, 24*time.Hour)
 
 	err := uc.SchedulePendingTasks(t.Context())
 	if err != nil {
@@ -167,7 +184,10 @@ func TestSchedulePendingTasks_PriorityOrdering(t *testing.T) {
 			return nil
 		})
 
-	uc := NewUseCase(repo, 1*time.Hour, log.Stub{})
+	notificationSender := mock_domain.NewMockNotificationsService(ctrl)
+	notificationSender.EXPECT().Send(gomock.Any(), gomock.Any()).Return(nil).Times(1)
+
+	uc := NewUseCase(log.Stub{}, repo, notificationSender, 1*time.Hour)
 
 	err := uc.SchedulePendingTasks(t.Context())
 	if err != nil {
@@ -202,7 +222,10 @@ func TestSchedulePendingTasks_UpdateErrorFailsUserContinuesNext(t *testing.T) {
 	repo.EXPECT().UpdateTaskSchedule(gomock.Any(), domain.TaskID("task-2"), gomock.Any(), gomock.Any(), domain.TaskStatusPlanned).
 		Return(nil)
 
-	uc := NewUseCase(repo, 24*time.Hour, log.Stub{})
+	notificationSender := mock_domain.NewMockNotificationsService(ctrl)
+	notificationSender.EXPECT().Send(gomock.Any(), gomock.Any()).Return(nil).Times(1)
+
+	uc := NewUseCase(log.Stub{}, repo, notificationSender, 24*time.Hour)
 
 	// Should not return error — per-user failures are logged and skipped
 	err := uc.SchedulePendingTasks(t.Context())

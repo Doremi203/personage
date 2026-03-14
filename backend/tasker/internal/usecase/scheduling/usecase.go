@@ -10,28 +10,25 @@ import (
 	"github.com/Doremi203/personage/backend/tasker/internal/services/scheduler"
 )
 
-type taskRepo interface {
-	GetUsersWithUnplannedTasks(ctx context.Context) ([]domain.UserID, error)
-	GetTasksByStatus(ctx context.Context, userID domain.UserID, status domain.TaskStatus) ([]domain.Task, error)
-	UpdateTaskSchedule(ctx context.Context, taskID domain.TaskID, startTime time.Time, endTime time.Time, status domain.TaskStatus) error
-}
-
-type UseCase struct {
-	taskRepo       taskRepo
-	windowDuration time.Duration
-	logger         log.Logger
-}
-
 func NewUseCase(
-	taskRepo taskRepo,
-	windowDuration time.Duration,
 	logger log.Logger,
+	taskRepo domain.TaskRepo,
+	notifier domain.NotificationsService,
+	windowDuration time.Duration,
 ) *UseCase {
 	return &UseCase{
 		taskRepo:       taskRepo,
+		notifier:       notifier,
 		windowDuration: windowDuration,
 		logger:         logger,
 	}
+}
+
+type UseCase struct {
+	taskRepo       domain.TaskRepo
+	notifier       domain.NotificationsService
+	windowDuration time.Duration
+	logger         log.Logger
 }
 
 func (uc *UseCase) SchedulePendingTasks(ctx context.Context) error {
@@ -85,6 +82,14 @@ func (uc *UseCase) scheduleForUser(ctx context.Context, userID domain.UserID) er
 				errors.Token("task_id", planned.ID.String()),
 			)
 		}
+	}
+
+	if err := uc.notifier.Send(ctx, domain.Notification{
+		UserID: userID,
+		Title:  "📅 Ваше расписание изменилось",
+		Body:   "Задачи были перепланированы, посмотрите в приложении...",
+	}); err != nil {
+		uc.logger.Error(errors.WrapFail(err, "notify schedule changes"))
 	}
 
 	uc.logger.Infof(
