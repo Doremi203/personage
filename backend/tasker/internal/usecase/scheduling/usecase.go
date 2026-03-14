@@ -65,6 +65,12 @@ func (uc *UseCase) scheduleForUser(ctx context.Context, userID domain.UserID) er
 		return nil
 	}
 
+	uc.logger.Infof(
+		"scheduling %s for user %s",
+		errors.Token("pending_tasks", pendingTasks),
+		errors.Token("user_id", userID.String()),
+	)
+
 	now := time.Now().Truncate(domain.TimeSlotSize)
 	schedule := scheduler.CalculateSchedule(pendingTasks, now, uc.windowDuration)
 
@@ -84,12 +90,15 @@ func (uc *UseCase) scheduleForUser(ctx context.Context, userID domain.UserID) er
 		}
 	}
 
-	if err := uc.notifier.Send(ctx, domain.Notification{
-		UserID: userID,
-		Title:  "📅 Ваше расписание изменилось",
-		Body:   "Задачи были перепланированы, посмотрите в приложении...",
-	}); err != nil {
-		uc.logger.Error(errors.WrapFail(err, "notify schedule changes"))
+	if len(schedule.Planned) > 0 {
+		err := uc.notifier.Send(ctx, domain.Notification{
+			UserID: userID,
+			Title:  "📅 Ваше расписание изменилось",
+			Body:   "Задачи были перепланированы, посмотрите в приложении...",
+		})
+		if err != nil {
+			uc.logger.Error(errors.WrapFail(err, "notify schedule changes"))
+		}
 	}
 
 	uc.logger.Infof(

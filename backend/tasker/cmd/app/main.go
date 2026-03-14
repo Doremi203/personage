@@ -164,6 +164,8 @@ func main() {
 			postgresEventRepo,
 			postgresTaskRepo,
 			taskGenerationService,
+			postgresTxProvider,
+			app.Log,
 			clusterClosureConfig.MaxEventCount,
 			time.Duration(clusterClosureConfig.InactivityMinutes)*time.Minute,
 		)

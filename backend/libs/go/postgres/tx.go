@@ -52,7 +52,10 @@ func (p *txProvider) RunWithTx(
 	}
 	defer func() {
 		errRollback := tx.Rollback(ctx)
-		if errRollback != nil {
+		switch {
+		case errors.Is(errRollback, pgx.ErrTxClosed):
+			// tx already closed
+		case errRollback != nil:
 			p.logger.Error(errors.WrapFail(errRollback, "rollback tx"))
 		}
 	}()

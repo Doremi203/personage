@@ -21,6 +21,10 @@ type ClusterRepo interface {
 	FindClosableClusters(ctx context.Context, maxEventCount int, inactivityDuration time.Duration, limit int) ([]Cluster, error)
 	UpdateClusterStatus(ctx context.Context, clusterID ClusterID, status ClusterStatus) error
 	DeleteCluster(ctx context.Context, clusterID ClusterID) error
+	// RecoverStaleClusters resets clusters stuck in 'processing' for longer than
+	// the given staleThreshold back to 'open' so they can be retried.
+	// Returns the number of recovered clusters.
+	RecoverStaleClusters(ctx context.Context, staleThreshold time.Duration) (int, error)
 }
 
 //go:generate mockgen -source=repo.go -destination=mock/repo_mock.go -typed

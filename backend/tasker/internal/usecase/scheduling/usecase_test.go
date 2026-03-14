@@ -150,7 +150,6 @@ func TestSchedulePendingTasks_TaskTooLargeForWindow(t *testing.T) {
 	// No UpdateTaskSchedule call expected — task doesn't fit
 
 	notificationSender := mock_domain.NewMockNotificationsService(ctrl)
-	notificationSender.EXPECT().Send(gomock.Any(), gomock.Any()).Return(nil).Times(1)
 
 	uc := NewUseCase(log.Stub{}, repo, notificationSender, 24*time.Hour)
 

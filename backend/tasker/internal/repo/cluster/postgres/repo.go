@@ -176,6 +176,30 @@ func (r *repo) DeleteCluster(ctx context.Context, clusterID domain.ClusterID) er
 	return nil
 }
 
+func (r *repo) RecoverStaleClusters(ctx context.Context, staleThreshold time.Duration) (int, error) {
+	query := `
+		UPDATE clusters
+		SET status = $1, updated_at = $2
+		WHERE status = $3
+		AND updated_at < $4
+	`
+
+	now := time.Now()
+	threshold := now.Add(-staleThreshold)
+
+	result, err := r.client.Exec(ctx, query,
+		domain.ClusterStatusOpen,
+		now,
+		domain.ClusterStatusProcessing,
+		threshold,
+	)
+	if err != nil {
+		return 0, fmt.Errorf("recover stale clusters: %w", err)
+	}
+
+	return int(result.RowsAffected()), nil
+}
+
 type clusterEntity struct {
 	ClusterID  uuid.UUID       `db:"cluster_id"`
 	UserID     uuid.UUID       `db:"user_id"`
