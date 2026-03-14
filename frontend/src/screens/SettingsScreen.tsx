@@ -12,6 +12,7 @@ const SettingsScreen = () => {
   const [connectedGmailEmail, setConnectedGmailEmailState] = useState<string | null>(
     () => getConnectedGmailEmail(),
   );
+
   const [gmailLoading, setGmailLoading] = useState(false);
   const [gmailError, setGmailError] = useState<string | null>(null);
 
