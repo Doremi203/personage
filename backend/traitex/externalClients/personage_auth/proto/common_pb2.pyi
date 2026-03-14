@@ -26,11 +26,13 @@ class _ServiceTypeEnumTypeWrapper(google.protobuf.internal.enum_type_wrapper._En
     DESCRIPTOR: google.protobuf.descriptor.EnumDescriptor
     ServiceType_Unknown: _ServiceType.ValueType  # 0
     ServiceType_Gmail: _ServiceType.ValueType  # 1
+    ServiceType_Telegram: _ServiceType.ValueType  # 2
 
 class ServiceType(_ServiceType, metaclass=_ServiceTypeEnumTypeWrapper): ...
 
 ServiceType_Unknown: ServiceType.ValueType  # 0
 ServiceType_Gmail: ServiceType.ValueType  # 1
+ServiceType_Telegram: ServiceType.ValueType  # 2
 Global___ServiceType: typing_extensions.TypeAlias = ServiceType
 
 @typing.final
@@ -58,3 +60,18 @@ class GmailTokens(google.protobuf.message.Message):
     def ClearField(self, field_name: typing.Literal["access_token", b"access_token", "expires_at", b"expires_at", "gmail_email", b"gmail_email", "refresh_token", b"refresh_token"]) -> None: ...
 
 Global___GmailTokens: typing_extensions.TypeAlias = GmailTokens
+
+@typing.final
+class TelegramSession(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    SESSION_STRING_FIELD_NUMBER: builtins.int
+    session_string: builtins.str
+    def __init__(
+        self,
+        *,
+        session_string: builtins.str = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing.Literal["session_string", b"session_string"]) -> None: ...
+
+Global___TelegramSession: typing_extensions.TypeAlias = TelegramSession

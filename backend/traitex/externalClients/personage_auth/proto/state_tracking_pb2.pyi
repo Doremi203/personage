@@ -62,27 +62,46 @@ class UserForProcessing(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
     USER_ID_FIELD_NUMBER: builtins.int
-    USER_EMAIL_FIELD_NUMBER: builtins.int
-    TOKENS_FIELD_NUMBER: builtins.int
     LAST_PROCESSED_AT_FIELD_NUMBER: builtins.int
+    CREDENTIALS_FIELD_NUMBER: builtins.int
     user_id: builtins.str
-    user_email: builtins.str
-    @property
-    def tokens(self) -> common_pb2.GmailTokens: ...
     @property
     def last_processed_at(self) -> google.protobuf.timestamp_pb2.Timestamp: ...
+    @property
+    def credentials(self) -> Global___ProcessingCredentials: ...
     def __init__(
         self,
         *,
         user_id: builtins.str = ...,
-        user_email: builtins.str = ...,
-        tokens: common_pb2.GmailTokens | None = ...,
         last_processed_at: google.protobuf.timestamp_pb2.Timestamp | None = ...,
+        credentials: Global___ProcessingCredentials | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing.Literal["last_processed_at", b"last_processed_at", "tokens", b"tokens"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing.Literal["last_processed_at", b"last_processed_at", "tokens", b"tokens", "user_email", b"user_email", "user_id", b"user_id"]) -> None: ...
+    def HasField(self, field_name: typing.Literal["credentials", b"credentials", "last_processed_at", b"last_processed_at"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing.Literal["credentials", b"credentials", "last_processed_at", b"last_processed_at", "user_id", b"user_id"]) -> None: ...
 
 Global___UserForProcessing: typing_extensions.TypeAlias = UserForProcessing
+
+@typing.final
+class ProcessingCredentials(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    GMAIL_TOKENS_FIELD_NUMBER: builtins.int
+    TELEGRAM_SESSION_FIELD_NUMBER: builtins.int
+    @property
+    def gmail_tokens(self) -> common_pb2.GmailTokens: ...
+    @property
+    def telegram_session(self) -> common_pb2.TelegramSession: ...
+    def __init__(
+        self,
+        *,
+        gmail_tokens: common_pb2.GmailTokens | None = ...,
+        telegram_session: common_pb2.TelegramSession | None = ...,
+    ) -> None: ...
+    def HasField(self, field_name: typing.Literal["credentials", b"credentials", "gmail_tokens", b"gmail_tokens", "telegram_session", b"telegram_session"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing.Literal["credentials", b"credentials", "gmail_tokens", b"gmail_tokens", "telegram_session", b"telegram_session"]) -> None: ...
+    def WhichOneof(self, oneof_group: typing.Literal["credentials", b"credentials"]) -> typing.Literal["gmail_tokens", "telegram_session"] | None: ...
+
+Global___ProcessingCredentials: typing_extensions.TypeAlias = ProcessingCredentials
 
 @typing.final
 class MarkUsersAsProcessedRequest(google.protobuf.message.Message):

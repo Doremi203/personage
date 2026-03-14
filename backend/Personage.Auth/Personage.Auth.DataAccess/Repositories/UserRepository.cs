@@ -89,7 +89,7 @@ public class UserRepository(IDbConnectionFactory connectionFactory) : IUserRepos
             });
     }
 
-    public async Task<UserWithToken[]> GetUsersProcessedBeforeMoment(
+    public async Task<UserWithToken[]> GetUsersGmailProcessedBeforeMoment(
         DateTime processedBeforeMoment, 
         int limit, 
         CancellationToken ct)
@@ -98,7 +98,7 @@ public class UserRepository(IDbConnectionFactory connectionFactory) : IUserRepos
     
         const string query = 
             """
-            --UserRepository.GetUsersProcessedBeforeMoment   
+            --UserRepository.GetUsersGmailProcessedBeforeMoment   
             SELECT u.id AS UserId,
                 u.email AS UserEmail,
                 gt.Id as TokenId,
@@ -130,6 +130,35 @@ public class UserRepository(IDbConnectionFactory connectionFactory) : IUserRepos
                 limit
             },
             splitOn: nameof(ShortGmailToken.TokenId)
+        );
+
+        return results.ToArray();
+    }
+
+    public async Task<UserWithTelegramSession[]> GetUsersTelegramProcessedBeforeMoment(DateTime processedBeforeMoment, int limit, CancellationToken ct)
+    {
+        using var connection = await connectionFactory.CreateConnection(ct);
+        
+        var results = await connection.QueryAsync<UserWithTelegramSession>(
+            """
+            --UserRepository.GetUsersTelegramProcessedBeforeMoment   
+            SELECT 
+                ts.user_id AS UserId,
+                ts.last_processed_at AS LastProcessedAt,
+                ts.session AS SessionString
+            FROM public.telegram_session ts
+            WHERE 
+                ts.last_processed_at IS NULL OR 
+                ts.last_processed_at <= @processedBeforeMoment
+            ORDER BY 
+                ts.last_processed_at ASC NULLS FIRST
+            LIMIT @limit;
+            """,
+            new
+            {
+                processedBeforeMoment,
+                limit
+            }
         );
 
         return results.ToArray();

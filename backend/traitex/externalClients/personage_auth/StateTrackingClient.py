@@ -3,9 +3,15 @@ from uuid import UUID
 
 from google.protobuf.timestamp_pb2 import Timestamp
 
+from app.domain.models.ConnectorTypeModel import ConnectorTypeModel
 from app.domain.models.users.GmailTokensModel import GmailTokensModel
 from app.domain.models.users.ProcessedUserModel import ProcessedUserModel
 from app.domain.models.users.UserForGmailProcessingModel import UserForGmailProcessingModel
+from app.domain.models.users.processingCredentials import ProcessingCredentialsModel
+from app.domain.models.users.processingCredentials.GmailProcessingCredentialsModel import \
+    GmailProcessingCredentialsModel
+from app.domain.models.users.processingCredentials.TelegramProcessingCredentialsModel import \
+    TelegramProcessingCredentialsModel
 from externalClients.BaseGrpcClient import BaseGrpcClient
 from externalClients.personage_auth.proto import state_tracking_pb2_grpc
 from externalClients.personage_auth.proto.common_pb2 import (GmailTokens)
@@ -15,7 +21,8 @@ from externalClients.personage_auth.proto.state_tracking_pb2 import (
     GetUsersForProcessingResponse,
     UserForProcessing,
     MarkUsersAsProcessedRequest,
-    ProcessedUser
+    ProcessedUser,
+    ProcessingCredentials
 )
 
 
@@ -31,12 +38,13 @@ class StateTrackingClient(BaseGrpcClient):
     async def get_users_for_processing(
             self,
             batch_size: int,
-            seconds_since_last_process: int
+            seconds_since_last_process: int,
+            service_type: ConnectorTypeModel
     ) -> list[UserForGmailProcessingModel]:
         request = GetUsersForProcessingRequest(
             batch_size=batch_size,
             min_seconds_since_last_process=seconds_since_last_process,
-            service_type=ServiceType.ServiceType_Gmail
+            service_type=StateTrackingClient.__to_grpc_service_type(service_type)
         )
 
         response: GetUsersForProcessingResponse = await self._stub.GetUsersForProcessing(request)
@@ -53,13 +61,31 @@ class StateTrackingClient(BaseGrpcClient):
         await self._stub.MarkUsersAsProcessed(request)
 
     @staticmethod
+    def __to_grpc_service_type(service_type: ConnectorTypeModel) -> ServiceType.ValueType:
+        match service_type:
+            case ConnectorTypeModel.Gmail:
+                return ServiceType.ServiceType_Gmail
+            case ConnectorTypeModel.Telegram:
+                return ServiceType.ServiceType_Telegram
+        raise Exception(f"Unknown service type: {service_type}")
+
+    @staticmethod
     def __to_domain_user(user: UserForProcessing) -> UserForGmailProcessingModel:
         return UserForGmailProcessingModel(
             user_id=UUID(user.user_id),
-            user_email=user.user_email,
-            tokens=StateTrackingClient.__to_domain_tokens(user.tokens) if user.HasField('tokens') else None,
             last_processed_at=user.last_processed_at.ToDatetime() if user.HasField('last_processed_at') else None,
+            credentials=StateTrackingClient.__to_domain_processing_credentials(user.credentials)
         )
+
+    @staticmethod
+    def __to_domain_processing_credentials(credentials: ProcessingCredentials) -> ProcessingCredentialsModel:
+        match credentials.WhichOneof("credentials"):
+            case "gmail_tokens":
+                return GmailProcessingCredentialsModel(
+                    tokens=StateTrackingClient.__to_domain_tokens(credentials.gmail_tokens))
+            case "telegram_session":
+                return TelegramProcessingCredentialsModel(session_string=credentials.telegram_session.session_string)
+        raise Exception(f"Unknown credentials type: {type(credentials)}")
 
     @staticmethod
     def __to_domain_tokens(tokens: GmailTokens) -> GmailTokensModel:

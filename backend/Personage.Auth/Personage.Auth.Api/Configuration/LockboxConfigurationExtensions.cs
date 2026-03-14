@@ -1,3 +1,4 @@
+using DotNetEnv;
 using Yandex.Cloud;
 using Yandex.Cloud.Credentials;
 
@@ -37,6 +38,8 @@ public static class LockboxConfigurationExtensions
         }
         else
         {
+            const string localSecretsPath = "../../../secrets.env";
+            Env.Load(localSecretsPath);
             var iamToken = Environment.GetEnvironmentVariable("YC_TOKEN")
                            ?? throw new InvalidOperationException(
                                "YC_TOKEN environment variable is required when secret: references are present " +

@@ -19,4 +19,5 @@ public enum ErrorCode
     UserNameValidationFail = 11,
     PasswordNotSet = 12,
     InvalidResetToken = 13,
+    TelegramSessionNotFound = 14
 }

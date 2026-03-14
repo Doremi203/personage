@@ -120,6 +120,7 @@ public class Program
         app.MapGrpcService<TestGrpcService>().EnableGrpcWeb();
         app.MapGrpcService<AuthGrpcService>().EnableGrpcWeb();
         app.MapGrpcService<StateTrackingGrpcService>().EnableGrpcWeb();
+        app.MapGrpcService<TelegramGrpcService>().EnableGrpcWeb();
         
         app.MapControllers();
     }
@@ -146,6 +147,7 @@ public class Program
         services.AddScoped<IOAuthStateRepository, OAuthStateRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         services.AddScoped<IPasswordResetTokenRepository, PasswordResetTokenRepository>();
+        services.AddScoped<ITelegramSessionRepository, TelegramSessionRepository>();
     }
 
     private static void AddBllServices(IServiceCollection services)
@@ -154,6 +156,7 @@ public class Program
         services.AddScoped<IStateTrackingService, StateTrackingService>();
         services.AddScoped<IGoogleOAuthService, GoogleOAuthService>();
         services.AddScoped<IPostboxService, PostboxService>();
+        services.AddScoped<ITelegramAuthService, TelegramAuthService>();
         services.AddHttpClient<IGoogleOAuthService, GoogleOAuthService>();
     }
 

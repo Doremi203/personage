@@ -25,7 +25,7 @@ _sym_db = _symbol_database.Default()
 from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0c\x63ommon.proto\x12\x04\x61uth\x1a\x1fgoogle/protobuf/timestamp.proto\"\x7f\n\x0bGmailTokens\x12\x14\n\x0c\x61\x63\x63\x65ss_token\x18\x01 \x01(\t\x12\x15\n\rrefresh_token\x18\x02 \x01(\t\x12.\n\nexpires_at\x18\x03 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12\x13\n\x0bgmail_email\x18\x04 \x01(\t*=\n\x0bServiceType\x12\x17\n\x13ServiceType_Unknown\x10\x00\x12\x15\n\x11ServiceType_Gmail\x10\x01\x42!\xaa\x02\x1ePersonage.Auth.Api.Grpc.Commonb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0c\x63ommon.proto\x12\x04\x61uth\x1a\x1fgoogle/protobuf/timestamp.proto\"\x7f\n\x0bGmailTokens\x12\x14\n\x0c\x61\x63\x63\x65ss_token\x18\x01 \x01(\t\x12\x15\n\rrefresh_token\x18\x02 \x01(\t\x12.\n\nexpires_at\x18\x03 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12\x13\n\x0bgmail_email\x18\x04 \x01(\t\")\n\x0fTelegramSession\x12\x16\n\x0esession_string\x18\x01 \x01(\t*W\n\x0bServiceType\x12\x17\n\x13ServiceType_Unknown\x10\x00\x12\x15\n\x11ServiceType_Gmail\x10\x01\x12\x18\n\x14ServiceType_Telegram\x10\x02\x42!\xaa\x02\x1ePersonage.Auth.Api.Grpc.Commonb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -33,8 +33,10 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'common_pb2', _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'\252\002\036Personage.Auth.Api.Grpc.Common'
-  _globals['_SERVICETYPE']._serialized_start=184
-  _globals['_SERVICETYPE']._serialized_end=245
+  _globals['_SERVICETYPE']._serialized_start=227
+  _globals['_SERVICETYPE']._serialized_end=314
   _globals['_GMAILTOKENS']._serialized_start=55
   _globals['_GMAILTOKENS']._serialized_end=182
+  _globals['_TELEGRAMSESSION']._serialized_start=184
+  _globals['_TELEGRAMSESSION']._serialized_end=225
 # @@protoc_insertion_point(module_scope)

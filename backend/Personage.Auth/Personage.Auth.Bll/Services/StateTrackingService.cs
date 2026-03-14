@@ -23,13 +23,28 @@ public class StateTrackingService(
     public async Task<GetUsersForProcessingResponseModel> GetUsersForProcessing(
         GetUsersForProcessingRequestModel request, CancellationToken ct)
     {
-        if (request.ServiceType is not ServiceTypeModel.Gmail)
-            throw new ServiceTypeNotSupportedException(
-                $"Service type {request.ServiceType} is not supported for {nameof(GetUsersForProcessing)}");
-
         var processedUntilMoment = DateTime.UtcNow.AddSeconds(-request.MinSecondsSinceLastProcess);
-        var users = await userRepository.GetUsersProcessedBeforeMoment(
-            processedUntilMoment, request.BatchSize, ct);
+        
+        return request.ServiceType switch
+        {
+            ServiceTypeModel.Gmail => await GetUsersForGmailProcessing(request.BatchSize,
+                processedUntilMoment, ct),
+            ServiceTypeModel.Telegram => await GetUsersForTelegramProcessing(request.BatchSize,
+                processedUntilMoment, ct),
+            _ =>
+                throw new ServiceTypeNotSupportedException(
+                    $"Service type {request.ServiceType} is not supported for {nameof(GetUsersForProcessing)}")
+        };
+    }
+
+    private async Task<GetUsersForProcessingResponseModel> GetUsersForGmailProcessing(
+        int batchSize,
+        DateTime processedUntilMoment,
+        CancellationToken ct
+    )
+    {
+        var users = await userRepository.GetUsersGmailProcessedBeforeMoment(
+            processedUntilMoment, batchSize, ct);
 
         var expiringTokens = users
             .Where(x => x.Token.ExpiresAt <= DateTime.UtcNow.AddMinutes(TokenExpirationThresholdMinutes))
@@ -58,7 +73,23 @@ public class StateTrackingService(
         {
             Users = users
                 .Except(refreshFailed)
-                .Select(Map)
+                .Select(MapGmailUser)
+                .ToArray()
+        };
+    }
+
+    private async Task<GetUsersForProcessingResponseModel> GetUsersForTelegramProcessing(
+        int batchSize,
+        DateTime processedUntilMoment,
+        CancellationToken ct
+    )
+    {
+        var users = await userRepository.GetUsersTelegramProcessedBeforeMoment(
+            processedUntilMoment, batchSize, ct);
+        return new GetUsersForProcessingResponseModel
+        {
+            Users = users
+                .Select(MapTelegramUser)
                 .ToArray()
         };
     }
@@ -116,20 +147,35 @@ public class StateTrackingService(
             request.Users.Select(x => (x.UserId, x.ProcessedAt)).ToArray(), ct);
     }
 
-    private static UserForProcessingModel Map(UserWithToken model)
+    private static UserForProcessingModel MapGmailUser(UserWithToken model)
     {
         return new UserForProcessingModel
         {
             UserId = model.UserId,
-            UserEmail = model.UserEmail,
-            Tokens = new GmailTokenModel
+            LastProcessedAt = model.Token.LastProcessedAt,
+            Credentials = new GmailProcessingCredentials
             {
-                AccessToken = model.Token.AccessToken,
-                RefreshToken = model.Token.RefreshToken,
-                ExpiresAt = model.Token.ExpiresAt,
-                GmailEmail = model.Token.GmailEmail,
-            },
-            LastProcessedAt = model.Token.LastProcessedAt
+                Tokens = new GmailTokenModel
+                {
+                    AccessToken = model.Token.AccessToken,
+                    RefreshToken = model.Token.RefreshToken,
+                    ExpiresAt = model.Token.ExpiresAt,
+                    GmailEmail = model.Token.GmailEmail,
+                },
+            }
+        };
+    }
+
+    private static UserForProcessingModel MapTelegramUser(UserWithTelegramSession model)
+    {
+        return new UserForProcessingModel
+        {
+            UserId = model.UserId,
+            LastProcessedAt = model.LastProcessedAt,
+            Credentials = new TelegramProcessingCredentials
+            {
+                SessionString = model.SessionString
+            }
         };
     }
 }

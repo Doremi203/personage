@@ -48,6 +48,9 @@ class GmailConsumer(BaseConsumer):
 
     async def run_iteration(self) -> None:
         users_for_processing = await self.gmail_processing_service.get_users_for_processing()
+        # At this point users_for_processing are assumed to only container users with ConnectorType = Gmail,
+        # otherwise further processing will fail
+
         if len(users_for_processing) == 0:
             logger.info("No users found for processing")
             return

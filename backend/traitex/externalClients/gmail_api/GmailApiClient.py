@@ -17,6 +17,8 @@ from app.domain.models.events.raw.gmail.EmailAttachment import EmailAttachment
 from app.domain.models.events.raw.gmail.EmailParticipant import EmailParticipant
 from app.domain.models.events.raw.gmail.RawGmailMessage import RawGmailMessage
 from app.domain.models.users.UserForGmailProcessingModel import UserForGmailProcessingModel
+from app.domain.models.users.processingCredentials.GmailProcessingCredentialsModel import \
+    GmailProcessingCredentialsModel
 from externalClients.gmail_api.models.UserGmailFetchResult import UserGmailFetchResult
 
 logger = logging.getLogger(__name__)
@@ -165,7 +167,15 @@ class GmailApiClient:
             user: UserForGmailProcessingModel,
             last_history_id: int | None = None
     ) -> UserGmailFetchResult:
-        if not user.tokens:
+        if not isinstance(user.credentials, GmailProcessingCredentialsModel):
+            error = "Attempted to fetch gmail info where other processing type was required"
+            logger.error(error)
+            raise Exception(error)
+
+        gmail_credentials: GmailProcessingCredentialsModel = user.credentials
+        tokens = gmail_credentials.tokens
+
+        if not tokens:
             return UserGmailFetchResult(
                 user_id=user.user_id,
                 messages=[],
@@ -175,7 +185,7 @@ class GmailApiClient:
             )
 
         try:
-            service = self._create_gmail_service(user.tokens.access_token)
+            service = self._create_gmail_service(tokens.access_token)
 
             if not last_history_id:
                 last_history_id = await self._get_user_last_history_id_from_profile(service)
