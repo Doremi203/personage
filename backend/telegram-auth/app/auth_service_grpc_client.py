@@ -23,7 +23,7 @@ class AuthServiceGrpcClient:
             if self.channel is not None:
                 return
 
-            target = f"{settings.AUTH_SERVICE_GRPC_HOST}:{settings.AUTH_SERVICE_GRPC_PORT}"
+            target = f"{settings.AUTH_SERVICE_GRPC_HOST}"
 
             self.channel = grpc.aio.insecure_channel(target)
             logger.info("Created insecure gRPC channel", target=target)
