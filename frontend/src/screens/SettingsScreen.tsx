@@ -1,7 +1,52 @@
-import { Clock, Bell, Folder, User, Globe } from 'lucide-react';
+import { useState } from 'react';
+import { Clock, Bell, Folder, User, Globe, Mail, CheckCircle, Loader2 } from 'lucide-react';
+import {
+  getConnectedGmailEmail,
+  clearConnectedGmailEmail,
+  startGmailAuth,
+  getUserInfo,
+} from '../utils/authService';
 
 const SettingsScreen = () => {
   const categories = ['Работа', 'Учёба', 'Личное', 'Финансы', 'Здоровье'];
+  const [connectedGmailEmail, setConnectedGmailEmailState] = useState<string | null>(
+    () => getConnectedGmailEmail(),
+  );
+
+  const [gmailLoading, setGmailLoading] = useState(false);
+  const [gmailError, setGmailError] = useState<string | null>(null);
+
+  const handleConnectGmail = async () => {
+    setGmailError(null);
+    setGmailLoading(true);
+    try {
+      const userInfo = getUserInfo();
+      if (!userInfo?.email) {
+        setGmailError('Не удалось определить email пользователя');
+        return;
+      }
+      const { authorizationUrl } = await startGmailAuth(
+        userInfo.email,
+        window.location.origin,
+      );
+      window.location.href = authorizationUrl;
+    } catch (err) {
+      setGmailError(
+        err instanceof Error ? err.message : 'Не удалось запустить авторизацию Gmail',
+      );
+      setGmailLoading(false);
+    }
+  };
+
+  const handleDisconnectGmail = () => {
+    clearConnectedGmailEmail();
+    setConnectedGmailEmailState(null);
+    setGmailError(null);
+  };
+
+  const handleConnectGmailClick = () => {
+    void handleConnectGmail();
+  };
 
   return (
     <div className="h-full overflow-auto md:pt-0 pt-16">
@@ -167,6 +212,55 @@ const SettingsScreen = () => {
             <button className="w-full py-2.5 border-2 border-dashed border-gray-300 text-gray-600 rounded-xl hover:border-[#5C6BFF] hover:text-[#5C6BFF] transition-colors font-medium">
               + Добавить категорию
             </button>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-gray-200 p-4 md:p-6">
+            <div className="flex items-center gap-3 mb-4 md:mb-6">
+              <div className="w-10 h-10 bg-[#EA4335]/10 rounded-xl flex items-center justify-center flex-shrink-0">
+                <Mail size={20} className="text-[#EA4335]" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-base md:text-lg text-[#2D2F31]">Gmail</h3>
+                <p className="text-xs md:text-sm text-gray-500">Подключите Gmail для чтения данных из почты</p>
+              </div>
+            </div>
+
+            {gmailError && (
+              <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-100 text-sm text-red-600">
+                {gmailError}
+              </div>
+            )}
+
+            {connectedGmailEmail ? (
+              <div className="flex items-center justify-between p-4 bg-[#F7F8FA] rounded-xl">
+                <div className="flex items-center gap-3">
+                  <CheckCircle size={18} className="text-[#4CB782] flex-shrink-0" />
+                  <div>
+                    <p className="font-medium text-[#2D2F31] text-sm">Gmail подключён</p>
+                    <p className="text-xs text-gray-500">{connectedGmailEmail}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={handleDisconnectGmail}
+                  className="text-sm text-[#FF8A65] hover:text-[#FF7A55] font-medium flex-shrink-0"
+                >
+                  Отключить
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={handleConnectGmailClick}
+                disabled={gmailLoading}
+                className="w-full flex items-center justify-center gap-2 py-2.5 border border-gray-200 bg-[#F7F8FA] text-[#2D2F31] rounded-xl hover:bg-gray-100 transition-colors font-medium text-sm disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {gmailLoading ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <Mail size={16} className="text-[#EA4335]" />
+                )}
+                {gmailLoading ? 'Переход к Google...' : 'Подключить Gmail'}
+              </button>
+            )}
           </div>
 
           <div className="bg-white rounded-2xl border border-gray-200 p-4 md:p-6">

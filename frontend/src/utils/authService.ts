@@ -4,6 +4,7 @@ const AUTH_API_URL =
 
 const TOKENS_KEY = 'personage_auth_tokens';
 const USER_INFO_KEY = 'personage_user_info';
+const GMAIL_EMAIL_KEY = 'personage_gmail_email';
 
 export interface AuthTokens {
   accessToken: string;
@@ -32,6 +33,7 @@ export function setTokens(tokens: AuthTokens): void {
 export function clearTokens(): void {
   localStorage.removeItem(TOKENS_KEY);
   localStorage.removeItem(USER_INFO_KEY);
+  localStorage.removeItem(GMAIL_EMAIL_KEY);
 }
 
 export function getUserInfo(): UserInfo | null {
@@ -198,4 +200,61 @@ export async function forgotPassword(
   if (!response.ok) {
     throw new Error(`Ошибка: ${response.status}`);
   }
+}
+
+export function getConnectedGmailEmail(): string | null {
+  return localStorage.getItem(GMAIL_EMAIL_KEY);
+}
+
+export function setConnectedGmailEmail(email: string): void {
+  localStorage.setItem(GMAIL_EMAIL_KEY, email);
+}
+
+export function clearConnectedGmailEmail(): void {
+  localStorage.removeItem(GMAIL_EMAIL_KEY);
+}
+
+export async function startGmailAuth(
+  userEmail: string,
+  redirectUri: string,
+): Promise<{ authorizationUrl: string; state: string }> {
+  const response = await fetch(`${AUTH_API_URL}/auth/gmail/authorize`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userEmail, redirectUri }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(
+      (error as { message?: string }).message ??
+        `Ошибка запуска авторизации Gmail: ${response.status}`,
+    );
+  }
+
+  return (await response.json()) as { authorizationUrl: string; state: string };
+}
+
+export async function handleGmailCallback(
+  userEmail: string,
+  code: string,
+  state: string,
+  redirectUri: string,
+): Promise<string> {
+  const response = await fetch(`${AUTH_API_URL}/auth/gmail/callback`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userEmail, code, state, redirectUri }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(
+      (error as { message?: string }).message ??
+        `Ошибка подключения Gmail: ${response.status}`,
+    );
+  }
+
+  const data = (await response.json()) as { gmailEmail: string };
+  return data.gmailEmail;
 }

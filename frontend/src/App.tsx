@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import TasksScreen from './screens/TasksScreen';
 import ScheduleScreen from './screens/ScheduleScreen';
 import NotificationsScreen from './screens/NotificationsScreen';
@@ -8,7 +8,13 @@ import ResetPasswordScreen from './screens/ResetPasswordScreen';
 import Sidebar from './components/Sidebar';
 import PWAInstallPrompt from './components/PWAInstallPrompt';
 import WelcomeScreen from './components/WelcomeScreen';
-import { isAuthenticated, logout } from './utils/authService';
+import {
+  isAuthenticated,
+  logout,
+  getUserInfo,
+  handleGmailCallback,
+  setConnectedGmailEmail,
+} from './utils/authService';
 
 const ONBOARDING_KEY = 'personage_onboarding_completed';
 
@@ -24,6 +30,21 @@ function clearResetToken(): void {
   window.history.replaceState({}, '', url.pathname + url.search);
 }
 
+function getGmailCallbackParams(): { code: string; state: string } | null {
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get('code');
+  const state = params.get('state');
+  if (code && state) return { code, state };
+  return null;
+}
+
+function clearGmailCallbackParams(): void {
+  const url = new URL(window.location.href);
+  url.searchParams.delete('code');
+  url.searchParams.delete('state');
+  window.history.replaceState({}, '', url.pathname + url.search);
+}
+
 function App() {
   const [resetToken, setResetToken] = useState<string | null>(() => getResetToken());
   const [authenticated, setAuthenticated] = useState(() => isAuthenticated());
@@ -31,6 +52,27 @@ function App() {
   const [onboardingComplete, setOnboardingComplete] = useState(
     () => localStorage.getItem(ONBOARDING_KEY) === 'true',
   );
+
+  useEffect(() => {
+    const params = getGmailCallbackParams();
+    if (!params || !isAuthenticated()) return;
+
+    const { code, state } = params;
+    const userInfo = getUserInfo();
+    if (!userInfo?.email) return;
+
+    handleGmailCallback(userInfo.email, code, state, window.location.origin)
+      .then((gmailEmail) => {
+        setConnectedGmailEmail(gmailEmail);
+        clearGmailCallbackParams();
+        setCurrentScreen('settings');
+      })
+      .catch((err: unknown) => {
+        console.error('Gmail callback failed:', err);
+        clearGmailCallbackParams();
+        setCurrentScreen('settings');
+      });
+  }, []);
 
   const handleAuthSuccess = () => {
     setAuthenticated(true);
