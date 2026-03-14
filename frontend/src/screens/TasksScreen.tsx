@@ -1,8 +1,20 @@
-import { useState } from 'react';
-import { Search, Plus } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Search, Plus, Loader2 } from 'lucide-react';
 import TaskList from '../components/TaskList';
 import TaskDetail from '../components/TaskDetail';
 import TaskFilters from '../components/TaskFilters';
+import {
+  listTasks,
+  completeTask,
+  postponeTask,
+  deleteTask,
+  ApiTaskItem,
+  ApiTaskStatus,
+  ApiTaskPriority,
+  ApiTaskCategory,
+  ApiTaskStatusFilter,
+  ApiTaskCategoryFilter,
+} from '../utils/taskerService';
 
 export type TaskStatus = 'planned' | 'in-progress' | 'completed' | 'overdue';
 export type TaskPriority = 'high' | 'medium' | 'low';
@@ -21,74 +33,156 @@ export interface Task {
   notes?: string;
 }
 
+function mapStatus(status: number, deadline?: string): TaskStatus {
+  if (status === ApiTaskStatus.COMPLETED) return 'completed';
+  if (deadline && new Date(deadline) < new Date()) return 'overdue';
+  return 'planned';
+}
+
+function mapPriority(priority: number): TaskPriority {
+  if (priority === ApiTaskPriority.HIGH) return 'high';
+  if (priority === ApiTaskPriority.LOW) return 'low';
+  return 'medium';
+}
+
+function mapCategory(category: number): TaskCategory {
+  if (category === ApiTaskCategory.WORK) return 'work';
+  if (category === ApiTaskCategory.STUDY) return 'study';
+  return 'personal';
+}
+
+function mapApiTask(apiTask: ApiTaskItem): Task {
+  const deadline = apiTask.deadline
+    ? new Date(apiTask.deadline).toISOString().split('T')[0]
+    : undefined;
+  return {
+    id: apiTask.id,
+    title: apiTask.title,
+    description: apiTask.description,
+    status: mapStatus(apiTask.status, apiTask.deadline),
+    priority: mapPriority(apiTask.priority),
+    category: mapCategory(apiTask.category),
+    deadline: deadline ?? '',
+    progress: apiTask.status === ApiTaskStatus.COMPLETED ? 100 : 0,
+    tags: [],
+  };
+}
+
+function getApiFilters(filter: string): {
+  status?: number;
+  category?: number;
+} {
+  switch (filter) {
+    case 'planned':
+      return { status: ApiTaskStatusFilter.PLANNED };
+    case 'completed':
+      return { status: ApiTaskStatusFilter.COMPLETED };
+    case 'work':
+      return { category: ApiTaskCategoryFilter.WORK };
+    case 'study':
+      return { category: ApiTaskCategoryFilter.STUDY };
+    case 'personal':
+      return { category: ApiTaskCategoryFilter.PERSONAL };
+    default:
+      return {};
+  }
+}
+
 const TasksScreen = () => {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
 
-  const mockTasks: Task[] = [
-    {
-      id: '1',
-      title: 'Подготовить презентацию для клиента',
-      description: 'Создать презентацию по новому продукту',
-      status: 'in-progress',
-      priority: 'high',
-      category: 'work',
-      deadline: '2025-11-18',
-      progress: 65,
-      tags: ['срочно', 'клиент'],
-    },
-    {
-      id: '2',
-      title: 'Изучить новый фреймворк React',
-      description: 'Пройти курс по React и TypeScript',
-      status: 'planned',
-      priority: 'medium',
-      category: 'study',
-      deadline: '2025-11-25',
-      progress: 30,
-      tags: ['обучение', 'разработка'],
-    },
-    {
-      id: '3',
-      title: 'Оплатить коммунальные услуги',
-      description: 'Оплатить счета за ноябрь',
-      status: 'planned',
-      priority: 'high',
-      category: 'finance',
-      deadline: '2025-11-20',
-      progress: 0,
-      tags: ['платежи'],
-    },
-    {
-      id: '4',
-      title: 'Тренировка в спортзале',
-      description: 'Кардио и силовая тренировка',
-      status: 'completed',
-      priority: 'medium',
-      category: 'health',
-      deadline: '2025-11-16',
-      progress: 100,
-      tags: ['спорт', 'здоровье'],
-    },
-    {
-      id: '5',
-      title: 'Написать статью для блога',
-      description: 'Статья о продуктивности',
-      status: 'overdue',
-      priority: 'low',
-      category: 'personal',
-      deadline: '2025-11-15',
-      progress: 45,
-      tags: ['блог', 'контент'],
-    },
-  ];
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
-  const filteredTasks = mockTasks.filter((task) => {
-    const matchesCategory = filterCategory === 'all' || task.category === filterCategory || task.status === filterCategory;
-    const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesSearch;
-  });
+  const fetchTasks = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const filters = getApiFilters(filterCategory);
+      const response = await listTasks({
+        ...filters,
+        text: debouncedSearch || undefined,
+        pageSize: 20,
+        page: 1,
+      });
+      const mapped = (response.tasks ?? []).map(mapApiTask);
+      // Client-side filter for statuses not supported by the API
+      const filtered =
+        filterCategory === 'overdue'
+          ? mapped.filter((t) => t.status === 'overdue')
+          : filterCategory === 'in-progress'
+            ? mapped.filter((t) => t.status === 'in-progress')
+            : mapped;
+      setTasks(filtered);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'Не удалось загрузить задачи',
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [filterCategory, debouncedSearch]);
+
+  useEffect(() => {
+    void fetchTasks();
+  }, [fetchTasks]);
+
+  const handleComplete = useCallback(async () => {
+    if (!selectedTask) return;
+    setActionLoading(true);
+    try {
+      await completeTask(selectedTask.id);
+      await fetchTasks();
+      setSelectedTask(null);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'Не удалось завершить задачу',
+      );
+    } finally {
+      setActionLoading(false);
+    }
+  }, [selectedTask, fetchTasks]);
+
+  const handlePostpone = useCallback(async () => {
+    if (!selectedTask) return;
+    setActionLoading(true);
+    try {
+      await postponeTask(selectedTask.id);
+      await fetchTasks();
+      setSelectedTask(null);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'Не удалось отложить задачу',
+      );
+    } finally {
+      setActionLoading(false);
+    }
+  }, [selectedTask, fetchTasks]);
+
+  const handleDelete = useCallback(async () => {
+    if (!selectedTask) return;
+    setActionLoading(true);
+    try {
+      await deleteTask(selectedTask.id);
+      await fetchTasks();
+      setSelectedTask(null);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'Не удалось удалить задачу',
+      );
+    } finally {
+      setActionLoading(false);
+    }
+  }, [selectedTask, fetchTasks]);
 
   return (
     <div className="h-full flex flex-col md:flex-row md:pt-0 pt-16">
@@ -129,14 +223,30 @@ const TasksScreen = () => {
               <h3 className="text-lg md:text-xl font-semibold text-[#2D2F31]">
                 {filterCategory === 'all' ? 'Все задачи' : 'Фильтрованные'}
               </h3>
-              <p className="text-xs md:text-sm text-gray-500 mt-1">{filteredTasks.length} задач</p>
+              <p className="text-xs md:text-sm text-gray-500 mt-1">{tasks.length} задач</p>
             </div>
             <button className="flex items-center justify-center gap-2 px-4 py-2.5 bg-[#5C6BFF] text-white rounded-xl hover:bg-[#4C5BEF] transition-colors shadow-lg shadow-[#5C6BFF]/20 text-sm md:text-base">
               <Plus size={18} />
               <span className="font-medium">Новая</span>
             </button>
           </div>
-          <TaskList tasks={filteredTasks} onTaskSelect={setSelectedTask} selectedTaskId={selectedTask?.id} />
+          {loading ? (
+            <div className="flex items-center justify-center py-16 text-gray-400">
+              <Loader2 size={32} className="animate-spin" />
+            </div>
+          ) : error ? (
+            <div className="py-8 text-center">
+              <p className="text-red-500 text-sm mb-3">{error}</p>
+              <button
+                onClick={() => void fetchTasks()}
+                className="px-4 py-2 bg-[#5C6BFF] text-white rounded-xl text-sm hover:bg-[#4C5BEF] transition-colors"
+              >
+                Повторить
+              </button>
+            </div>
+          ) : (
+            <TaskList tasks={tasks} onTaskSelect={setSelectedTask} selectedTaskId={selectedTask?.id} />
+          )}
         </div>
       </div>
 
@@ -144,7 +254,14 @@ const TasksScreen = () => {
         <>
           <div className="md:hidden fixed inset-0 bg-black/50 z-40" onClick={() => setSelectedTask(null)} />
           <div className="md:w-96 fixed md:relative bottom-0 left-0 right-0 md:bottom-auto bg-white rounded-t-2xl md:rounded-none md:border-l border-gray-200 overflow-auto max-h-[80vh] md:max-h-full z-40">
-            <TaskDetail task={selectedTask} onClose={() => setSelectedTask(null)} />
+            <TaskDetail
+              task={selectedTask}
+              onClose={() => setSelectedTask(null)}
+              onComplete={handleComplete}
+              onPostpone={handlePostpone}
+              onDelete={handleDelete}
+              actionLoading={actionLoading}
+            />
           </div>
         </>
       )}
