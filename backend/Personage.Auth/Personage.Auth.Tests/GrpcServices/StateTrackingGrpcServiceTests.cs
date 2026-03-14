@@ -1,10 +1,4 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net.Http;
 using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
 using AutoFixture;
 using FluentAssertions;
 using Google.Protobuf.WellKnownTypes;
@@ -87,16 +81,16 @@ public class StateTrackingGrpcServiceTests : TestClassBase
         idsForProcess.Contains(userWithoutTokenId.ToString()).Should().BeFalse();
         
         var notProcessedUserRes = res.Users.Single(x => x.UserId == userNotProcessed.UserId.ToString());
-        notProcessedUserRes.Tokens.AccessToken.Should().Be(userNotProcessed.Token.AccessToken);
-        notProcessedUserRes.Tokens.RefreshToken.Should().Be(userNotProcessed.Token.RefreshToken);
-        notProcessedUserRes.Tokens.GmailEmail.Should().Be(userNotProcessed.Token.GmailEmail);
-        notProcessedUserRes.Tokens.ExpiresAt.ToDateTime().Should().BeCloseTo(userNotProcessed.Token.ExpiresAt, TimeSpan.FromMilliseconds(100));
+        notProcessedUserRes.Credentials.GmailTokens.AccessToken.Should().Be(userNotProcessed.Token.AccessToken);
+        notProcessedUserRes.Credentials.GmailTokens.RefreshToken.Should().Be(userNotProcessed.Token.RefreshToken);
+        notProcessedUserRes.Credentials.GmailTokens.GmailEmail.Should().Be(userNotProcessed.Token.GmailEmail);
+        notProcessedUserRes.Credentials.GmailTokens.ExpiresAt.ToDateTime().Should().BeCloseTo(userNotProcessed.Token.ExpiresAt, TimeSpan.FromMilliseconds(100));
         
         var processedBeforeCutoffRes = res.Users.Single(x => x.UserId == userProcessedBeforeCutoff.UserId.ToString());
-        processedBeforeCutoffRes.Tokens.AccessToken.Should().Be(userProcessedBeforeCutoff.Token.AccessToken);
-        processedBeforeCutoffRes.Tokens.RefreshToken.Should().Be(userProcessedBeforeCutoff.Token.RefreshToken);
-        processedBeforeCutoffRes.Tokens.GmailEmail.Should().Be(userProcessedBeforeCutoff.Token.GmailEmail);
-        processedBeforeCutoffRes.Tokens.ExpiresAt.ToDateTime().Should().BeCloseTo(userProcessedBeforeCutoff.Token.ExpiresAt, TimeSpan.FromMilliseconds(100));
+        processedBeforeCutoffRes.Credentials.GmailTokens.AccessToken.Should().Be(userProcessedBeforeCutoff.Token.AccessToken);
+        processedBeforeCutoffRes.Credentials.GmailTokens.RefreshToken.Should().Be(userProcessedBeforeCutoff.Token.RefreshToken);
+        processedBeforeCutoffRes.Credentials.GmailTokens.GmailEmail.Should().Be(userProcessedBeforeCutoff.Token.GmailEmail);
+        processedBeforeCutoffRes.Credentials.GmailTokens.ExpiresAt.ToDateTime().Should().BeCloseTo(userProcessedBeforeCutoff.Token.ExpiresAt, TimeSpan.FromMilliseconds(100));
     }
 
     [TestMethod]
