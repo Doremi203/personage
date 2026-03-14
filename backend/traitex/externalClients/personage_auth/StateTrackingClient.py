@@ -6,7 +6,7 @@ from google.protobuf.timestamp_pb2 import Timestamp
 from app.domain.models.ConnectorTypeModel import ConnectorTypeModel
 from app.domain.models.users.GmailTokensModel import GmailTokensModel
 from app.domain.models.users.ProcessedUserModel import ProcessedUserModel
-from app.domain.models.users.UserForGmailProcessingModel import UserForGmailProcessingModel
+from app.domain.models.users.UserForProcessingModel import UserForProcessingModel
 from app.domain.models.users.processingCredentials import ProcessingCredentialsModel
 from app.domain.models.users.processingCredentials.GmailProcessingCredentialsModel import \
     GmailProcessingCredentialsModel
@@ -40,7 +40,7 @@ class StateTrackingClient(BaseGrpcClient):
             batch_size: int,
             seconds_since_last_process: int,
             service_type: ConnectorTypeModel
-    ) -> list[UserForGmailProcessingModel]:
+    ) -> list[UserForProcessingModel]:
         request = GetUsersForProcessingRequest(
             batch_size=batch_size,
             min_seconds_since_last_process=seconds_since_last_process,
@@ -53,9 +53,10 @@ class StateTrackingClient(BaseGrpcClient):
     async def mark_processed_users(
             self,
             processed_users: list[ProcessedUserModel],
+            service_type: ConnectorTypeModel
     ) -> None:
         request = MarkUsersAsProcessedRequest(
-            service_type=ServiceType.ServiceType_Gmail,
+            service_type=StateTrackingClient.__to_grpc_service_type(service_type),
             users=[StateTrackingClient.__to_grpc_processed_user(user) for user in processed_users]
         )
         await self._stub.MarkUsersAsProcessed(request)
@@ -70,8 +71,8 @@ class StateTrackingClient(BaseGrpcClient):
         raise Exception(f"Unknown service type: {service_type}")
 
     @staticmethod
-    def __to_domain_user(user: UserForProcessing) -> UserForGmailProcessingModel:
-        return UserForGmailProcessingModel(
+    def __to_domain_user(user: UserForProcessing) -> UserForProcessingModel:
+        return UserForProcessingModel(
             user_id=UUID(user.user_id),
             last_processed_at=user.last_processed_at.ToDatetime() if user.HasField('last_processed_at') else None,
             credentials=StateTrackingClient.__to_domain_processing_credentials(user.credentials)

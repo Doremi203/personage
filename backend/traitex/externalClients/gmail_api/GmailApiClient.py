@@ -16,7 +16,7 @@ from googleapiclient.errors import HttpError
 from app.domain.models.events.raw.gmail.EmailAttachment import EmailAttachment
 from app.domain.models.events.raw.gmail.EmailParticipant import EmailParticipant
 from app.domain.models.events.raw.gmail.RawGmailMessage import RawGmailMessage
-from app.domain.models.users.UserForGmailProcessingModel import UserForGmailProcessingModel
+from app.domain.models.users.UserForProcessingModel import UserForProcessingModel
 from app.domain.models.users.processingCredentials.GmailProcessingCredentialsModel import \
     GmailProcessingCredentialsModel
 from externalClients.gmail_api.models.UserGmailFetchResult import UserGmailFetchResult
@@ -164,7 +164,7 @@ class GmailApiClient:
 
     async def fetch_user_messages(
             self,
-            user: UserForGmailProcessingModel,
+            user: UserForProcessingModel,
             last_history_id: int | None = None
     ) -> UserGmailFetchResult:
         if not isinstance(user.credentials, GmailProcessingCredentialsModel):
@@ -240,7 +240,7 @@ class GmailApiClient:
     async def _fetch_history_and_messages(
             self,
             service: googleapiclient.discovery.Resource,
-            user: UserForGmailProcessingModel,
+            user: UserForProcessingModel,
             last_history_id: int
     ) -> UserGmailFetchResult:
         """Fetch history records and then full messages"""
@@ -358,7 +358,7 @@ class GmailApiClient:
 
     async def fetch_batch_messages(
             self,
-            users_with_last_ids: list[Tuple[UserForGmailProcessingModel, int | None]]
+            users_with_last_ids: list[Tuple[UserForProcessingModel, int | None]]
     ) -> dict[UUID, UserGmailFetchResult]:
         tasks = []
         user_map = {}

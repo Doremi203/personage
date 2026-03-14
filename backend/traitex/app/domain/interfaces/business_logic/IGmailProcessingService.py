@@ -1,12 +1,12 @@
 from abc import ABC, abstractmethod
-from app.domain.models.users.UserForGmailProcessingModel import UserForGmailProcessingModel
+from app.domain.models.users.UserForProcessingModel import UserForProcessingModel
 
 
 class IGmailProcessingService(ABC):
     @abstractmethod
-    async def get_users_for_processing(self) -> list[UserForGmailProcessingModel]:
+    async def get_users_for_processing(self) -> list[UserForProcessingModel]:
         pass
 
     @abstractmethod
-    async def process_users_events(self, users_for_processing: list[UserForGmailProcessingModel]) -> None:
+    async def process_users_events(self, users_for_processing: list[UserForProcessingModel]) -> None:
         pass

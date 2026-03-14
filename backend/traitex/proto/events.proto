@@ -56,5 +56,6 @@ message TimeFrame {
 
 message TelegramUser {
   string id = 1;
-  string tag = 2;
+  optional string tag = 2;
+  optional string name = 3;
 }

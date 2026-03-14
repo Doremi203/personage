@@ -5,7 +5,7 @@ from app.domain.models.users.processingCredentials import ProcessingCredentialsM
 
 
 @dataclass(frozen=True)
-class UserForGmailProcessingModel:
+class UserForProcessingModel:
     user_id: UUID
     last_processed_at: datetime | None
     credentials: ProcessingCredentialsModel

@@ -52,7 +52,6 @@ class EventProducer(IEventProducer):
             message_attributes=message_attributes
         )
 
-
     @staticmethod
     def _flatten_event(event: EnrichedEventModel) -> events_pb2.Event:
         proto_event = events_pb2.Event()
@@ -89,7 +88,20 @@ class EventProducer(IEventProducer):
                     context.other_participants.extend([events_pb2.Context.Participant(email=recipient.email)
                                                        for recipient in recipientTrait.recipients])
                 case SenderTrait() as senderTrait:
-                    context.sender.email = senderTrait.identifier.email
+                    if senderTrait.identifier.email:
+                        context.sender.email = senderTrait.identifier.email
+                    if senderTrait.identifier.telegram_id:
+                        telegram_user = events_pb2.TelegramUser(
+                            id=senderTrait.identifier.telegram_id
+                        )
+
+                        if senderTrait.identifier.telegram_tag:
+                            telegram_user.tag = senderTrait.identifier.telegram_tag
+
+                        if senderTrait.identifier.telegram_name:
+                            telegram_user.name = senderTrait.identifier.telegram_name
+
+                        context.sender.telegram_user.CopyFrom(telegram_user)
                 case _:
                     raise Exception(f"Unknown trait type {type(trait)}")
 

@@ -17,11 +17,11 @@ from app.domain.models.traits.SubjectTrait import SubjectTrait
 from app.domain.models.traits.base.TraitModel import TraitModel
 from app.domain.models.traits.common.UserIdentifier import UserIdentifier
 from app.domain.models.users.ProcessedUserModel import ProcessedUserModel
-from app.domain.models.users.UserForGmailProcessingModel import UserForGmailProcessingModel
+from app.domain.models.users.UserForProcessingModel import UserForProcessingModel
 from dataAccess.interfaces.IGmailProcessingRepository import IGmailProcessingRepository
 from dataAccess.interfaces.IProcessingResultsRepository import IProcessingResultsRepository
 from dataAccess.interfaces.IProcessingSnapshotRepository import IProcessingSnapshotRepository
-from dataAccess.models.gmail.UserProcessingInfo import UserProcessingInfo
+from dataAccess.models.gmail.UserGmailProcessingInfo import UserGmailProcessingInfo
 from externalClients.gmail_api.GmailApiClient import GmailApiClient
 from externalClients.gmail_api.models.UserGmailFetchResult import UserGmailFetchResult
 from externalClients.personage_auth.StateTrackingClient import StateTrackingClient
@@ -49,14 +49,14 @@ class GmailProcessingService(IGmailProcessingService):
         self.logger = logging.getLogger("[GmailProcessingService]")
 
 
-    async def get_users_for_processing(self) -> list[UserForGmailProcessingModel]:
+    async def get_users_for_processing(self) -> list[UserForProcessingModel]:
         return await self.state_tracking_client.get_users_for_processing(
             batch_size=GmailProcessingService.USERS_FOR_PROCESSING_BATCH_SIZE,
             seconds_since_last_process=GmailProcessingService.SECONDS_SINCE_LAST_PROCESS,
             service_type=ConnectorTypeModel.Gmail,
         )
 
-    async def process_users_events(self, users_for_processing: list[UserForGmailProcessingModel]) -> None:
+    async def process_users_events(self, users_for_processing: list[UserForProcessingModel]) -> None:
         processing_info = await self.gmail_processing_repository.get_users_processing_info(
             user_ids=[u.user_id for u in users_for_processing]
         )
@@ -84,7 +84,7 @@ class GmailProcessingService(IGmailProcessingService):
 
     async def _process_fetch_results(self, results: dict[UUID, UserGmailFetchResult], retain_processed_messages: bool) -> None:
         successful_fetches = [
-            UserProcessingInfo(user_id=user_id, last_message_history_id=fetch.new_history_id)
+            UserGmailProcessingInfo(user_id=user_id, last_message_history_id=fetch.new_history_id)
             for user_id, fetch in results.items()
             if fetch.success and fetch.new_history_id
         ]
@@ -109,7 +109,8 @@ class GmailProcessingService(IGmailProcessingService):
             [ProcessedUserModel(
                 user_id=user_id,
                 processed_at=user_processed_at_map[user_id] if user_id in user_processed_at_map else current_timestamp,
-            ) for user_id, _ in results.items()]
+            ) for user_id, _ in results.items()],
+            service_type=ConnectorTypeModel.Gmail,
         )
 
     async def _process_user_messages(
@@ -122,7 +123,6 @@ class GmailProcessingService(IGmailProcessingService):
 
         for message in messages:
             enriched_message = GmailProcessingService._enrich_message(user_id, message)
-            self.logger.info(f"Enriched message for user {user_id}: {enriched_message}")
 
             processed_at = datetime.datetime.now(datetime.UTC)
             #TODO: consider batch write
