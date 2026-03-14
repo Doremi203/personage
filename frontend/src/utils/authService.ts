@@ -149,6 +149,39 @@ export async function refreshAccessToken(): Promise<AuthTokens | null> {
   return newTokens;
 }
 
+export async function resetPassword(
+  token: string,
+  newPassword: string,
+): Promise<AuthTokens> {
+  const response = await fetch(`${AUTH_API_URL}/auth/personage/reset-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token, newPassword }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(
+      (error as { message?: string }).message ??
+        `Ошибка сброса пароля: ${response.status}`,
+    );
+  }
+
+  const data = (await response.json()) as {
+    accessToken: string;
+    refreshToken?: string | null;
+  };
+  const tokens: AuthTokens = {
+    accessToken: data.accessToken,
+    refreshToken: data.refreshToken,
+  };
+  setTokens(tokens);
+  // Note: the reset-password response only returns tokens (no email/name),
+  // so userInfo cannot be populated here. The sidebar will show default
+  // values until the user's session is refreshed or they log in again.
+  return tokens;
+}
+
 export async function forgotPassword(
   email: string,
   resetUrlBase: string,

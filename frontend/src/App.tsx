@@ -4,6 +4,7 @@ import ScheduleScreen from './screens/ScheduleScreen';
 import NotificationsScreen from './screens/NotificationsScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import AuthScreen from './screens/AuthScreen';
+import ResetPasswordScreen from './screens/ResetPasswordScreen';
 import Sidebar from './components/Sidebar';
 import PWAInstallPrompt from './components/PWAInstallPrompt';
 import WelcomeScreen from './components/WelcomeScreen';
@@ -13,7 +14,18 @@ const ONBOARDING_KEY = 'personage_onboarding_completed';
 
 type Screen = 'tasks' | 'schedule' | 'notifications' | 'settings';
 
+function getResetToken(): string | null {
+  return new URLSearchParams(window.location.search).get('token');
+}
+
+function clearResetToken(): void {
+  const url = new URL(window.location.href);
+  url.searchParams.delete('token');
+  window.history.replaceState({}, '', url.pathname + url.search);
+}
+
 function App() {
+  const [resetToken] = useState<string | null>(() => getResetToken());
   const [authenticated, setAuthenticated] = useState(() => isAuthenticated());
   const [currentScreen, setCurrentScreen] = useState<Screen>('tasks');
   const [onboardingComplete, setOnboardingComplete] = useState(
@@ -21,6 +33,11 @@ function App() {
   );
 
   const handleAuthSuccess = () => {
+    setAuthenticated(true);
+  };
+
+  const handleResetSuccess = () => {
+    clearResetToken();
     setAuthenticated(true);
   };
 
@@ -33,6 +50,10 @@ function App() {
     localStorage.setItem(ONBOARDING_KEY, 'true');
     setOnboardingComplete(true);
   };
+
+  if (resetToken) {
+    return <ResetPasswordScreen token={resetToken} onSuccess={handleResetSuccess} />;
+  }
 
   if (!authenticated) {
     return <AuthScreen onAuthSuccess={handleAuthSuccess} />;
