@@ -25,7 +25,7 @@ function clearResetToken(): void {
 }
 
 function App() {
-  const [resetToken] = useState<string | null>(() => getResetToken());
+  const [resetToken, setResetToken] = useState<string | null>(() => getResetToken());
   const [authenticated, setAuthenticated] = useState(() => isAuthenticated());
   const [currentScreen, setCurrentScreen] = useState<Screen>('tasks');
   const [onboardingComplete, setOnboardingComplete] = useState(
@@ -38,6 +38,7 @@ function App() {
 
   const handleResetSuccess = () => {
     clearResetToken();
+    setResetToken(null);
     setAuthenticated(true);
   };
 
