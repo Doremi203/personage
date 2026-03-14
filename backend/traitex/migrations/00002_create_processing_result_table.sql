@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS processing_result (
     event        JSONB NOT NULL
 );
 
-CREATE INDEX idx_processing_result_processed_at
+CREATE INDEX IF NOT EXISTS idx_processing_result_processed_at
     ON processing_result (processed_at);
 -- +goose StatementEnd
 

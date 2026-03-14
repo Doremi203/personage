@@ -2,12 +2,12 @@ from abc import ABC, abstractmethod
 
 from app.domain.models.ConnectorTypeModel import ConnectorTypeModel
 from app.domain.models.users.ProcessedUserModel import ProcessedUserModel
-from app.domain.models.users.UserForGmailProcessingModel import UserForGmailProcessingModel
+from app.domain.models.users.UserForProcessingModel import UserForProcessingModel
 
 
 class IUserService(ABC):
     @abstractmethod
-    def get_users_for_processing(self) -> list[UserForGmailProcessingModel]:
+    def get_users_for_processing(self) -> list[UserForProcessingModel]:
         pass
 
     @abstractmethod

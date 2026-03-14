@@ -4,14 +4,14 @@ from pydapper.commands import CommandsAsync
 
 from dataAccess.infrastructure.IPgConnectionProvider import IPgConnectionProvider
 from dataAccess.interfaces.IGmailProcessingRepository import IGmailProcessingRepository
-from dataAccess.models.gmail.UserProcessingInfo import UserProcessingInfo
+from dataAccess.models.gmail.UserGmailProcessingInfo import UserGmailProcessingInfo
 
 
 class GmailProcessingRepository(IGmailProcessingRepository):
     def __init__(self, connection_provider: IPgConnectionProvider):
         self.connection_provider = connection_provider
 
-    async def get_users_processing_info(self, user_ids: list[UUID]) -> list[UserProcessingInfo]:
+    async def get_users_processing_info(self, user_ids: list[UUID]) -> list[UserGmailProcessingInfo]:
         async with self.connection_provider.get_connection() as commands:
             commands: CommandsAsync
 
@@ -25,12 +25,12 @@ class GmailProcessingRepository(IGmailProcessingRepository):
                 WHERE gp.user_id = any(?userIds?);
                 ''',
                 param={"userIds": user_ids},
-                model=UserProcessingInfo
+                model=UserGmailProcessingInfo
             )
 
     async def get_all_users_processing_info(
             self
-    ) -> list[UserProcessingInfo]:
+    ) -> list[UserGmailProcessingInfo]:
         async with self.connection_provider.get_connection() as commands:
             commands: CommandsAsync
 
@@ -42,10 +42,10 @@ class GmailProcessingRepository(IGmailProcessingRepository):
                     gp.last_message_history_id
                 FROM gmail_processing gp;
                 ''',
-                model=UserProcessingInfo
+                model=UserGmailProcessingInfo
             )
 
-    async def save_users_processing_info(self, users_processing_info: list[UserProcessingInfo]) -> None:
+    async def save_users_processing_info(self, users_processing_info: list[UserGmailProcessingInfo]) -> None:
         async with self.connection_provider.get_connection() as commands:
             commands: CommandsAsync
 

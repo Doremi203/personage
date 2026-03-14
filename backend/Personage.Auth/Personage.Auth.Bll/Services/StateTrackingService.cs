@@ -13,6 +13,7 @@ namespace Personage.Auth.Bll.Services;
 
 public class StateTrackingService(
     IGmailTokenRepository gmailTokenRepository,
+    ITelegramSessionRepository telegramSessionRepository,
     IGoogleOAuthService googleOAuthService,
     IUserRepository userRepository,
     ILogger<StateTrackingService> logger
@@ -24,7 +25,7 @@ public class StateTrackingService(
         GetUsersForProcessingRequestModel request, CancellationToken ct)
     {
         var processedUntilMoment = DateTime.UtcNow.AddSeconds(-request.MinSecondsSinceLastProcess);
-        
+
         return request.ServiceType switch
         {
             ServiceTypeModel.Gmail => await GetUsersForGmailProcessing(request.BatchSize,
@@ -49,7 +50,7 @@ public class StateTrackingService(
         var expiringTokens = users
             .Where(x => x.Token.ExpiresAt <= DateTime.UtcNow.AddMinutes(TokenExpirationThresholdMinutes))
             .ToList();
-        
+
         var refreshTasks = expiringTokens.Select(async expiringToken =>
         {
             try
@@ -98,7 +99,7 @@ public class StateTrackingService(
     {
         var refreshedToken = await googleOAuthService.RefreshToken(
             user.Token.RefreshToken, ct);
-        
+
         var newRefreshToken = refreshedToken.RefreshToken ?? user.Token.RefreshToken;
 
         await gmailTokenRepository.UpdateToken(
@@ -107,7 +108,7 @@ public class StateTrackingService(
             newRefreshToken,
             refreshedToken.ExpiresAt,
             ct);
-        
+
         user.Token.AccessToken = refreshedToken.AccessToken;
         user.Token.RefreshToken = newRefreshToken;
         user.Token.ExpiresAt = refreshedToken.ExpiresAt;
@@ -115,10 +116,6 @@ public class StateTrackingService(
 
     public async Task MarkUsersAsProcessed(MarkUsersAsProcessedRequestModel request, CancellationToken ct)
     {
-        if (request.ServiceType is not ServiceTypeModel.Gmail)
-            throw new ServiceTypeNotSupportedException(
-                $"Service type {request.ServiceType} is not supported for {nameof(MarkUsersAsProcessed)}");
-
         var userIds = request.Users.Select(u => u.UserId).ToArray();
         var duplicatedUsers = userIds
             .GroupBy(x => x)
@@ -131,7 +128,29 @@ public class StateTrackingService(
                 ErrorCode.DuplicatedUsersForbidden,
                 $"Users must be unique. Duplicated users: [{string.Join(", ", duplicatedUsers)}]");
 
-        var usersWithoutToken = await gmailTokenRepository.GetUsersWithoutToken(userIds, ct);
+        var usersToMark = request.Users.Select(x => (x.UserId, x.ProcessedAt)).ToArray();
+        switch (request.ServiceType)
+        {
+            case ServiceTypeModel.Gmail:
+                await MarkGmailUsersAsProcessedAndVerify(usersToMark, ct);
+                break;
+
+            case ServiceTypeModel.Telegram:
+                await telegramSessionRepository.MarkUsersAsProcessed(usersToMark, ct);
+                break;
+
+            case ServiceTypeModel.Unknown:
+            default:
+                throw new ServiceTypeNotSupportedException(
+                    $"Service type {request.ServiceType} is not supported for {nameof(MarkUsersAsProcessed)}");
+        }
+    }
+
+    private async Task MarkGmailUsersAsProcessedAndVerify((Guid UserId, DateTime ProcessedAt)[] users,
+        CancellationToken ct)
+    {
+        var usersWithoutToken =
+            await gmailTokenRepository.GetUsersWithoutToken(users.Select(x => x.UserId).ToArray(), ct);
         if (usersWithoutToken.Length != 0)
         {
             logger.LogError("Attempt to mark users processing for users with no gmail access: {@UsersWithoutToken}",
@@ -143,8 +162,7 @@ public class StateTrackingService(
             );
         }
 
-        await userRepository.MarkUsersAsProcessed(
-            request.Users.Select(x => (x.UserId, x.ProcessedAt)).ToArray(), ct);
+        await gmailTokenRepository.MarkUsersAsProcessed(users, ct);
     }
 
     private static UserForProcessingModel MapGmailUser(UserWithToken model)

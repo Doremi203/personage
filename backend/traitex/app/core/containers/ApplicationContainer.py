@@ -69,6 +69,10 @@ def create_application_container(config: Configuration) -> ApplicationContainer:
             "client_id": config.get("Gmail.ClientId", ""),
             "client_secret": config.get("Gmail.ClientSecret", "")
         },
+        "telegram": {
+            "api_id": config.get("Telegram.ApiId"),
+            "api_hash": config.get("Telegram.ApiHash"),
+        },
         "application": {
             "batch_size": config.get("Application.BatchSize", 10),
             "seconds_since_last_process": config.get("Application.SecondsSinceLastProcess", 60)

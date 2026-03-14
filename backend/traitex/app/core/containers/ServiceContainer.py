@@ -3,6 +3,7 @@ from dependency_injector import providers, containers
 from app.services.CommonProcessingService import CommonProcessingService
 from app.services.DebugService import DebugService
 from app.services.GmailProcessingService import GmailProcessingService
+from app.services.TelegramProcessingService import TelegramProcessingService
 from messaging.EventProducer import EventProducer
 
 
@@ -25,6 +26,16 @@ class ServiceContainer(containers.DeclarativeContainer):
         event_producer=event_producer,
         processing_results_repository=repositories.processing_results_repository,
         processing_snapshot_repository=repositories.processing_snapshot_repository,
+    )
+
+    telegram_processing_service = providers.Factory(
+        TelegramProcessingService,
+        telegram_processing_repository=repositories.telegram_processing_repository,
+        processing_results_repository=repositories.processing_results_repository,
+        processing_snapshot_repository=repositories.processing_snapshot_repository,
+        state_tracking_client=clients.state_tracking_client,
+        telegram_api_client=clients.telegram_api_client,
+        event_producer=event_producer
     )
 
     common_processing_service = providers.Factory(

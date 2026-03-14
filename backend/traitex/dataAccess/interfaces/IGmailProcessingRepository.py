@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from uuid import UUID
 
-from dataAccess.models.gmail.UserProcessingInfo import UserProcessingInfo
+from dataAccess.models.gmail.UserGmailProcessingInfo import UserGmailProcessingInfo
 
 
 class IGmailProcessingRepository(ABC):
@@ -9,19 +9,19 @@ class IGmailProcessingRepository(ABC):
     async def get_users_processing_info(
             self,
             user_ids: list[UUID]
-    ) -> list[UserProcessingInfo]:
+    ) -> list[UserGmailProcessingInfo]:
         pass
 
     @abstractmethod
     async def get_all_users_processing_info(
             self
-    ) -> list[UserProcessingInfo]:
+    ) -> list[UserGmailProcessingInfo]:
         pass
 
     @abstractmethod
     async def save_users_processing_info(
             self,
-            users_processing_info: list[UserProcessingInfo]
+            users_processing_info: list[UserGmailProcessingInfo]
     ) -> None:
         pass
 

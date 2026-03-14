@@ -210,14 +210,22 @@ class TelegramUser(google.protobuf.message.Message):
 
     ID_FIELD_NUMBER: builtins.int
     TAG_FIELD_NUMBER: builtins.int
+    NAME_FIELD_NUMBER: builtins.int
     id: builtins.str
     tag: builtins.str
+    name: builtins.str
     def __init__(
         self,
         *,
         id: builtins.str = ...,
-        tag: builtins.str = ...,
+        tag: builtins.str | None = ...,
+        name: builtins.str | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing.Literal["id", b"id", "tag", b"tag"]) -> None: ...
+    def HasField(self, field_name: typing.Literal["_name", b"_name", "_tag", b"_tag", "name", b"name", "tag", b"tag"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing.Literal["_name", b"_name", "_tag", b"_tag", "id", b"id", "name", b"name", "tag", b"tag"]) -> None: ...
+    @typing.overload
+    def WhichOneof(self, oneof_group: typing.Literal["_name", b"_name"]) -> typing.Literal["name"] | None: ...
+    @typing.overload
+    def WhichOneof(self, oneof_group: typing.Literal["_tag", b"_tag"]) -> typing.Literal["tag"] | None: ...
 
 Global___TelegramUser: typing_extensions.TypeAlias = TelegramUser
