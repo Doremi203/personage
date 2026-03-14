@@ -8,19 +8,30 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install Python dependencies
-COPY requirements.txt ./
+COPY traitex/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy source code
-COPY . .
+# Copy traitex source code
+COPY traitex/ ./
 
-# Generate protobuf Python classes
+# Copy external Personage.Auth proto source files for generation
+COPY Personage.Auth/Personage.Auth.Api/Protos/*.proto ./externalClients/personage_auth/proto/
+
+# Generate protobuf Python classes for internal proto files
 RUN python3 -m grpc_tools.protoc \
     -I=./proto \
     --python_out=./proto \
     --grpc_python_out=./proto \
     --mypy_out=./proto \
     proto/*.proto
+
+# Generate protobuf Python classes for external Personage.Auth proto files
+RUN python3 -m grpc_tools.protoc \
+    -I=./externalClients/personage_auth/proto \
+    --python_out=./externalClients/personage_auth/proto \
+    --grpc_python_out=./externalClients/personage_auth/proto \
+    --mypy_out=./externalClients/personage_auth/proto \
+    externalClients/personage_auth/proto/*.proto
 
 FROM alpine AS certs
 
