@@ -5,6 +5,7 @@ using MailKit.Security;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MimeKit;
+using Personage.Auth.Bll.Resources;
 using Personage.Auth.Domain.Configuration;
 using Personage.Auth.Domain.Interfaces;
 using Personage.Auth.Domain.Models.Postbox.Requests;
@@ -66,19 +67,12 @@ public class PostboxService(
         CancellationToken ct
     )
     {
-        const string subject = "Reset your password";
-        //TODO: add proper password reset email content
-        var htmlBody = $"""
-                                    <h2>Password Reset Request</h2>
-                                    <p>Click the link below to reset your password. This link will expire in 1 hour.</p>
-                                    <p><a href='{resetUrl}'>Reset Password</a></p>
-                                    <p>If you didn't request this, please ignore this email.</p>
-                        """;
-
+        var htmlBody = string.Format(EmailTemplates.PasswordResetHtml, resetUrl);
+    
         await SendEmailAsync(new SendEmailRequestModel
         {
             To = email,
-            Subject = subject,
+            Subject = EmailTemplates.PasswordResetSubject,
             HtmlBody = htmlBody
         }, ct);
     }
