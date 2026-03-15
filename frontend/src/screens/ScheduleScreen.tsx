@@ -9,6 +9,7 @@ import {
   ApiTaskPriority,
   ApiTaskCategory,
 } from '../utils/taskerService';
+import { toYYYYMMDD } from '../utils/dateUtils';
 
 export type ViewMode = 'week' | 'day';
 
@@ -49,7 +50,8 @@ function mapApiTaskToEvent(task: ApiTaskItem): ScheduleEvent | null {
   if (!task.startTime) return null;
   const startHHMM = toHHMM(task.startTime);
   const endHHMM = task.endTime ? toHHMM(task.endTime) : startHHMM;
-  const date = new Date(task.startTime).toISOString().split('T')[0];
+  // Use local date so early-morning events in UTC- zones land on the correct day
+  const date = toYYYYMMDD(new Date(task.startTime));
   return {
     id: task.id,
     title: task.title,

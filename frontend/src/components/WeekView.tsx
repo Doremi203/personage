@@ -1,5 +1,5 @@
 import { ScheduleEvent } from '../screens/ScheduleScreen';
-import { toYYYYMMDD } from '../utils/dateUtils';
+import { toYYYYMMDD, layoutEvents, SLOT_HEIGHT_PX } from '../utils/dateUtils';
 
 interface WeekViewProps {
   events: ScheduleEvent[];
@@ -41,9 +41,9 @@ const WeekView = ({ events, currentDate }: WeekViewProps) => {
     const [startHour, startMinute] = event.startTime.split(':').map(Number);
     const [endHour, endMinute] = event.endTime.split(':').map(Number);
 
-    const top = ((startHour - 8) * 60 + startMinute) * (80 / 60);
+    const top = ((startHour - 8) * 60 + startMinute) * (SLOT_HEIGHT_PX / 60);
     const duration = (endHour * 60 + endMinute) - (startHour * 60 + startMinute);
-    const height = duration * (80 / 60);
+    const height = Math.max(duration * (SLOT_HEIGHT_PX / 60), 16);
 
     return { top, height };
   };
@@ -55,12 +55,13 @@ const WeekView = ({ events, currentDate }: WeekViewProps) => {
 
   return (
     <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-      <div className="grid grid-cols-8 border-b border-gray-200">
-        <div className="w-20 p-4" />
+      {/* Header row */}
+      <div className="flex border-b border-gray-200">
+        <div className="w-20 flex-shrink-0 p-4" />
         {weekDays.map((day, index) => (
           <div
             key={index}
-            className={`p-4 text-center border-l border-gray-200 ${
+            className={`flex-1 p-4 text-center border-l border-gray-200 ${
               isToday(day) ? 'bg-[#5C6BFF]/5' : ''
             }`}
           >
@@ -78,18 +79,25 @@ const WeekView = ({ events, currentDate }: WeekViewProps) => {
         ))}
       </div>
 
-      <div className="relative">
-        <div className="grid grid-cols-8">
-          <div className="w-20">
-            {hours.map((hour) => (
-              <div key={hour} className="h-20 p-2 text-xs text-gray-500 text-right border-b border-gray-100">
-                {hour.toString().padStart(2, '0')}:00
-              </div>
-            ))}
-          </div>
+      {/* Time grid */}
+      <div className="flex">
+        {/* Hour labels */}
+        <div className="w-20 flex-shrink-0">
+          {hours.map((hour) => (
+            <div key={hour} className="h-20 p-2 text-xs text-gray-500 text-right border-b border-gray-100">
+              {hour.toString().padStart(2, '0')}:00
+            </div>
+          ))}
+        </div>
 
-          {weekDays.map((day, dayIndex) => (
-            <div key={dayIndex} className="relative border-l border-gray-200">
+        {/* Day columns */}
+        {weekDays.map((day, dayIndex) => {
+          const dayEvents = events.filter(
+            (event) => event.date === toYYYYMMDD(day)
+          );
+          const layouts = layoutEvents(dayEvents);
+          return (
+            <div key={dayIndex} className="flex-1 relative border-l border-gray-200 overflow-hidden">
               {hours.map((hour) => (
                 <div
                   key={hour}
@@ -97,31 +105,33 @@ const WeekView = ({ events, currentDate }: WeekViewProps) => {
                 />
               ))}
 
-              {events
-                .filter((event) => {
-                  // Compare YYYY-MM-DD strings to avoid UTC-vs-local day shift
-                  return event.date === toYYYYMMDD(day);
-                })
-                .map((event) => {
-                  const { top, height } = getEventPosition(event);
-                  return (
-                    <div
-                      key={event.id}
-                      className={`absolute left-1 right-1 rounded-lg border-l-4 p-2 text-white shadow-lg cursor-pointer hover:shadow-xl transition-shadow ${getPriorityColor(
-                        event.priority
-                      )}`}
-                      style={{ top: `${top}px`, height: `${height}px` }}
-                    >
-                      <div className="text-xs font-semibold line-clamp-1">{event.title}</div>
-                      <div className="text-xs opacity-90 mt-0.5">
-                        {event.startTime} - {event.endTime}
-                      </div>
+              {layouts.map(({ id, col, totalCols }) => {
+                const event = dayEvents.find((e) => e.id === id)!;
+                const { top, height } = getEventPosition(event);
+                const pct = 100 / totalCols;
+                return (
+                  <div
+                    key={event.id}
+                    className={`absolute rounded-lg border-l-4 p-1 text-white shadow-lg cursor-pointer hover:shadow-xl transition-shadow overflow-hidden ${getPriorityColor(
+                      event.priority
+                    )}`}
+                    style={{
+                      top: `${top}px`,
+                      height: `${height}px`,
+                      left: `calc(${col * pct}% + 1px)`,
+                      width: `calc(${pct}% - 2px)`,
+                    }}
+                  >
+                    <div className="text-xs font-semibold line-clamp-1">{event.title}</div>
+                    <div className="text-xs opacity-90">
+                      {event.startTime}–{event.endTime}
                     </div>
-                  );
-                })}
+                  </div>
+                );
+              })}
             </div>
-          ))}
-        </div>
+          );
+        })}
       </div>
     </div>
   );
