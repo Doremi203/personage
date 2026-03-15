@@ -3,10 +3,11 @@ using Npgsql;
 using Microsoft.Extensions.Logging.Console;
 using Microsoft.Extensions.Options;
 using Personage.Auth.Api.Configuration;
-using Personage.Auth.Api.Extensions;
+using Personage.Auth.Api.Contracts.Common;
 using Personage.Auth.Api.GrpcServices;
 using Personage.Auth.Api.Logging;
 using Personage.Auth.Api.Middleware;
+using Personage.Auth.Api.Middleware.Rest;
 using Personage.Auth.Bll.Services;
 using Personage.Auth.DataAccess;
 using Personage.Auth.DataAccess.Interfaces;
@@ -105,6 +106,8 @@ public class Program
 
     private static void ConfigureMiddleware(WebApplication app)
     {
+        app.UseMiddleware<ExceptionHandlingMiddleware>();
+        
         app.UseSwagger();
         app.UseSwaggerUI(c =>
         {
@@ -136,6 +139,17 @@ public class Program
                 Title = "Personage.Auth API",
                 Version = "v1",
                 Description = "Authentication API with gRPC and REST endpoints"
+            });
+            
+            c.MapType<ErrorResponse>(() => new Microsoft.OpenApi.Models.OpenApiSchema
+            {
+                Type = "object",
+                Properties = new Dictionary<string, Microsoft.OpenApi.Models.OpenApiSchema>
+                {
+                    ["errorCode"] = new() { Type = "string" },
+                    ["message"] = new() { Type = "string" },
+                    ["statusCode"] = new() { Type = "integer" }
+                }
             });
         });
     }
