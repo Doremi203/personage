@@ -189,7 +189,7 @@ message   ListTasksV1Request {
     }
   ];
   int32 page_size = 6 [
-    (validate.rules).int32 = {gte: 1, lte: 20}
+    (validate.rules).int32 = {gte: 1, lte: 150}
   ];
   int32 page = 7 [
     (validate.rules).int32 = {gte: 1}

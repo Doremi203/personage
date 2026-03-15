@@ -12,6 +12,7 @@ type GeneratedTask struct {
 	Priority        int
 	Deadline        *time.Time
 	StartTime       *time.Time
+	Category        string
 }
 
 type TaskGenerationService interface {

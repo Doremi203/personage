@@ -26,6 +26,7 @@ Guidelines:
 - Duration: Realistic time estimate in minutes
 - Priority: 1-10 scale (1=low, 10=urgent/critical)
 - Deadline/StartTime: Extract from events if explicitly mentioned, otherwise null
+- Category: Сhoose the most suitable one: work, study, personal
 
 Keep it concise - this is for quick task tracking, not project management.
 
@@ -36,7 +37,8 @@ Respond with valid JSON only:
   "duration_minutes": number,
   "priority": number,
   "deadline": "ISO8601 or null",
-  "start_time": "ISO8601 or null"
+  "start_time": "ISO8601 or null",
+  "category": "work|study|personal"
 }`),
 	schema.UserMessage("Events:\n{{.events}}"),
 )
@@ -93,6 +95,7 @@ type llmTaskResponse struct {
 	Priority        int     `json:"priority"`
 	Deadline        *string `json:"deadline"`
 	StartTime       *string `json:"start_time"`
+	Category        string  `json:"category"`
 }
 
 func (s *taskGenerationService) parseResponse(responseText string) (domain.GeneratedTask, error) {
@@ -111,6 +114,7 @@ func (s *taskGenerationService) parseResponse(responseText string) (domain.Gener
 		Description:     llmResp.Description,
 		DurationMinutes: llmResp.DurationMinutes,
 		Priority:        llmResp.Priority,
+		Category:        llmResp.Category,
 	}
 
 	if llmResp.Deadline != nil && *llmResp.Deadline != "" && *llmResp.Deadline != "null" {

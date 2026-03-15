@@ -135,6 +135,7 @@ func (uc *UseCase) processCluster(ctx context.Context, cluster domain.Cluster) e
 		Deadline:    generatedTask.Deadline,
 		StartTime:   generatedTask.StartTime,
 		Status:      domain.TaskStatusUnplanned,
+		Category:    domain.NewTaskCategory(generatedTask.Category),
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}

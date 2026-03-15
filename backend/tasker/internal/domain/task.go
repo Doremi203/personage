@@ -16,6 +16,20 @@ const (
 	TaskStatusCompleted TaskStatus = "completed"
 )
 
+func NewTaskCategory(s string) TaskCategory {
+	switch s {
+	case "work":
+		return TaskCategoryWork
+	case "study":
+		return TaskCategoryStudy
+	case "personal":
+		return TaskCategoryPersonal
+	default:
+		// Default to "personal" if the input is unrecognized
+		return TaskCategoryPersonal
+	}
+}
+
 type TaskCategory string
 
 func (t TaskCategory) String() string {
