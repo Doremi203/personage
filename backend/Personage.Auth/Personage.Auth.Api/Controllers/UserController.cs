@@ -15,6 +15,8 @@ public class UserController(IUserService userService) : ControllerBase
     [Authorize]
     [ProducesResponseType(typeof(UserInfo), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<UserInfo>> GetUserInfo(CancellationToken ct)
     {
         var user = await userService.GetUserInfo(ct);

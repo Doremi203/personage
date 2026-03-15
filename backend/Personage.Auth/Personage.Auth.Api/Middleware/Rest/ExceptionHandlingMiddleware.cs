@@ -4,7 +4,7 @@ using Personage.Auth.Domain.Exceptions.Base;
 
 namespace Personage.Auth.Api.Middleware.Rest;
 
-public class ExceptionHandlingMiddleware(RequestDelegate next)
+public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<ExceptionHandlingMiddleware> logger)
 {
     private readonly JsonSerializerOptions _jsonOptions = new()
     {
@@ -27,6 +27,26 @@ public class ExceptionHandlingMiddleware(RequestDelegate next)
     {
         var (statusCode, errorCode, message) = GetExceptionDetails(exception);
 
+
+        if (exception is CustomException customException)
+        {
+            logger.LogWarning(exception,
+                "Handled domain exception in {Middleware}. StatusCode: {StatusCode}, ErrorCode: {ErrorCode}, Message: {Message}",
+                nameof(ExceptionHandlingMiddleware),
+                statusCode,
+                customException.ErrorCode,
+                message);
+        }
+        else
+        {
+            logger.LogError(exception,
+                "Unhandled exception in {Middleware}. StatusCode: {StatusCode}, ErrorCode: {ErrorCode}, Message: {Message}",
+                nameof(ExceptionHandlingMiddleware),
+                statusCode,
+                errorCode,
+                message);
+        }
+
         var errorResponse = new ErrorResponse(errorCode, message, statusCode);
 
         context.Response.ContentType = "application/json";
@@ -48,9 +68,9 @@ public class ExceptionHandlingMiddleware(RequestDelegate next)
     {
         var statusCode = GetHttpStatusCode(customEx);
         var message = customEx.Message;
-        if(customEx is AuthenticationException)
+        if (customEx is AuthenticationException)
             message = "Authentication exception. Please log in again.";
-        
+
         return (
             statusCode,
             customEx.ErrorCode,

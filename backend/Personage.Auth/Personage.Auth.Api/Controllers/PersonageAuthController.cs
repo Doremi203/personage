@@ -79,7 +79,7 @@ public class PersonageAuthController(IAuthService authService) : ControllerBase
 
     [HttpPost("reset-password")]
     [ProducesResponseType(typeof(PersonageAuthResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<PersonageAuthResponse>> ResetPassword(
         [FromBody] ResetPasswordRequest request,
         CancellationToken ct)

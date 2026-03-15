@@ -28,7 +28,7 @@ public class GmailAuthController(
     }
     
     [HttpPost("callback")]
-    [ProducesResponseType(typeof(StartAuthResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(AuthCallbackResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<AuthCallbackResponse>> HandleGmailCallback([FromBody] AuthCallbackRequest request, CancellationToken ct)
     {
