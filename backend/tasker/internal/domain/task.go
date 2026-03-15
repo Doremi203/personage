@@ -32,7 +32,7 @@ func NewTaskCategory(s string) TaskCategory {
 
 type TaskCategory string
 
-func (t TaskCategory) String() string {
+func (t TaskCategory) StringRu() string {
 	switch t {
 	case TaskCategoryWork:
 		return "Работа"

@@ -131,7 +131,7 @@ func (n *upcomingEventNotifier) formatUpcomingEventBody(task domain.Task) string
 	}
 
 	if task.Category != "" {
-		body += n.printer.Sprintf(" • Категория: %s", task.Category.String())
+		body += n.printer.Sprintf(" • Категория: %s", task.Category.StringRu())
 	}
 
 	return body
