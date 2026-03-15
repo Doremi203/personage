@@ -283,6 +283,7 @@ async def store_session_in_auth_service(user_id: str, session_string: str):
 
     except Exception as e:
         logger.error("Failed to store session via gRPC", error=str(e), user_id=user_id)
+        raise
 
 
 @app.exception_handler(Exception)

@@ -10,8 +10,7 @@ namespace Personage.Auth.Api.Controllers;
 [ApiController]
 [Route("auth/gmail")]
 public class GmailAuthController(
-    IAuthService authService,
-    ILogger<GmailAuthController> logger
+    IAuthService authService
 ) : ControllerBase
 {
     [HttpPost("authorize")]

@@ -14,8 +14,4 @@
       <PackageReference Include="Microsoft.Extensions.Options" Version="9.0.11" />
     </ItemGroup>
 
-    <ItemGroup>
-      <Folder Include="Models\Auth\Responses\" />
-    </ItemGroup>
-
 </Project>

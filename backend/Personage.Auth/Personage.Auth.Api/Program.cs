@@ -1,7 +1,9 @@
+using System.Security.Cryptography;
 using DotNetEnv;
 using Npgsql;
 using Microsoft.Extensions.Logging.Console;
 using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
 using Personage.Auth.Api.Configuration;
 using Personage.Auth.Api.Contracts.Common;
 using Personage.Auth.Api.GrpcServices;
@@ -15,6 +17,8 @@ using Personage.Auth.DataAccess.Interfaces.Repositories;
 using Personage.Auth.DataAccess.Repositories;
 using Personage.Auth.Domain.Configuration;
 using Personage.Auth.Domain.Interfaces;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+
 
 namespace Personage.Auth.Api;
 
@@ -94,11 +98,14 @@ public class Program
         services.AddScoped<IDbConnectionFactory, DbConnectionFactory>();
         services.AddSingleton<ExceptionInterceptor>();
         
+        services.AddHttpContextAccessor();
+        
         ConfigureSettings(services, configuration, environment);
         AddRepositories(services);
         AddBllServices(services);
         
         AddReflectionAndSwagger(services);
+        AddAuthentication(services, configuration);
         AddCors(services, configuration);
         
         services.AddControllers();
@@ -126,6 +133,31 @@ public class Program
         
         app.MapControllers();
     }
+
+    private static void AddAuthentication(
+        IServiceCollection services, 
+        IConfiguration configuration
+        )
+    {
+        services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+            .AddJwtBearer(options =>
+            {
+                var jwtSettings = configuration.GetSection(nameof(JwtSettings)).Get<JwtSettings>();
+            
+                options.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuer = true,
+                    ValidIssuer = jwtSettings!.Issuer,
+                    ValidateAudience = true,
+                    ValidAudience = jwtSettings.Audience,
+                    ValidateLifetime = true,
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKey = CreateRsaSecurityKeyFromPublicKeyPem(jwtSettings.PublicKeyPem)
+                };
+            });
+
+        services.AddAuthorization();
+    }
     
     private static void AddReflectionAndSwagger(IServiceCollection services)
     {
@@ -138,6 +170,30 @@ public class Program
                 Title = "Personage.Auth API",
                 Version = "v1",
                 Description = "Authentication API with gRPC and REST endpoints"
+            });
+            
+            c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+            {
+                Description = "JWT Authorization header using the Bearer scheme. Enter 'Bearer' [space] and then your token",
+                Name = "Authorization",
+                In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+                Type = Microsoft.OpenApi.Models.SecuritySchemeType.ApiKey,
+                Scheme = "Bearer"
+            });
+
+            c.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+            {
+                {
+                    new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+                    {
+                        Reference = new Microsoft.OpenApi.Models.OpenApiReference
+                        {
+                            Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+                            Id = "Bearer"
+                        }
+                    },
+                    Array.Empty<string>()
+                }
             });
             
             c.MapType<ErrorResponse>(() => new Microsoft.OpenApi.Models.OpenApiSchema
@@ -170,6 +226,8 @@ public class Program
         services.AddScoped<IGoogleOAuthService, GoogleOAuthService>();
         services.AddScoped<IPostboxService, PostboxService>();
         services.AddScoped<ITelegramAuthService, TelegramAuthService>();
+        services.AddScoped<IClaimValues, ClaimValues>();
+        services.AddScoped<IUserService, UserService>();
         services.AddHttpClient<IGoogleOAuthService, GoogleOAuthService>();
     }
 
@@ -207,11 +265,16 @@ public class Program
     private static void AddCors(IServiceCollection services, ConfigurationManager configuration)
     {
         var corsSettings = configuration.GetSection("Cors");
-        var allowedOrigins = corsSettings.GetSection("AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
-        var allowedMethods = corsSettings.GetSection("AllowedMethods").Get<string[]>() ?? new[] { "GET", "POST", "PUT", "DELETE", "OPTIONS" };
-        var allowedHeaders = corsSettings.GetSection("AllowedHeaders").Get<string[]>() ?? new[] { "Content-Type", "Authorization" };
-        var allowCredentials = corsSettings.GetValue<bool>("AllowCredentials", true);
-        var exposedHeaders = corsSettings.GetSection("ExposedHeaders").Get<string[]>() ?? Array.Empty<string>();
+        var allowedOrigins = corsSettings.GetSection("AllowedOrigins").Get<string[]>() ?? [];
+        var allowedMethods = corsSettings.GetSection("AllowedMethods").Get<string[]>() ??
+        [
+            "GET", "POST", "PUT", "DELETE", "OPTIONS"
+        ];
+        var allowedHeaders = corsSettings.GetSection("AllowedHeaders").Get<string[]>() ??
+        [
+            "Content-Type", "Authorization"
+        ];
+        var exposedHeaders = corsSettings.GetSection("ExposedHeaders").Get<string[]>() ?? [];
 
         services.AddCors(options =>
         {
@@ -237,5 +300,25 @@ public class Program
                 }
             });
         });
+    }
+    
+    private static RsaSecurityKey CreateRsaSecurityKeyFromPublicKeyPem(string publicKeyPem)
+    {
+        if (string.IsNullOrWhiteSpace(publicKeyPem))
+            throw new InvalidOperationException("Public key PEM is not configured");
+        
+        var pem = publicKeyPem
+            .Replace("-----BEGIN PUBLIC KEY-----", "")
+            .Replace("-----END PUBLIC KEY-----", "")
+            .Replace("\n", "")
+            .Replace("\r", "")
+            .Trim();
+
+        var keyBytes = Convert.FromBase64String(pem);
+    
+        var rsa = RSA.Create();
+        rsa.ImportSubjectPublicKeyInfo(keyBytes, out _);
+    
+        return new RsaSecurityKey(rsa);
     }
 }

@@ -40,7 +40,7 @@ public class AuthService(
     public async Task<StartGmailAuthResponseModel> StartGmailAuth(string userEmail, string redirectUri,
         CancellationToken ct)
     {
-        UserValidator.ValidatePassword(userEmail);
+        UserValidator.ValidateEmail(userEmail);
         //get user id from claims here and use it to check user and assign tokens
         if (await userRepository.GetUserByEmail(userEmail, ct) is null)
         {

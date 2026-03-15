@@ -47,11 +47,14 @@ public class ExceptionHandlingMiddleware(RequestDelegate next)
     private (int StatusCode, ErrorCode ErrorCode, string Message) HandleCustomException(CustomException customEx)
     {
         var statusCode = GetHttpStatusCode(customEx);
+        var message = customEx.Message;
+        if(customEx is AuthenticationException)
+            message = "Authentication exception. Please log in again.";
         
         return (
             statusCode,
             customEx.ErrorCode,
-            customEx.Message
+            message
         );
     }
 

@@ -30,6 +30,27 @@ public class GmailTokenRepository(IDbConnectionFactory connectionFactory) : IGma
             new { userEmail });
     }
 
+    public async Task<GmailTokenWithId?> GetTokenByUserId(Guid userId, CancellationToken ct)
+    {
+        using var connection = await connectionFactory.CreateConnection(ct);
+        
+        return await connection.QueryFirstOrDefaultAsync<GmailTokenWithId>(
+            """
+            --GmailTokenRepository.GetTokenByUserId
+            SELECT
+                gt.id as Id,
+                gt.user_id as UserId,
+                gt.access_token as AccessToken, 
+                gt.refresh_token as RefreshToken,
+                gt.expires_at as ExpiresAt,
+                gt.gmail_email as GmailEmail,
+                gt.created_at as CreatedAt
+            FROM gmail_token gt
+            WHERE gt.user_id = @userId;
+            """,
+            new { userId });
+    }
+
     public async Task SaveToken(GmailToken token, CancellationToken ct)
     {
         using var connection = await connectionFactory.CreateConnection(ct);
