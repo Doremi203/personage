@@ -6,7 +6,7 @@ namespace Personage.Auth.Bll.Helpers.Validation;
 public static partial class UserValidator
 {
     private const string EmailPattern = @"^[^@\s]+@[^@\s]+\.[^@\s]+$";
-    private const string NamePattern = @"^[A-Za-z\s\-']+$";
+    private const string NamePattern = @"^[\p{L}\s\-']+$";
     private const string PasswordPattern = @"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d\W_]{8,}$";
     // (?=.*[a-z]) - at least one lowercase letter
     // (?=.*[A-Z]) - at least one uppercase letter  
@@ -29,7 +29,7 @@ public static partial class UserValidator
         ValidateName(name);
     }
 
-    private static void ValidateEmail(string email)
+    public static void ValidateEmail(string email)
     {
         if (string.IsNullOrWhiteSpace(email))
             throw new ValidationException(ErrorCode.EmailValidationFail, "Email cannot be empty");

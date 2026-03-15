@@ -51,7 +51,7 @@ public class GmailAuthControllerTests : TestClassBase
     public async Task StartGmailAuth_ShouldBeOk()
     {
         //arrange
-        var userEmail = Fixture.Create<string>();
+        const string userEmail = "test@test.com";
         var redirectUri = Fixture.Create<string>();
         var user = await UserRepository.CreateShortUser(userEmail, CancellationToken.None);
         var clientId = Fixture.Create<string>();

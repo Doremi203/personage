@@ -40,9 +40,11 @@ public class AuthService(
     public async Task<StartGmailAuthResponseModel> StartGmailAuth(string userEmail, string redirectUri,
         CancellationToken ct)
     {
-        //TODO: validate whether email is valid https://tracker.yandex.ru/PERSONAGE-59
+        UserValidator.ValidateEmail(userEmail);
+        //get user id from claims here and use it to check user and assign tokens
         if (await userRepository.GetUserByEmail(userEmail, ct) is null)
         {
+            //TODO: update flow, do not allow for gmail linking without an active account
             logger.LogWarning("User with email {Email} not found, creating new user", userEmail);
             await userRepository.CreateShortUser(userEmail, ct);
         }
@@ -255,7 +257,7 @@ public class AuthService(
     {
         var resetToken = await passwordResetTokenRepository.GetToken(token, ct);
         if (resetToken is null)
-            throw new AuthenticationException(ErrorCode.InvalidResetToken, "Invalid or expired reset token");
+            throw new CustomException(ErrorCode.InvalidResetToken, "Invalid or expired reset token");
 
         var user = await userRepository.GetUserById(resetToken.UserId, ct);
         if (user is null)

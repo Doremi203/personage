@@ -1,6 +1,3 @@
-using System;
-using System.Net.Http;
-using System.Threading.Tasks;
 using AutoFixture;
 using Grpc.Net.Client;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -23,12 +20,10 @@ public abstract class TestClassBase : IDisposable
     protected Cleaner Cleaner { get; }
     
     //REST API
-    protected ITestApi TestApi { get; }
     protected IGmailAuthApi GmailAuthApi { get; }
     protected IInfrastructureApi InfrastructureApi { get; }
     
     //gRPC API
-    protected TestService.TestServiceClient TestGrpcClient { get; }
     protected AuthService.AuthServiceClient AuthGrpcClient { get; }
     protected StateTrackingService.StateTrackingServiceClient StateTrackingGrpcClient { get; }
 
@@ -37,7 +32,6 @@ public abstract class TestClassBase : IDisposable
     {
         Factory = new TestApplicationFactory(OverrideServices);
         HttpClient = Factory.CreateClient();
-        TestApi = RestClient.For<ITestApi>(HttpClient);
         GmailAuthApi = RestClient.For<IGmailAuthApi>(HttpClient);
         InfrastructureApi = RestClient.For<IInfrastructureApi>(HttpClient);
         
@@ -46,7 +40,6 @@ public abstract class TestClassBase : IDisposable
             HttpClient = HttpClient
         });
         
-        TestGrpcClient = new TestService.TestServiceClient(GrpcChannel);
         AuthGrpcClient = new AuthService.AuthServiceClient(GrpcChannel);
         StateTrackingGrpcClient = new StateTrackingService.StateTrackingServiceClient(GrpcChannel);
 

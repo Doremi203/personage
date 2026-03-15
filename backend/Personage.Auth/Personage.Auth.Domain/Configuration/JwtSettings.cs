@@ -12,4 +12,5 @@ public class JwtSettings
     /// In production, resolved from Lockbox via <c>secret:{id}:{version}:{key}</c>.
     /// </summary>
     public string PrivateKeyPem { get; set; } = null!;
+    public string PublicKeyPem { get; set; } = null!;
 }
