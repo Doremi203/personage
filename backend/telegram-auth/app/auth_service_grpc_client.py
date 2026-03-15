@@ -18,16 +18,26 @@ class AuthServiceGrpcClient:
         self._lock = asyncio.Lock()
 
     async def connect(self):
-        """Establish gRPC connection"""
+        """Establish gRPC connection.
+
+        Uses TLS when AUTH_SERVICE_GRPC_TLS=true (production via ALB on :443).
+        Falls back to insecure channel for local development.
+        """
         async with self._lock:
             if self.channel is not None:
                 return
 
-            target = f"{settings.AUTH_SERVICE_GRPC_HOST}"
+            target = f"{settings.AUTH_SERVICE_GRPC_HOST}:{settings.AUTH_SERVICE_GRPC_PORT}"
 
-            self.channel = grpc.aio.insecure_channel(target)
-            logger.info("Created insecure gRPC channel", target=target)
-
+            if settings.AUTH_SERVICE_GRPC_TLS:
+                # Use default SSL roots (system CA bundle) — sufficient for
+                # publicly-trusted certificates managed by Yandex Certificate Manager.
+                credentials = grpc.ssl_channel_credentials()
+                self.channel = grpc.aio.secure_channel(target, credentials)
+                logger.info("Created secure (TLS) gRPC channel", target=target)
+            else:
+                self.channel = grpc.aio.insecure_channel(target)
+                logger.info("Created insecure gRPC channel", target=target)
 
             self.stub = telegram_pb2_grpc.TelegramServiceStub(self.channel)
 

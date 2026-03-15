@@ -1,0 +1,36 @@
+services:
+  app:
+    image: cr.yandex/crp77qhpsda1m6ian417/telegram-auth:2
+    ports:
+      - "80:8000"
+    environment:
+      ENVIRONMENT: production
+      LOG_LEVEL: INFO
+      LOG_FORMAT: json
+      AUTH_SERVICE_GRPC_HOST: grpc-auth.persomanage.ru
+      AUTH_SERVICE_GRPC_PORT: "443"
+      AUTH_SERVICE_GRPC_TLS: "true"
+      REDIS_USE_SENTINEL: "true"
+      REDIS_SENTINEL_HOSTS: rc1d-ga172rk461nqc3a3.mdb.yandexcloud.net:26379
+      REDIS_SENTINEL_SERVICE_NAME: main
+      REDIS_SSL: "false"
+    depends_on:
+      - fluentbit
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: localhost:24224
+        tag: app.logs
+        fluentd-async: "true"
+        fluentd-async-reconnect-interval: "1s"
+        fluentd-request-ack: "true"
+
+  fluentbit:
+    image: cr.yandex/crp77qhpsda1m6ian417/fluentbit:1.1
+    ports:
+      - "24224:24224"
+      - "24224:24224/udp"
+    restart: always
+    environment:
+      YC_GROUP_ID: e23ciptjel3qb4if6lqk
+      SERVICE_NAME: telegram-auth
