@@ -1,4 +1,5 @@
 import { ScheduleEvent } from '../screens/ScheduleScreen';
+import { toYYYYMMDD } from '../utils/dateUtils';
 
 interface WeekViewProps {
   events: ScheduleEvent[];
@@ -9,7 +10,8 @@ const WeekView = ({ events, currentDate }: WeekViewProps) => {
   const getWeekDays = () => {
     const days = [];
     const startOfWeek = new Date(currentDate);
-    startOfWeek.setDate(currentDate.getDate() - currentDate.getDay() + 1);
+    // (getDay() + 6) % 7 → Mon=0 … Sun=6, so we always land on Monday
+    startOfWeek.setDate(currentDate.getDate() - ((currentDate.getDay() + 6) % 7));
 
     for (let i = 0; i < 7; i++) {
       const day = new Date(startOfWeek);
@@ -97,8 +99,8 @@ const WeekView = ({ events, currentDate }: WeekViewProps) => {
 
               {events
                 .filter((event) => {
-                  const eventDate = new Date(event.date);
-                  return eventDate.toDateString() === day.toDateString();
+                  // Compare YYYY-MM-DD strings to avoid UTC-vs-local day shift
+                  return event.date === toYYYYMMDD(day);
                 })
                 .map((event) => {
                   const { top, height } = getEventPosition(event);

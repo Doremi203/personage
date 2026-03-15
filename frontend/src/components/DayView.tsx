@@ -1,4 +1,5 @@
 import { ScheduleEvent } from '../screens/ScheduleScreen';
+import { toYYYYMMDD } from '../utils/dateUtils';
 
 interface DayViewProps {
   events: ScheduleEvent[];
@@ -25,16 +26,16 @@ const DayView = ({ events, currentDate }: DayViewProps) => {
     const [startHour, startMinute] = event.startTime.split(':').map(Number);
     const [endHour, endMinute] = event.endTime.split(':').map(Number);
 
-    const top = ((startHour - 8) * 60 + startMinute) * (100 / 60);
+    const top = ((startHour - 8) * 60 + startMinute) * (80 / 60);
     const duration = (endHour * 60 + endMinute) - (startHour * 60 + startMinute);
-    const height = duration * (100 / 60);
+    const height = Math.max(duration * (80 / 60), 20);
 
     return { top, height };
   };
 
   const todayEvents = events.filter((event) => {
-    const eventDate = new Date(event.date);
-    return eventDate.toDateString() === currentDate.toDateString();
+    // Compare YYYY-MM-DD strings to avoid UTC-vs-local day shift
+    return event.date === toYYYYMMDD(currentDate);
   });
 
   return (
@@ -43,7 +44,7 @@ const DayView = ({ events, currentDate }: DayViewProps) => {
         <div className="flex">
           <div className="w-24">
             {hours.map((hour) => (
-              <div key={hour} className="h-25 p-3 text-sm text-gray-500 text-right border-b border-gray-100">
+              <div key={hour} className="h-20 p-3 text-sm text-gray-500 text-right border-b border-gray-100">
                 {hour.toString().padStart(2, '0')}:00
               </div>
             ))}
@@ -53,7 +54,7 @@ const DayView = ({ events, currentDate }: DayViewProps) => {
             {hours.map((hour) => (
               <div
                 key={hour}
-                className="h-25 border-b border-gray-100 hover:bg-gray-50/50 transition-colors cursor-pointer"
+                className="h-20 border-b border-gray-100 hover:bg-gray-50/50 transition-colors cursor-pointer"
               />
             ))}
 
@@ -65,7 +66,7 @@ const DayView = ({ events, currentDate }: DayViewProps) => {
                   className={`absolute left-2 right-2 rounded-xl border-l-4 p-4 text-white shadow-lg cursor-pointer hover:shadow-xl transition-shadow ${getPriorityColor(
                     event.priority
                   )}`}
-                  style={{ top: `${top}px`, minHeight: `${height}px` }}
+                  style={{ top: `${top}px`, height: `${height}px` }}
                 >
                   <div className="font-semibold mb-1">{event.title}</div>
                   <div className="text-sm opacity-90">
