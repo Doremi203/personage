@@ -120,7 +120,6 @@ public class Program
         
         app.UseGrpcWeb();
         app.MapGrpcReflectionService();
-        app.MapGrpcService<TestGrpcService>().EnableGrpcWeb();
         app.MapGrpcService<AuthGrpcService>().EnableGrpcWeb();
         app.MapGrpcService<StateTrackingGrpcService>().EnableGrpcWeb();
         app.MapGrpcService<TelegramGrpcService>().EnableGrpcWeb();
