@@ -24,7 +24,6 @@ public abstract class TestClassBase : IDisposable
     protected IInfrastructureApi InfrastructureApi { get; }
     
     //gRPC API
-    protected TestService.TestServiceClient TestGrpcClient { get; }
     protected AuthService.AuthServiceClient AuthGrpcClient { get; }
     protected StateTrackingService.StateTrackingServiceClient StateTrackingGrpcClient { get; }
 
@@ -41,7 +40,6 @@ public abstract class TestClassBase : IDisposable
             HttpClient = HttpClient
         });
         
-        TestGrpcClient = new TestService.TestServiceClient(GrpcChannel);
         AuthGrpcClient = new AuthService.AuthServiceClient(GrpcChannel);
         StateTrackingGrpcClient = new StateTrackingService.StateTrackingServiceClient(GrpcChannel);
 

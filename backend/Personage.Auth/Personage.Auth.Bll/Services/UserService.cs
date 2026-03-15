@@ -17,7 +17,7 @@ public class UserService(
     {
         var userId = claimValues.GetUserId();
 
-        //Can be simplified to a single db call for optimisation
+        //TODO: Can be simplified to a single db call for optimisation
         var userInfo = await userRepository.GetUserById(userId, ct);
         if(userInfo is null)
             throw new NotFoundException(ErrorCode.UserNotFound, "User with specified id not found");
