@@ -10,9 +10,15 @@ from starlette.responses import JSONResponse
 from telethon.errors import SessionPasswordNeededError
 from app.auth_service_grpc_client import auth_service_grpc_client
 from app.config import settings
+from app.logging import setup_logging
 from app.models import *
 from app.redis_client import redis_client
 from app.telegram_client import client_manager
+
+# Initialise logging before any logger is created.
+# In production (LOG_FORMAT=json) this produces JSON matching the Go slog /
+# traitex JSONFormatter shape consumed by Fluent Bit.
+setup_logging(log_level=settings.LOG_LEVEL, log_format=settings.LOG_FORMAT)
 
 logger = structlog.get_logger()
 

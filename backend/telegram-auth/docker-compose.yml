@@ -22,8 +22,10 @@ services:
       - TELEGRAM_API_ID=${TELEGRAM_API_ID}
       - TELEGRAM_API_HASH=${TELEGRAM_API_HASH}
       - REDIS_HOST=redis
+      - REDIS_PORT=6379
       - REDIS_PASSWORD=redis_pass
-      - ENVIRONMENT=${ENVIRONMENT:-production}
+      - REDIS_USE_SENTINEL=false
+      - ENVIRONMENT=${ENVIRONMENT:-development}
     depends_on:
       redis:
         condition: service_healthy
