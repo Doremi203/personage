@@ -1,4 +1,4 @@
-import { X, Calendar, Flag, FolderOpen, Clock, Tag, FileText, CheckCircle, Pause, Trash2, Loader2 } from 'lucide-react';
+import { X, Calendar, Flag, FolderOpen, Clock, Tag, FileText, CheckCircle, Pause, Trash2, Loader2, Play, Timer } from 'lucide-react';
 import { Task } from '../screens/TasksScreen';
 
 interface TaskDetailProps {
@@ -32,17 +32,15 @@ const TaskDetail = ({ task, onClose, onComplete, onPostpone, onDelete, actionLoa
         return 'Учёба';
       case 'personal':
         return 'Личное';
-      case 'finance':
-        return 'Финансы';
-      case 'health':
-        return 'Здоровье';
       default:
         return category;
     }
   };
 
   const formatDate = (dateString: string) => {
+    if (!dateString) return null;
     const date = new Date(dateString);
+    if (isNaN(date.getTime())) return null;
     return date.toLocaleDateString('ru-RU', {
       day: 'numeric',
       month: 'long',
@@ -89,15 +87,41 @@ const TaskDetail = ({ task, onClose, onComplete, onPostpone, onDelete, actionLoa
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-[#FF8A65]/10 rounded-lg flex items-center justify-center">
-              <Calendar size={18} className="text-[#FF8A65]" />
+          {formatDate(task.deadline) && (
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-[#FF8A65]/10 rounded-lg flex items-center justify-center">
+                <Calendar size={18} className="text-[#FF8A65]" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Дедлайн</p>
+                <p className="text-sm font-medium text-[#2D2F31]">{formatDate(task.deadline)}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-xs text-gray-500">Дедлайн</p>
-              <p className="text-sm font-medium text-[#2D2F31]">{formatDate(task.deadline)}</p>
+          )}
+
+          {formatDate(task.startTime) && (
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-[#5C6BFF]/10 rounded-lg flex items-center justify-center">
+                <Play size={18} className="text-[#5C6BFF]" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Начало</p>
+                <p className="text-sm font-medium text-[#2D2F31]">{formatDate(task.startTime)}</p>
+              </div>
             </div>
-          </div>
+          )}
+
+          {formatDate(task.endTime) && (
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-[#4CB782]/10 rounded-lg flex items-center justify-center">
+                <Timer size={18} className="text-[#4CB782]" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Конец</p>
+                <p className="text-sm font-medium text-[#2D2F31]">{formatDate(task.endTime)}</p>
+              </div>
+            </div>
+          )}
 
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">

@@ -16,9 +16,9 @@ import {
   ApiTaskCategoryFilter,
 } from '../utils/taskerService';
 
-export type TaskStatus = 'planned' | 'in-progress' | 'completed' | 'overdue';
+export type TaskStatus = 'unplanned' | 'planned' | 'completed';
 export type TaskPriority = 'high' | 'medium' | 'low';
-export type TaskCategory = 'work' | 'study' | 'personal' | 'finance' | 'health';
+export type TaskCategory = 'work' | 'study' | 'personal';
 
 export interface Task {
   id: string;
@@ -28,51 +28,56 @@ export interface Task {
   priority: TaskPriority;
   category: TaskCategory;
   deadline: string;
+  startTime: string;
+  endTime: string;
   progress: number;
   tags: string[];
   notes?: string;
 }
 
-function mapStatus(status: number, deadline?: string): TaskStatus {
+function mapStatus(status: string): TaskStatus {
   if (status === ApiTaskStatus.COMPLETED) return 'completed';
-  if (deadline && new Date(deadline) < new Date()) return 'overdue';
+  if (status === ApiTaskStatus.UNPLANNED) return 'unplanned';
   return 'planned';
 }
 
-function mapPriority(priority: number): TaskPriority {
+function mapPriority(priority: string): TaskPriority {
   if (priority === ApiTaskPriority.HIGH) return 'high';
   if (priority === ApiTaskPriority.LOW) return 'low';
   return 'medium';
 }
 
-function mapCategory(category: number): TaskCategory {
+function mapCategory(category: string): TaskCategory {
   if (category === ApiTaskCategory.WORK) return 'work';
   if (category === ApiTaskCategory.STUDY) return 'study';
   return 'personal';
 }
 
 function mapApiTask(apiTask: ApiTaskItem): Task {
-  const deadline = apiTask.deadline
-    ? new Date(apiTask.deadline).toISOString().split('T')[0]
-    : undefined;
+  const toDateString = (ts?: string) =>
+    ts ? new Date(ts).toISOString().split('T')[0] : '';
   return {
     id: apiTask.id,
     title: apiTask.title,
     description: apiTask.description,
-    status: mapStatus(apiTask.status, apiTask.deadline),
+    status: mapStatus(apiTask.status),
     priority: mapPriority(apiTask.priority),
     category: mapCategory(apiTask.category),
-    deadline: deadline ?? '',
+    deadline: toDateString(apiTask.deadline),
+    startTime: toDateString(apiTask.startTime),
+    endTime: toDateString(apiTask.endTime),
     progress: apiTask.status === ApiTaskStatus.COMPLETED ? 100 : 0,
     tags: [],
   };
 }
 
 function getApiFilters(filter: string): {
-  status?: number;
-  category?: number;
+  status?: string;
+  category?: string;
 } {
   switch (filter) {
+    case 'unplanned':
+      return { status: ApiTaskStatusFilter.UNPLANNED };
     case 'planned':
       return { status: ApiTaskStatusFilter.PLANNED };
     case 'completed':
@@ -115,14 +120,7 @@ const TasksScreen = () => {
         page: 1,
       });
       const mapped = (response.tasks ?? []).map(mapApiTask);
-      // Client-side filter for statuses not supported by the API
-      const filtered =
-        filterCategory === 'overdue'
-          ? mapped.filter((t) => t.status === 'overdue')
-          : filterCategory === 'in-progress'
-            ? mapped.filter((t) => t.status === 'in-progress')
-            : mapped;
-      setTasks(filtered);
+      setTasks(mapped);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : 'Не удалось загрузить задачи',

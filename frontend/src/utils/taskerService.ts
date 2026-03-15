@@ -4,43 +4,43 @@ const TASKER_API_URL =
   (import.meta.env.VITE_TASKER_API_URL as string | undefined) ??
   'https://tasker.persomanage.ru';
 
-// Numeric enum values from task.proto
+// String enum values matching task.proto enum names (used in query params and JSON responses)
 export const ApiTaskStatusFilter = {
-  UNSPECIFIED: 0,
-  UNPLANNED: 1,
-  PLANNED: 2,
-  COMPLETED: 3,
+  UNSPECIFIED: 'TASK_STATUS_FILTER_UNSPECIFIED',
+  UNPLANNED: 'TASK_STATUS_FILTER_UNPLANNED',
+  PLANNED: 'TASK_STATUS_FILTER_PLANNED',
+  COMPLETED: 'TASK_STATUS_FILTER_COMPLETED',
 } as const;
 
 export const ApiTaskCategoryFilter = {
-  UNSPECIFIED: 0,
-  WORK: 1,
-  STUDY: 2,
-  PERSONAL: 3,
+  UNSPECIFIED: 'TASK_CATEGORY_FILTER_UNSPECIFIED',
+  WORK: 'TASK_CATEGORY_FILTER_WORK',
+  STUDY: 'TASK_CATEGORY_FILTER_STUDY',
+  PERSONAL: 'TASK_CATEGORY_FILTER_PERSONAL',
 } as const;
 
 export const ApiTaskPriority = {
-  UNSPECIFIED: 0,
-  LOW: 1,
-  MID: 2,
-  HIGH: 3,
+  UNSPECIFIED: 'TASK_PRIORITY_UNSPECIFIED',
+  LOW: 'TASK_PRIORITY_LOW',
+  MID: 'TASK_PRIORITY_MID',
+  HIGH: 'TASK_PRIORITY_HIGH',
 } as const;
 
 export const ApiTaskStatus = {
-  UNSPECIFIED: 0,
-  UNPLANNED: 1,
-  PLANNED: 2,
-  COMPLETED: 3,
+  UNSPECIFIED: 'TASK_STATUS_UNSPECIFIED',
+  UNPLANNED: 'TASK_STATUS_UNPLANNED',
+  PLANNED: 'TASK_STATUS_PLANNED',
+  COMPLETED: 'TASK_STATUS_COMPLETED',
 } as const;
 
 export const ApiTaskCategory = {
-  UNSPECIFIED: 0,
-  WORK: 1,
-  STUDY: 2,
-  PERSONAL: 3,
+  UNSPECIFIED: 'TASK_CATEGORY_UNSPECIFIED',
+  WORK: 'TASK_CATEGORY_WORK',
+  STUDY: 'TASK_CATEGORY_STUDY',
+  PERSONAL: 'TASK_CATEGORY_PERSONAL',
 } as const;
 
-// API response types (camelCase as returned by gRPC-gateway JSON)
+// API response types (camelCase as returned by gRPC-gateway JSON, enums as string names)
 export interface ApiTaskItem {
   id: string;
   title: string;
@@ -48,9 +48,9 @@ export interface ApiTaskItem {
   startTime?: string;
   endTime?: string;
   deadline?: string;
-  priority: number;
-  status: number;
-  category: number;
+  priority: string;
+  status: string;
+  category: string;
   updatedAt: string;
   createdAt: string;
 }
@@ -63,8 +63,8 @@ export interface ListTasksResponse {
 }
 
 export interface ListTasksParams {
-  status?: number;
-  category?: number;
+  status?: string;
+  category?: string;
   text?: string;
   from?: string; // DD-MM-YYYY
   till?: string; // DD-MM-YYYY
@@ -115,8 +115,8 @@ export async function listTasks(
   params: ListTasksParams = {},
 ): Promise<ListTasksResponse> {
   const query = new URLSearchParams();
-  if (params.status) query.set('status', String(params.status));
-  if (params.category) query.set('category', String(params.category));
+  if (params.status) query.set('status', params.status);
+  if (params.category) query.set('category', params.category);
   if (params.text) query.set('text', params.text);
   if (params.from) query.set('from', params.from);
   if (params.till) query.set('till', params.till);

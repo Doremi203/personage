@@ -10,14 +10,12 @@ interface TaskListProps {
 const TaskList = ({ tasks, onTaskSelect, selectedTaskId }: TaskListProps) => {
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'in-progress':
-        return 'bg-[#5C6BFF]';
       case 'completed':
         return 'bg-[#4CB782]';
-      case 'overdue':
-        return 'bg-[#FF8A65]';
-      case 'planned':
+      case 'unplanned':
         return 'bg-gray-400';
+      case 'planned':
+        return 'bg-[#5C6BFF]';
       default:
         return 'bg-gray-300';
     }
@@ -38,12 +36,10 @@ const TaskList = ({ tasks, onTaskSelect, selectedTaskId }: TaskListProps) => {
 
   const getStatusLabel = (status: string) => {
     switch (status) {
-      case 'in-progress':
-        return 'В работе';
       case 'completed':
         return 'Завершено';
-      case 'overdue':
-        return 'Просрочено';
+      case 'unplanned':
+        return 'Незапланировано';
       case 'planned':
         return 'Запланировано';
       default:
@@ -52,7 +48,9 @@ const TaskList = ({ tasks, onTaskSelect, selectedTaskId }: TaskListProps) => {
   };
 
   const formatDate = (dateString: string) => {
+    if (!dateString) return null;
     const date = new Date(dateString);
+    if (isNaN(date.getTime())) return null;
     const today = new Date();
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -90,10 +88,12 @@ const TaskList = ({ tasks, onTaskSelect, selectedTaskId }: TaskListProps) => {
             <span className={`px-2.5 py-1 rounded-lg text-xs font-medium text-white ${getStatusColor(task.status)}`}>
               {getStatusLabel(task.status)}
             </span>
-            <div className="flex items-center gap-1 text-xs text-gray-500">
-              <Calendar size={14} />
-              <span>{formatDate(task.deadline)}</span>
-            </div>
+            {formatDate(task.deadline) && (
+              <div className="flex items-center gap-1 text-xs text-gray-500">
+                <Calendar size={14} />
+                <span>{formatDate(task.deadline)}</span>
+              </div>
+            )}
           </div>
 
           <div className="mb-3">

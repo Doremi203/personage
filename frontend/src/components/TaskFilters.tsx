@@ -1,4 +1,4 @@
-import { ListTodo, Clock, PlayCircle, CheckCircle2, AlertCircle, Briefcase, GraduationCap, User, DollarSign, Heart } from 'lucide-react';
+import { ListTodo, Clock, Inbox, CheckCircle2, Briefcase, GraduationCap, User } from 'lucide-react';
 
 interface TaskFiltersProps {
   currentFilter: string;
@@ -8,18 +8,15 @@ interface TaskFiltersProps {
 const TaskFilters = ({ currentFilter, onFilterChange }: TaskFiltersProps) => {
   const statusFilters = [
     { id: 'all', label: 'Все задачи', icon: ListTodo },
+    { id: 'unplanned', label: 'Незапланированные', icon: Inbox },
     { id: 'planned', label: 'Запланированные', icon: Clock },
-    { id: 'in-progress', label: 'В работе', icon: PlayCircle },
     { id: 'completed', label: 'Завершённые', icon: CheckCircle2 },
-    { id: 'overdue', label: 'Просроченные', icon: AlertCircle },
   ];
 
   const categoryFilters = [
     { id: 'work', label: 'Работа', icon: Briefcase },
     { id: 'study', label: 'Учёба', icon: GraduationCap },
     { id: 'personal', label: 'Личное', icon: User },
-    { id: 'finance', label: 'Финансы', icon: DollarSign },
-    { id: 'health', label: 'Здоровье', icon: Heart },
   ];
 
   return (
