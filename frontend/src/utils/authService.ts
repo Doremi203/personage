@@ -16,6 +16,18 @@ export interface UserInfo {
   name?: string;
 }
 
+export interface UserApiResponse {
+  email: string;
+  name: string;
+  gmailIntegration: {
+    enabled: boolean;
+    gmail?: string | null;
+  };
+  telegramIntegration: {
+    enabled: boolean;
+  };
+}
+
 export function getTokens(): AuthTokens | null {
   const raw = localStorage.getItem(TOKENS_KEY);
   if (!raw) return null;
@@ -257,4 +269,32 @@ export async function handleGmailCallback(
 
   const data = (await response.json()) as { gmailEmail: string };
   return data.gmailEmail;
+}
+
+export async function fetchCurrentUser(): Promise<UserApiResponse> {
+  const tokens = getTokens();
+  if (!tokens) throw new Error('Не авторизован');
+
+  const doFetch = (accessToken: string) =>
+    fetch(`${AUTH_API_URL}/user`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+
+  let response = await doFetch(tokens.accessToken);
+
+  if (response.status === 401) {
+    const newTokens = await refreshAccessToken();
+    if (!newTokens) throw new Error('Сессия истекла');
+    response = await doFetch(newTokens.accessToken);
+  }
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(
+      (error as { message?: string }).message ??
+        `Ошибка получения данных пользователя: ${response.status}`,
+    );
+  }
+
+  return (await response.json()) as UserApiResponse;
 }

@@ -1,14 +1,16 @@
-import { useState } from 'react';
-import { Clock, Bell, Folder, User, Globe, Mail, CheckCircle, Loader2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Bell, User, Globe, Mail, CheckCircle, Loader2, MessageCircle } from 'lucide-react';
 import {
   getConnectedGmailEmail,
   clearConnectedGmailEmail,
   startGmailAuth,
   getUserInfo,
+  fetchCurrentUser,
+  setConnectedGmailEmail,
+  type UserApiResponse,
 } from '../utils/authService';
 
 const SettingsScreen = () => {
-  const categories = ['Работа', 'Учёба', 'Личное', 'Финансы', 'Здоровье'];
   const [connectedGmailEmail, setConnectedGmailEmailState] = useState<string | null>(
     () => getConnectedGmailEmail(),
   );
@@ -16,11 +18,37 @@ const SettingsScreen = () => {
   const [gmailLoading, setGmailLoading] = useState(false);
   const [gmailError, setGmailError] = useState<string | null>(null);
 
+  const [userData, setUserData] = useState<UserApiResponse | null>(null);
+  const [userLoading, setUserLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const data = await fetchCurrentUser();
+        if (!cancelled) {
+          setUserData(data);
+          if (data.gmailIntegration.enabled && data.gmailIntegration.gmail) {
+            setConnectedGmailEmail(data.gmailIntegration.gmail);
+            setConnectedGmailEmailState(data.gmailIntegration.gmail);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch user data:', err);
+      } finally {
+        if (!cancelled) setUserLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const handleConnectGmail = async () => {
     setGmailError(null);
     setGmailLoading(true);
     try {
-      const userInfo = getUserInfo();
+      const userInfo = userData ?? getUserInfo();
       if (!userInfo?.email) {
         setGmailError('Не удалось определить email пользователя');
         return;
@@ -47,6 +75,11 @@ const SettingsScreen = () => {
   const handleConnectGmailClick = () => {
     void handleConnectGmail();
   };
+
+  const cachedUserInfo = getUserInfo();
+  const displayName = userLoading ? '' : (userData?.name ?? cachedUserInfo?.name ?? '');
+  const displayEmail = userLoading ? '' : (userData?.email ?? cachedUserInfo?.email ?? '');
+  const accountPlaceholder = userLoading ? 'Загрузка...' : undefined;
 
   return (
     <div className="h-full overflow-auto md:pt-0 pt-16">
@@ -85,41 +118,6 @@ const SettingsScreen = () => {
 
           <div className="bg-white rounded-2xl border border-gray-200 p-4 md:p-6">
             <div className="flex items-center gap-3 mb-4 md:mb-6">
-              <div className="w-10 h-10 bg-[#4CB782]/10 rounded-xl flex items-center justify-center flex-shrink-0">
-                <Clock size={20} className="text-[#4CB782]" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-base md:text-lg text-[#2D2F31]">Рабочие часы</h3>
-                <p className="text-xs md:text-sm text-gray-500">Установите ваше рабочее время</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 md:gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Начало рабочего дня
-                </label>
-                <input
-                  type="time"
-                  defaultValue="09:00"
-                  className="w-full px-4 py-2.5 bg-[#F7F8FA] border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#5C6BFF] focus:border-transparent"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Конец рабочего дня
-                </label>
-                <input
-                  type="time"
-                  defaultValue="18:00"
-                  className="w-full px-4 py-2.5 bg-[#F7F8FA] border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#5C6BFF] focus:border-transparent"
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl border border-gray-200 p-4 md:p-6">
-            <div className="flex items-center gap-3 mb-4 md:mb-6">
               <div className="w-10 h-10 bg-[#FF8A65]/10 rounded-xl flex items-center justify-center flex-shrink-0">
                 <Bell size={20} className="text-[#FF8A65]" />
               </div>
@@ -132,28 +130,6 @@ const SettingsScreen = () => {
             <div className="space-y-4">
               <div className="flex items-center justify-between p-4 bg-[#F7F8FA] rounded-xl">
                 <div>
-                  <p className="font-medium text-[#2D2F31]">Ежедневный дайджест</p>
-                  <p className="text-sm text-gray-500">Получать утренний обзор задач</p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" defaultChecked className="sr-only peer" />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[#5C6BFF]/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#5C6BFF]"></div>
-                </label>
-              </div>
-
-              <div className="flex items-center justify-between p-4 bg-[#F7F8FA] rounded-xl">
-                <div>
-                  <p className="font-medium text-[#2D2F31]">Еженедельный дайджест</p>
-                  <p className="text-sm text-gray-500">Обзор продуктивности за неделю</p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" defaultChecked className="sr-only peer" />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[#5C6BFF]/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#5C6BFF]"></div>
-                </label>
-              </div>
-
-              <div className="flex items-center justify-between p-4 bg-[#F7F8FA] rounded-xl">
-                <div>
                   <p className="font-medium text-[#2D2F31]">Напоминания о задачах</p>
                   <p className="text-sm text-gray-500">Уведомления о приближающихся дедлайнах</p>
                 </div>
@@ -162,66 +138,17 @@ const SettingsScreen = () => {
                   <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[#5C6BFF]/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#5C6BFF]"></div>
                 </label>
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Тихие часы
-                </label>
-                <div className="grid grid-cols-2 gap-4">
-                  <input
-                    type="time"
-                    defaultValue="22:00"
-                    className="px-4 py-2.5 bg-[#F7F8FA] border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#5C6BFF] focus:border-transparent"
-                  />
-                  <input
-                    type="time"
-                    defaultValue="08:00"
-                    className="px-4 py-2.5 bg-[#F7F8FA] border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#5C6BFF] focus:border-transparent"
-                  />
-                </div>
-                <p className="text-xs text-gray-500 mt-2">Не беспокоить в это время</p>
-              </div>
             </div>
           </div>
 
           <div className="bg-white rounded-2xl border border-gray-200 p-4 md:p-6">
             <div className="flex items-center gap-3 mb-4 md:mb-6">
               <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                <Folder size={20} className="text-gray-600" />
+                <Mail size={20} className="text-gray-600" />
               </div>
               <div>
-                <h3 className="font-semibold text-base md:text-lg text-[#2D2F31]">Категории задач</h3>
-                <p className="text-xs md:text-sm text-gray-500">Управление категориями</p>
-              </div>
-            </div>
-
-            <div className="space-y-2 mb-4">
-              {categories.map((category, index) => (
-                <div
-                  key={index}
-                  className="flex items-center justify-between p-3 bg-[#F7F8FA] rounded-xl"
-                >
-                  <span className="font-medium text-[#2D2F31]">{category}</span>
-                  <button className="text-sm text-[#FF8A65] hover:text-[#FF7A55] font-medium">
-                    Удалить
-                  </button>
-                </div>
-              ))}
-            </div>
-
-            <button className="w-full py-2.5 border-2 border-dashed border-gray-300 text-gray-600 rounded-xl hover:border-[#5C6BFF] hover:text-[#5C6BFF] transition-colors font-medium">
-              + Добавить категорию
-            </button>
-          </div>
-
-          <div className="bg-white rounded-2xl border border-gray-200 p-4 md:p-6">
-            <div className="flex items-center gap-3 mb-4 md:mb-6">
-              <div className="w-10 h-10 bg-[#EA4335]/10 rounded-xl flex items-center justify-center flex-shrink-0">
-                <Mail size={20} className="text-[#EA4335]" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-base md:text-lg text-[#2D2F31]">Gmail</h3>
-                <p className="text-xs md:text-sm text-gray-500">Подключите Gmail для чтения данных из почты</p>
+                <h3 className="font-semibold text-base md:text-lg text-[#2D2F31]">Подключённые сервисы</h3>
+                <p className="text-xs md:text-sm text-gray-500">Управление интеграциями</p>
               </div>
             </div>
 
@@ -231,36 +158,60 @@ const SettingsScreen = () => {
               </div>
             )}
 
-            {connectedGmailEmail ? (
+            <div className="space-y-3">
+              {connectedGmailEmail ? (
+                <div className="flex items-center justify-between p-4 bg-[#F7F8FA] rounded-xl">
+                  <div className="flex items-center gap-3">
+                    <CheckCircle size={18} className="text-[#4CB782] flex-shrink-0" />
+                    <div>
+                      <p className="font-medium text-[#2D2F31] text-sm">Gmail подключён</p>
+                      <p className="text-xs text-gray-500">{connectedGmailEmail}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleDisconnectGmail}
+                    className="text-sm text-[#FF8A65] hover:text-[#FF7A55] font-medium flex-shrink-0"
+                  >
+                    Отключить
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={handleConnectGmailClick}
+                  disabled={gmailLoading}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 border border-gray-200 bg-[#F7F8FA] text-[#2D2F31] rounded-xl hover:bg-gray-100 transition-colors font-medium text-sm disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {gmailLoading ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <Mail size={16} className="text-[#EA4335]" />
+                  )}
+                  {gmailLoading ? 'Переход к Google...' : 'Подключить Gmail'}
+                </button>
+              )}
+
               <div className="flex items-center justify-between p-4 bg-[#F7F8FA] rounded-xl">
                 <div className="flex items-center gap-3">
-                  <CheckCircle size={18} className="text-[#4CB782] flex-shrink-0" />
+                  {userLoading ? (
+                    <Loader2 size={18} className="text-gray-400 animate-spin flex-shrink-0" />
+                  ) : userData?.telegramIntegration.enabled ? (
+                    <CheckCircle size={18} className="text-[#4CB782] flex-shrink-0" />
+                  ) : (
+                    <MessageCircle size={18} className="text-[#229ED9] flex-shrink-0" />
+                  )}
                   <div>
-                    <p className="font-medium text-[#2D2F31] text-sm">Gmail подключён</p>
-                    <p className="text-xs text-gray-500">{connectedGmailEmail}</p>
+                    <p className="font-medium text-[#2D2F31] text-sm">Telegram</p>
+                    <p className="text-xs text-gray-500">
+                      {userLoading
+                        ? 'Загрузка...'
+                        : userData?.telegramIntegration.enabled
+                          ? 'Подключён'
+                          : 'Не подключён'}
+                    </p>
                   </div>
                 </div>
-                <button
-                  onClick={handleDisconnectGmail}
-                  className="text-sm text-[#FF8A65] hover:text-[#FF7A55] font-medium flex-shrink-0"
-                >
-                  Отключить
-                </button>
               </div>
-            ) : (
-              <button
-                onClick={handleConnectGmailClick}
-                disabled={gmailLoading}
-                className="w-full flex items-center justify-center gap-2 py-2.5 border border-gray-200 bg-[#F7F8FA] text-[#2D2F31] rounded-xl hover:bg-gray-100 transition-colors font-medium text-sm disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                {gmailLoading ? (
-                  <Loader2 size={16} className="animate-spin" />
-                ) : (
-                  <Mail size={16} className="text-[#EA4335]" />
-                )}
-                {gmailLoading ? 'Переход к Google...' : 'Подключить Gmail'}
-              </button>
-            )}
+            </div>
           </div>
 
           <div className="bg-white rounded-2xl border border-gray-200 p-4 md:p-6">
@@ -281,7 +232,9 @@ const SettingsScreen = () => {
                 </label>
                 <input
                   type="text"
-                  defaultValue="Пользователь"
+                  value={displayName}
+                  readOnly
+                  placeholder={accountPlaceholder ?? 'Пользователь'}
                   className="w-full px-4 py-2.5 bg-[#F7F8FA] border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#5C6BFF] focus:border-transparent"
                 />
               </div>
@@ -291,7 +244,9 @@ const SettingsScreen = () => {
                 </label>
                 <input
                   type="email"
-                  defaultValue="user@email.com"
+                  value={displayEmail}
+                  readOnly
+                  placeholder={accountPlaceholder ?? 'user@email.com'}
                   className="w-full px-4 py-2.5 bg-[#F7F8FA] border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#5C6BFF] focus:border-transparent"
                 />
               </div>
