@@ -45,14 +45,6 @@ const NotificationsScreen = () => {
       timestamp: '2025-11-15T10:00:00',
       read: true,
     },
-    {
-      id: '5',
-      type: 'schedule',
-      title: 'Свободное время',
-      message: 'У вас появилось свободное окно с 14:00 до 16:00',
-      timestamp: '2025-11-15T09:30:00',
-      read: true,
-    },
   ];
 
   const unreadCount = mockNotifications.filter((n) => !n.read).length;
