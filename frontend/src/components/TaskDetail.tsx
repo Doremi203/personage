@@ -166,7 +166,7 @@ const TaskDetail = ({ task, onClose, onComplete, onPostpone, onDelete, actionLoa
           </div>
           <textarea
             placeholder="Добавьте заметки к задаче..."
-            className="w-full h-32 p-3 bg-[#F7F8FA] border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-[#5C6BFF] focus:border-transparent"
+            className="w-full h-32 p-3 bg-[#F7F8FA] border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-[#5C6BFF] focus:border-transparent text-base"
             defaultValue={task.notes}
           />
         </div>

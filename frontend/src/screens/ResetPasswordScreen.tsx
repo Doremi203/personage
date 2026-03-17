@@ -94,7 +94,7 @@ const ResetPasswordScreen = ({ token, onSuccess }: ResetPasswordScreenProps) => 
                     required
                     placeholder="••••••••"
                     autoComplete="new-password"
-                    className="w-full px-4 py-2.5 pr-10 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#5C6BFF]/30 focus:border-[#5C6BFF] transition-all"
+                    className="w-full px-4 py-2.5 pr-10 rounded-xl border border-gray-200 text-base focus:outline-none focus:ring-2 focus:ring-[#5C6BFF]/30 focus:border-[#5C6BFF] transition-all"
                   />
                   <button
                     type="button"
@@ -116,7 +116,7 @@ const ResetPasswordScreen = ({ token, onSuccess }: ResetPasswordScreenProps) => 
                   required
                   placeholder="••••••••"
                   autoComplete="new-password"
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#5C6BFF]/30 focus:border-[#5C6BFF] transition-all"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-base focus:outline-none focus:ring-2 focus:ring-[#5C6BFF]/30 focus:border-[#5C6BFF] transition-all"
                 />
               </div>
               <button
