@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Search, Plus, Loader2 } from 'lucide-react';
+import { Search, Plus, Loader2, SlidersHorizontal, ChevronLeft, ChevronRight } from 'lucide-react';
 import TaskList from '../components/TaskList';
 import TaskDetail from '../components/TaskDetail';
 import TaskFilters from '../components/TaskFilters';
@@ -71,6 +71,15 @@ function mapApiTask(apiTask: ApiTaskItem): Task {
   };
 }
 
+function pluralizeTasks(count: number): string {
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  if (mod100 >= 11 && mod100 <= 19) return `${count} задач`;
+  if (mod10 === 1) return `${count} задача`;
+  if (mod10 >= 2 && mod10 <= 4) return `${count} задачи`;
+  return `${count} задач`;
+}
+
 function getApiFilters(filter: string): {
   status?: string;
   category?: string;
@@ -93,6 +102,8 @@ function getApiFilters(filter: string): {
   }
 }
 
+const PAGE_SIZE = 20;
+
 const TasksScreen = () => {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [filterCategory, setFilterCategory] = useState<string>('all');
@@ -102,11 +113,20 @@ const TasksScreen = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
+
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
     return () => clearTimeout(timer);
   }, [searchQuery]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterCategory, debouncedSearch]);
 
   const fetchTasks = useCallback(async () => {
     setLoading(true);
@@ -116,11 +136,12 @@ const TasksScreen = () => {
       const response = await listTasks({
         ...filters,
         text: debouncedSearch || undefined,
-        pageSize: 20,
-        page: 1,
+        pageSize: PAGE_SIZE,
+        page: currentPage,
       });
       const mapped = (response.tasks ?? []).map(mapApiTask);
       setTasks(mapped);
+      setTotalCount(response.total ?? 0);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : 'Не удалось загрузить задачи',
@@ -128,7 +149,7 @@ const TasksScreen = () => {
     } finally {
       setLoading(false);
     }
-  }, [filterCategory, debouncedSearch]);
+  }, [filterCategory, debouncedSearch, currentPage]);
 
   useEffect(() => {
     void fetchTasks();
@@ -204,7 +225,34 @@ const TasksScreen = () => {
       <div className="flex-1 overflow-auto">
         <div className="p-4 md:p-8">
           <div className="mb-4 md:mb-6">
-            <h2 className="md:hidden text-xl font-bold text-[#2D2F31] mb-4">Задачи</h2>
+            <div className="flex items-center justify-between mb-4 md:hidden">
+              <h2 className="text-xl font-bold text-[#2D2F31]">Задачи</h2>
+              <button
+                onClick={() => setShowMobileFilters((v) => !v)}
+                className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-sm transition-colors ${
+                  showMobileFilters
+                    ? 'border-[#5C6BFF] text-[#5C6BFF] bg-[#5C6BFF]/5'
+                    : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                <SlidersHorizontal size={16} />
+                Фильтры
+                {filterCategory !== 'all' && (
+                  <span className="w-2 h-2 bg-[#5C6BFF] rounded-full" />
+                )}
+              </button>
+            </div>
+            {showMobileFilters && (
+              <div className="mb-4 bg-white rounded-xl border border-gray-200 md:hidden">
+                <TaskFilters
+                  currentFilter={filterCategory}
+                  onFilterChange={(f) => {
+                    setFilterCategory(f);
+                    setShowMobileFilters(false);
+                  }}
+                />
+              </div>
+            )}
             <div className="relative md:hidden mb-4">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
               <input
@@ -221,7 +269,7 @@ const TasksScreen = () => {
               <h3 className="text-lg md:text-xl font-semibold text-[#2D2F31]">
                 {filterCategory === 'all' ? 'Все задачи' : 'Фильтрованные'}
               </h3>
-              <p className="text-xs md:text-sm text-gray-500 mt-1">{tasks.length} задач</p>
+              <p className="text-xs md:text-sm text-gray-500 mt-1">{pluralizeTasks(totalCount)}</p>
             </div>
             <button className="flex items-center justify-center gap-2 px-4 py-2.5 bg-[#5C6BFF] text-white rounded-xl hover:bg-[#4C5BEF] transition-colors shadow-lg shadow-[#5C6BFF]/20 text-sm md:text-base">
               <Plus size={18} />
@@ -243,7 +291,32 @@ const TasksScreen = () => {
               </button>
             </div>
           ) : (
-            <TaskList tasks={tasks} onTaskSelect={setSelectedTask} selectedTaskId={selectedTask?.id} />
+            <>
+              <TaskList tasks={tasks} onTaskSelect={setSelectedTask} selectedTaskId={selectedTask?.id} />
+              {totalPages > 1 && (
+                <div className="flex items-center justify-center gap-3 mt-6">
+                  <button
+                    onClick={() => setCurrentPage((p) => p - 1)}
+                    disabled={currentPage === 1}
+                    className="flex items-center gap-1 px-4 py-2 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <ChevronLeft size={16} />
+                    Назад
+                  </button>
+                  <span className="text-sm text-gray-500 min-w-[60px] text-center">
+                    {currentPage} / {totalPages}
+                  </span>
+                  <button
+                    onClick={() => setCurrentPage((p) => p + 1)}
+                    disabled={currentPage === totalPages}
+                    className="flex items-center gap-1 px-4 py-2 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Далее
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
