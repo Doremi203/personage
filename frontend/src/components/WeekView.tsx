@@ -1,5 +1,5 @@
 import { ScheduleEvent } from '../screens/ScheduleScreen';
-import { toYYYYMMDD, layoutEvents, SLOT_HEIGHT_PX } from '../utils/dateUtils';
+import { toYYYYMMDD, toMinutes, layoutEvents, SLOT_HEIGHT_PX, snapStart, snapEnd } from '../utils/dateUtils';
 
 interface WeekViewProps {
   events: ScheduleEvent[];
@@ -38,12 +38,13 @@ const WeekView = ({ events, currentDate }: WeekViewProps) => {
   };
 
   const getEventPosition = (event: ScheduleEvent) => {
-    const [startHour, startMinute] = event.startTime.split(':').map(Number);
-    const [endHour, endMinute] = event.endTime.split(':').map(Number);
+    const rawStart = toMinutes(event.startTime);
+    const rawEnd = toMinutes(event.endTime);
+    const snappedStart = snapStart(rawStart);
+    const snappedEnd = snapEnd(rawEnd, snappedStart);
 
-    const top = ((startHour - 8) * 60 + startMinute) * (SLOT_HEIGHT_PX / 60);
-    const duration = (endHour * 60 + endMinute) - (startHour * 60 + startMinute);
-    const height = Math.max(duration * (SLOT_HEIGHT_PX / 60), 16);
+    const top = (snappedStart - 8 * 60) * (SLOT_HEIGHT_PX / 60);
+    const height = (snappedEnd - snappedStart) * (SLOT_HEIGHT_PX / 60);
 
     return { top, height };
   };
@@ -122,8 +123,8 @@ const WeekView = ({ events, currentDate }: WeekViewProps) => {
                       width: `calc(${pct}% - 2px)`,
                     }}
                   >
-                    <div className="text-xs font-semibold line-clamp-1">{event.title}</div>
-                    <div className="text-xs opacity-90">
+                    <div className="text-xs font-semibold truncate">{event.title}</div>
+                    <div className="text-xs opacity-90 truncate">
                       {event.startTime}–{event.endTime}
                     </div>
                   </div>

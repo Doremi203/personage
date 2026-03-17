@@ -1,5 +1,5 @@
 import { ScheduleEvent } from '../screens/ScheduleScreen';
-import { toYYYYMMDD, layoutEvents, SLOT_HEIGHT_PX } from '../utils/dateUtils';
+import { toYYYYMMDD, toMinutes, layoutEvents, SLOT_HEIGHT_PX, snapStart, snapEnd } from '../utils/dateUtils';
 
 interface DayViewProps {
   events: ScheduleEvent[];
@@ -23,12 +23,13 @@ const DayView = ({ events, currentDate }: DayViewProps) => {
   };
 
   const getEventPosition = (event: ScheduleEvent) => {
-    const [startHour, startMinute] = event.startTime.split(':').map(Number);
-    const [endHour, endMinute] = event.endTime.split(':').map(Number);
+    const rawStart = toMinutes(event.startTime);
+    const rawEnd = toMinutes(event.endTime);
+    const snappedStart = snapStart(rawStart);
+    const snappedEnd = snapEnd(rawEnd, snappedStart);
 
-    const top = ((startHour - 8) * 60 + startMinute) * (SLOT_HEIGHT_PX / 60);
-    const duration = (endHour * 60 + endMinute) - (startHour * 60 + startMinute);
-    const height = Math.max(duration * (SLOT_HEIGHT_PX / 60), 20);
+    const top = (snappedStart - 8 * 60) * (SLOT_HEIGHT_PX / 60);
+    const height = (snappedEnd - snappedStart) * (SLOT_HEIGHT_PX / 60);
 
     return { top, height };
   };
@@ -77,9 +78,9 @@ const DayView = ({ events, currentDate }: DayViewProps) => {
                     width: `calc(${pct}% - 4px)`,
                   }}
                 >
-                  <div className="font-semibold text-sm leading-tight line-clamp-1">{event.title}</div>
-                  <div className="text-xs opacity-90 mt-0.5">
-                    {event.startTime} - {event.endTime}
+                  <div className="font-semibold text-sm leading-tight truncate">{event.title}</div>
+                  <div className="text-xs opacity-90 mt-0.5 truncate">
+                    {event.startTime} – {event.endTime}
                   </div>
                 </div>
               );
