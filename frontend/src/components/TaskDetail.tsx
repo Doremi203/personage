@@ -1,12 +1,16 @@
-import { X, Calendar, Flag, FolderOpen, Clock, Tag, FileText, Play, CheckCircle, Pause, Edit } from 'lucide-react';
+import { X, Calendar, Flag, FolderOpen, Clock, Tag, FileText, CheckCircle, Pause, Trash2, Loader2, Play, Timer } from 'lucide-react';
 import { Task } from '../screens/TasksScreen';
 
 interface TaskDetailProps {
   task: Task;
   onClose: () => void;
+  onComplete?: () => Promise<void>;
+  onPostpone?: () => Promise<void>;
+  onDelete?: () => Promise<void>;
+  actionLoading?: boolean;
 }
 
-const TaskDetail = ({ task, onClose }: TaskDetailProps) => {
+const TaskDetail = ({ task, onClose, onComplete, onPostpone, onDelete, actionLoading }: TaskDetailProps) => {
   const getPriorityLabel = (priority: string) => {
     switch (priority) {
       case 'high':
@@ -28,17 +32,15 @@ const TaskDetail = ({ task, onClose }: TaskDetailProps) => {
         return 'Учёба';
       case 'personal':
         return 'Личное';
-      case 'finance':
-        return 'Финансы';
-      case 'health':
-        return 'Здоровье';
       default:
         return category;
     }
   };
 
   const formatDate = (dateString: string) => {
+    if (!dateString) return null;
     const date = new Date(dateString);
+    if (isNaN(date.getTime())) return null;
     return date.toLocaleDateString('ru-RU', {
       day: 'numeric',
       month: 'long',
@@ -85,15 +87,41 @@ const TaskDetail = ({ task, onClose }: TaskDetailProps) => {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-[#FF8A65]/10 rounded-lg flex items-center justify-center">
-              <Calendar size={18} className="text-[#FF8A65]" />
+          {formatDate(task.deadline) && (
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-[#FF8A65]/10 rounded-lg flex items-center justify-center">
+                <Calendar size={18} className="text-[#FF8A65]" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Дедлайн</p>
+                <p className="text-sm font-medium text-[#2D2F31]">{formatDate(task.deadline)}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-xs text-gray-500">Дедлайн</p>
-              <p className="text-sm font-medium text-[#2D2F31]">{formatDate(task.deadline)}</p>
+          )}
+
+          {formatDate(task.startTime) && (
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-[#5C6BFF]/10 rounded-lg flex items-center justify-center">
+                <Play size={18} className="text-[#5C6BFF]" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Начало</p>
+                <p className="text-sm font-medium text-[#2D2F31]">{formatDate(task.startTime)}</p>
+              </div>
             </div>
-          </div>
+          )}
+
+          {formatDate(task.endTime) && (
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-[#4CB782]/10 rounded-lg flex items-center justify-center">
+                <Timer size={18} className="text-[#4CB782]" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Конец</p>
+                <p className="text-sm font-medium text-[#2D2F31]">{formatDate(task.endTime)}</p>
+              </div>
+            </div>
+          )}
 
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
@@ -152,23 +180,31 @@ const TaskDetail = ({ task, onClose }: TaskDetailProps) => {
       </div>
 
       <div className="p-6 border-t border-gray-200 space-y-2">
-        <button className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[#5C6BFF] text-white rounded-xl hover:bg-[#4C5BEF] transition-colors font-medium">
-          <Play size={18} />
-          <span>Начать</span>
-        </button>
         <div className="grid grid-cols-2 gap-2">
-          <button className="flex items-center justify-center gap-2 px-4 py-2.5 bg-[#4CB782] text-white rounded-xl hover:bg-[#3CA672] transition-colors text-sm font-medium">
-            <CheckCircle size={16} />
+          <button
+            onClick={() => onComplete?.()}
+            disabled={actionLoading}
+            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-[#4CB782] text-white rounded-xl hover:bg-[#3CA672] transition-colors text-sm font-medium disabled:opacity-50"
+          >
+            {actionLoading ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
             <span>Завершить</span>
           </button>
-          <button className="flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors text-sm font-medium">
-            <Pause size={16} />
+          <button
+            onClick={() => onPostpone?.()}
+            disabled={actionLoading}
+            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors text-sm font-medium disabled:opacity-50"
+          >
+            {actionLoading ? <Loader2 size={16} className="animate-spin" /> : <Pause size={16} />}
             <span>Отложить</span>
           </button>
         </div>
-        <button className="w-full flex items-center justify-center gap-2 px-4 py-2.5 border-2 border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors text-sm font-medium">
-          <Edit size={16} />
-          <span>Редактировать</span>
+        <button
+          onClick={() => onDelete?.()}
+          disabled={actionLoading}
+          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 border-2 border-red-200 text-red-600 rounded-xl hover:bg-red-50 transition-colors text-sm font-medium disabled:opacity-50"
+        >
+          {actionLoading ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+          <span>Удалить</span>
         </button>
       </div>
     </div>

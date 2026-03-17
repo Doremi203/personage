@@ -1,4 +1,5 @@
 import { ScheduleEvent } from '../screens/ScheduleScreen';
+import { toYYYYMMDD, toMinutes, layoutEvents, SLOT_HEIGHT_PX, snapStart, snapEnd } from '../utils/dateUtils';
 
 interface DayViewProps {
   events: ScheduleEvent[];
@@ -22,54 +23,64 @@ const DayView = ({ events, currentDate }: DayViewProps) => {
   };
 
   const getEventPosition = (event: ScheduleEvent) => {
-    const [startHour, startMinute] = event.startTime.split(':').map(Number);
-    const [endHour, endMinute] = event.endTime.split(':').map(Number);
+    const rawStart = toMinutes(event.startTime);
+    const rawEnd = toMinutes(event.endTime);
+    const snappedStart = snapStart(rawStart);
+    const snappedEnd = snapEnd(rawEnd, snappedStart);
 
-    const top = ((startHour - 8) * 60 + startMinute) * (100 / 60);
-    const duration = (endHour * 60 + endMinute) - (startHour * 60 + startMinute);
-    const height = duration * (100 / 60);
+    const top = (snappedStart - 8 * 60) * (SLOT_HEIGHT_PX / 60);
+    const height = (snappedEnd - snappedStart) * (SLOT_HEIGHT_PX / 60);
 
     return { top, height };
   };
 
   const todayEvents = events.filter((event) => {
-    const eventDate = new Date(event.date);
-    return eventDate.toDateString() === currentDate.toDateString();
+    // Compare YYYY-MM-DD strings to avoid UTC-vs-local day shift
+    return event.date === toYYYYMMDD(currentDate);
   });
+
+  const layouts = layoutEvents(todayEvents);
 
   return (
     <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
       <div className="relative">
         <div className="flex">
-          <div className="w-24">
+          <div className="w-24 flex-shrink-0">
             {hours.map((hour) => (
-              <div key={hour} className="h-25 p-3 text-sm text-gray-500 text-right border-b border-gray-100">
+              <div key={hour} className="h-20 p-3 text-sm text-gray-500 text-right border-b border-gray-100">
                 {hour.toString().padStart(2, '0')}:00
               </div>
             ))}
           </div>
 
-          <div className="flex-1 relative border-l border-gray-200">
+          <div className="flex-1 relative border-l border-gray-200 overflow-hidden">
             {hours.map((hour) => (
               <div
                 key={hour}
-                className="h-25 border-b border-gray-100 hover:bg-gray-50/50 transition-colors cursor-pointer"
+                className="h-20 border-b border-gray-100 hover:bg-gray-50/50 transition-colors cursor-pointer"
               />
             ))}
 
-            {todayEvents.map((event) => {
+            {layouts.map(({ id, col, totalCols }) => {
+              const event = todayEvents.find((e) => e.id === id)!;
               const { top, height } = getEventPosition(event);
+              const pct = 100 / totalCols;
               return (
                 <div
                   key={event.id}
-                  className={`absolute left-2 right-2 rounded-xl border-l-4 p-4 text-white shadow-lg cursor-pointer hover:shadow-xl transition-shadow ${getPriorityColor(
+                  className={`absolute rounded-lg border-l-4 p-1 text-white shadow-lg cursor-pointer hover:shadow-xl transition-shadow overflow-hidden ${getPriorityColor(
                     event.priority
                   )}`}
-                  style={{ top: `${top}px`, minHeight: `${height}px` }}
+                  style={{
+                    top: `${top}px`,
+                    height: `${height}px`,
+                    left: `calc(${col * pct}% + 2px)`,
+                    width: `calc(${pct}% - 4px)`,
+                  }}
                 >
-                  <div className="font-semibold mb-1">{event.title}</div>
-                  <div className="text-sm opacity-90">
-                    {event.startTime} - {event.endTime}
+                  <div className="text-xs font-semibold truncate">{event.title}</div>
+                  <div className="text-xs opacity-90 truncate">
+                    {event.startTime} – {event.endTime}
                   </div>
                 </div>
               );
