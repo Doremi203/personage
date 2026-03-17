@@ -27,7 +27,7 @@ jobs:
   lint-service:
     needs: codegen
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: backend
@@ -50,7 +50,7 @@ jobs:
   lint-libs:
     needs: codegen
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: backend

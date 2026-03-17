@@ -19,7 +19,7 @@ skinparam component {
 }
 
 ' External Systems
-package "Extern`al Systems" {
+package "External Systems" {
     component "Yandex Message Queue\n(Notificator Events)" as sqs <<external>>
     component "Web Push Service\n(VAPID)" as webpush <<external>>
 }
@@ -36,17 +36,20 @@ package "Notificator Service" {
     package "gRPC Services" {
         component "Subscription Service\n\n+ SubscribeV1()\n+ UnsubscribeV1()" as subscription_service <<service>>
         component "Admin Service\n\n+ SendPushV1()" as admin_service <<service>>
+        component "Notifications Service\n\n+ ListNotificationsV1()\n+ ToggleNotificationV1()" as notifications_service <<service>>
     }
 
     ' Use Cases
     package "Use Cases" {
         component "Push Subscription UseCase\n\n+ Subscribe()\n+ Unsubscribe()\n+ GetRecipient()" as push_subscription_uc <<usecase>>
         component "Push Sender UseCase\n\n+ Send()" as push_sender_uc <<usecase>>
+        component "Notifications UseCase\n\n+ List()\n+ Toggle()" as notifications_uc <<usecase>>
     }
 
     ' Repositories
     package "Repositories" {
         component "Push Repository\n\n+ UpsertSubscription()\n+ DeleteSubscription()\n+ GetSubscriptionsByRecipientID()\n+ GetAllRecipients()" as push_repo <<repo>>
+        component "Notification Repository\n\n+ ListByUserID()\n+ ToggleSetting()" as notification_repo <<repo>>
     }
 
     ' Infrastructure
@@ -55,7 +58,7 @@ package "Notificator Service" {
 
 ' Storage
 package "Storage" {
-    database "PostgreSQL" as postgres <<storage>>
+    database "PostgreSQL\n\npush_subscriptions\nnotifications\nnotification_settings" as postgres <<storage>>
 }
 
 ' Connections - External to Workers
@@ -69,16 +72,19 @@ events_worker --> push_subscription_uc
 subscription_service --> push_subscription_uc
 admin_service --> push_sender_uc
 admin_service --> push_repo
+notifications_service --> notifications_uc
 
 ' Connections - Use Cases to Repositories
 push_subscription_uc --> push_repo
 push_sender_uc --> push_repo
+notifications_uc --> notification_repo
 
 ' Connections - Use Cases to External Services
 push_sender_uc --> webpush
 
 ' Connections - Repositories to Database
 push_repo --> db_client
+notification_repo --> db_client
 
 ' Connections - Database Client to Storage
 db_client --> postgres

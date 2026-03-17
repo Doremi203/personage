@@ -1,0 +1,79 @@
+syntax = "proto3";
+
+package push;
+
+option go_package = "github.com/Doremi203/personage/backend/notificator/api/push";
+
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+import "protoc-gen-openapiv2/options/annotations.proto";
+import "validate/validate.proto";
+
+service Notifications {
+  rpc ListNotificationsV1(ListNotificationsV1Request) returns (ListNotificationsV1Response) {
+    option (google.api.http) = {
+      get: "/notifications"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "List notifications";
+      description: "Returns a paginated list of notifications for the authenticated user.";
+      parameters: {
+        headers: {
+          name: "User-Token"
+          description: "User authentication token"
+          type: STRING
+          required: true
+        }
+      }
+    };
+  }
+
+  rpc ToggleNotificationV1(ToggleNotificationV1Request) returns (ToggleNotificationV1Response) {
+    option (google.api.http) = {
+      post: "/notifications/{type}/toggle"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Toggle notification type";
+      description: "Enables or disables push notifications of the specified type for the authenticated user.";
+      parameters: {
+        headers: {
+          name: "User-Token"
+          description: "User authentication token"
+          type: STRING
+          required: true
+        }
+      }
+    };
+  }
+}
+
+message NotificationItem {
+  string id = 1;
+  string title = 2;
+  string type = 3;
+  string text = 4;
+  google.protobuf.Timestamp sent_at = 5;
+}
+
+message ListNotificationsV1Request {
+  int32 page = 1 [
+    (validate.rules).int32 = {gte: 1}
+  ];
+  int32 page_size = 2 [
+    (validate.rules).int32 = {gte: 1, lte: 10}
+  ];
+}
+
+message ListNotificationsV1Response {
+  repeated NotificationItem notifications = 1;
+}
+
+message ToggleNotificationV1Request {
+  string type = 1 [
+    (validate.rules).string = {min_len: 1}
+  ];
+}
+
+message ToggleNotificationV1Response {
+  bool enabled = 1;
+}

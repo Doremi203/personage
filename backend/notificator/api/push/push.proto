@@ -10,4 +10,9 @@ message Notification {
   string body = 3;
   string icon = 4;
   string url = 5;
+  // type is the notification category (e.g. "upcoming_event", "schedule_change").
+  string type = 6;
+  // detailed_text is the verbose notification text that gets persisted
+  // to the database for the frontend notifications API.
+  string detailed_text = 7;
 }
