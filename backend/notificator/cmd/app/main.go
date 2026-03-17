@@ -11,6 +11,7 @@ import (
 	"github.com/Doremi203/personage/backend/libs/go/webapp"
 	pushpb "github.com/Doremi203/personage/backend/notificator/gen/api/push"
 	"github.com/Doremi203/personage/backend/notificator/internal/grpc"
+	notificationpostgres "github.com/Doremi203/personage/backend/notificator/internal/repo/notification/postgres"
 	pushpostgres "github.com/Doremi203/personage/backend/notificator/internal/repo/push/postgres"
 	"github.com/Doremi203/personage/backend/notificator/internal/usecase"
 	sqspush "github.com/Doremi203/personage/backend/notificator/internal/worker"
@@ -54,6 +55,7 @@ func main() {
 		app.AddCloser(dbClient.Close)
 
 		pushRepo := pushpostgres.NewRepo(dbClient)
+		notificationRepo := notificationpostgres.NewRepo(dbClient)
 
 		pushSubscriptionUseCase := usecase.NewPushSubscription(
 			pushRepo,
@@ -89,6 +91,7 @@ func main() {
 				app.Log,
 				pushSenderUseCase,
 				pushSubscriptionUseCase,
+				notificationRepo,
 			),
 			5*time.Second,
 			5,
@@ -103,6 +106,12 @@ func main() {
 			),
 		)
 
+		notificationsUseCase := usecase.NewNotifications(notificationRepo)
+		notificationsService := grpc.NewNotificationsService(
+			notificationsUseCase,
+			app.Log,
+		)
+
 		app.AddAPIKeyProtectedEndpoints(pushpb.Admin_SendPushV1_FullMethodName)
 		app.AddGRPCUnaryInterceptor(
 			token.NewUnaryTokenInterceptor(
@@ -110,15 +119,19 @@ func main() {
 				app.Log,
 				pushpb.Subscription_SubscribeV1_FullMethodName,
 				pushpb.Subscription_UnsubscribeV1_FullMethodName,
+				pushpb.Notifications_ListNotificationsV1_FullMethodName,
+				pushpb.Notifications_ToggleNotificationV1_FullMethodName,
 			),
 		)
 		app.RegisterGRPCServices(
 			pushSubscriptionService,
 			pushAdminService,
+			notificationsService,
 		)
 		app.AddGatewayHandlers(
 			pushSubscriptionService,
 			pushAdminService,
+			notificationsService,
 		)
 
 		return nil

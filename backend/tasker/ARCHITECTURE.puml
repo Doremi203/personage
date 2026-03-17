@@ -24,7 +24,8 @@ skinparam component {
 
 ' External Systems
 package "External Systems" {
-    component "Yandex Message Queue" as sqs <<external>>
+    component "Yandex Message Queue\n(Connector Events)" as sqs <<external>>
+    component "Yandex Message Queue\n(Notificator)" as sqs_notificator <<external>>
     component "OpenRouter API\n(LLM + Embeddings)" as openrouter <<external>>
 }
 
@@ -38,7 +39,7 @@ package "Tasker Service" {
 
     ' API Layer
     package "API Layer (gRPC + HTTP Gateway)" {
-        component "Tasks gRPC Service\n\n+ ListTasksV1()" as grpc_tasks <<api>>
+        component "Tasks gRPC Service\n\n+ ListTasksV1()\n+ GetTaskV1()\n+ UpdateTaskV1()\n+ PostponeTaskV1()\n+ DeleteTaskV1()\n+ CompleteTaskV1()" as grpc_tasks <<api>>
     }
 
     ' Handlers
@@ -51,6 +52,7 @@ package "Tasker Service" {
         component "SQS Worker\n(background job)" as sqs_worker <<worker>>
         component "Cluster Closure Worker\n(background job)\n\n+ Process()" as closure_worker <<worker>>
         component "Scheduling Worker\n(background job)\n\n+ Process()" as scheduling_worker <<worker>>
+        component "Notification Worker\n(background job)\n\n+ Process()" as notification_worker <<worker>>
     }
 
     ' Use Cases
@@ -58,7 +60,7 @@ package "Tasker Service" {
         component "Clusterization UseCase\n\n+ ProcessEvent()" as clusterization_uc <<usecase>>
         component "Task Generation UseCase\n\n+ ProcessClosableClusters()" as taskgen_uc <<usecase>>
         component "Scheduling UseCase\n\n+ SchedulePendingTasks()" as scheduling_uc <<usecase>>
-        component "Task List UseCase\n\n+ ListTasks()" as tasklist_uc <<usecase>>
+        component "Task List UseCase\n\n+ GetTasks()\n+ GetTask()\n+ UpdateTask()\n+ PostponeTask()\n+ CompleteTask()\n+ DeleteTask()" as tasklist_uc <<usecase>>
     }
 
     ' Services
@@ -66,17 +68,21 @@ package "Tasker Service" {
         component "Embedding Service\n\n+ GenerateEmbeddings()" as embedding_service <<service>>
         component "Task Generation Service (LLM)\n\n+ GenerateTask()" as task_service <<service>>
         component "Scheduler (pure function)\n\n+ CalculateSchedule()" as scheduler_service <<service>>
+        component "Notificator Push Service\n\n+ Send()" as notificator_push_service <<service>>
+        component "Upcoming Event Notifier\n\n+ NotifyUpcomingEvents()" as upcoming_notifier <<service>>
+        component "Schedule Change Notifier\n\n+ NotifyScheduleChanges()" as schedule_change_notifier <<service>>
     }
 
     ' Repositories
     package "Repositories" {
-        component "Event Repository\n\n+ UpsertEvent()\n+ GetEventsByClusterID()" as event_repo <<repo>>
-        component "Cluster Repository\n\n+ FindSimilarClusters()\n+ UpsertCluster()\n+ FindClosableClusters()\n+ UpdateClusterStatus()" as cluster_repo <<repo>>
-        component "Task Repository\n\n+ CreateTask()\n+ GetTasksByUserID()\n+ GetTasksByStatus()\n+ GetUsersWithUnplannedTasks()\n+ UpdateTaskSchedule()\n+ UpdateTaskStatus()\n+ ListTasks()" as task_repo <<repo>>
+        component "Event Repository\n\n+ UpsertEvent()\n+ GetEventsByClusterID()\n+ DeleteEventsByClusterID()" as event_repo <<repo>>
+        component "Cluster Repository\n\n+ FindSimilarClusters()\n+ UpsertCluster()\n+ FindClosableClusters()\n+ UpdateClusterStatus()\n+ DeleteCluster()" as cluster_repo <<repo>>
+        component "Task Repository\n\n+ CreateTask()\n+ GetTaskByID()\n+ GetTasksByUserID()\n+ GetTasksByStatus()\n+ GetUsersWithUnplannedTasks()\n+ UpdateTask()\n+ UpdateTaskSchedule()\n+ UpdateTaskStatus()\n+ DeleteTask()\n+ ListTasks()" as task_repo <<repo>>
     }
 
     ' Infrastructure
     component "Database Client\n(pgxpool + pgvector)" as db_client
+    component "Tx Provider" as tx_provider
 }
 
 ' Storage
@@ -103,6 +109,11 @@ closure_worker --> taskgen_uc
 ' Scheduling path
 scheduling_worker --> scheduling_uc
 
+' Notification worker path
+notification_worker --> task_repo
+notification_worker --> upcoming_notifier
+notification_worker --> schedule_change_notifier
+
 ' Clusterization use case dependencies
 clusterization_uc --> embedding_service
 clusterization_uc --> cluster_repo
@@ -123,14 +134,26 @@ task_service --> openrouter
 ' Scheduling use case dependencies
 scheduling_uc --> task_repo
 scheduling_uc ..> scheduler_service : calls pure function
+scheduling_uc --> notificator_push_service
 
 ' Task list use case dependencies
 tasklist_uc --> task_repo
+tasklist_uc --> event_repo
+tasklist_uc --> cluster_repo
+tasklist_uc --> tx_provider
+
+' Notification services dependencies
+upcoming_notifier --> notificator_push_service
+schedule_change_notifier --> notificator_push_service
+notificator_push_service --> sqs_notificator
 
 ' Repository to DB
 event_repo --> db_client
 cluster_repo --> db_client
 task_repo --> db_client
+
+' Tx Provider to DB
+tx_provider --> db_client
 
 db_client --> postgres
 
