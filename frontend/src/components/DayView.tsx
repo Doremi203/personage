@@ -68,7 +68,7 @@ const DayView = ({ events, currentDate }: DayViewProps) => {
               return (
                 <div
                   key={event.id}
-                  className={`absolute rounded-xl border-l-4 p-1 text-white shadow-lg cursor-pointer hover:shadow-xl transition-shadow overflow-hidden flex flex-col justify-start ${getPriorityColor(
+                  className={`absolute rounded-lg border-l-4 p-1 text-white shadow-lg cursor-pointer hover:shadow-xl transition-shadow overflow-hidden ${getPriorityColor(
                     event.priority
                   )}`}
                   style={{
@@ -78,8 +78,8 @@ const DayView = ({ events, currentDate }: DayViewProps) => {
                     width: `calc(${pct}% - 4px)`,
                   }}
                 >
-                  <div className="text-xs font-semibold truncate leading-tight">{event.title}</div>
-                  <div className="text-xs opacity-90 truncate leading-tight">
+                  <div className="text-xs font-semibold truncate">{event.title}</div>
+                  <div className="text-xs opacity-90 truncate">
                     {event.startTime} – {event.endTime}
                   </div>
                 </div>
