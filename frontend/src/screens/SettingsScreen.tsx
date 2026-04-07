@@ -106,7 +106,7 @@ const SettingsScreen = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Часовой пояс
                 </label>
-                <select className="w-full px-4 py-2.5 bg-[#F7F8FA] border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#5C6BFF] focus:border-transparent">
+                <select className="w-full px-4 py-2.5 bg-[#F7F8FA] border border-gray-200 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-[#5C6BFF] focus:border-transparent">
                   <option>Europe/Moscow (GMT+3)</option>
                   <option>Europe/London (GMT+0)</option>
                   <option>America/New_York (GMT-5)</option>
@@ -235,7 +235,7 @@ const SettingsScreen = () => {
                   value={displayName}
                   readOnly
                   placeholder={accountPlaceholder ?? 'Пользователь'}
-                  className="w-full px-4 py-2.5 bg-[#F7F8FA] border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#5C6BFF] focus:border-transparent"
+                  className="w-full px-4 py-2.5 bg-[#F7F8FA] border border-gray-200 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-[#5C6BFF] focus:border-transparent"
                 />
               </div>
               <div>
@@ -247,7 +247,7 @@ const SettingsScreen = () => {
                   value={displayEmail}
                   readOnly
                   placeholder={accountPlaceholder ?? 'user@email.com'}
-                  className="w-full px-4 py-2.5 bg-[#F7F8FA] border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#5C6BFF] focus:border-transparent"
+                  className="w-full px-4 py-2.5 bg-[#F7F8FA] border border-gray-200 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-[#5C6BFF] focus:border-transparent"
                 />
               </div>
             </div>
