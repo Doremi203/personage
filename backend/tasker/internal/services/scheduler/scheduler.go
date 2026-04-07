@@ -72,11 +72,11 @@ func CalculateSchedule(tasks []domain.Task, planningStart time.Time, windowDurat
 			}
 		}
 
-		// Add to planned with original times
+		// Add to planned with slot-aligned end time
 		planned = append(planned, domain.PlannedTask{
 			ID:    task.ID,
 			Start: *task.StartTime,
-			End:   task.StartTime.Add(task.Duration),
+			End:   indexToTime(endIdx),
 		})
 	}
 
@@ -159,9 +159,9 @@ func CalculateSchedule(tasks []domain.Task, planningStart time.Time, windowDurat
 					grid[i] = true
 				}
 
-				// Convert indices back to times and add to result
+				// Convert indices back to slot-aligned times and add to result
 				startTime := indexToTime(startIdx)
-				endTime := startTime.Add(task.Duration)
+				endTime := indexToTime(startIdx + slotsNeeded)
 
 				planned = append(planned, domain.PlannedTask{
 					ID:    task.ID,

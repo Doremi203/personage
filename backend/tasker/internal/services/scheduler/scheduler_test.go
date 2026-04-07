@@ -507,6 +507,87 @@ func TestSchedule_DurationRoundingUp(t *testing.T) {
 	if !task2.Start.Equal(expectedTask2Start) {
 		t.Errorf("Expected task2 to start at %v (after rounded task1), got %v", expectedTask2Start, task2.Start)
 	}
+
+	// task1 (20 min) rounds up to 2 slots → end must be slot-aligned at 9:30, not 9:20
+	expectedTask1End := time.Date(2026, 1, 22, 9, 30, 0, 0, time.UTC)
+	if !task1.End.Equal(expectedTask1End) {
+		t.Errorf("Expected task1 end at %v (slot-aligned), got %v", expectedTask1End, task1.End)
+	}
+
+	// task2 (5 min) rounds up to 1 slot → end must be slot-aligned at 9:45, not 9:35
+	expectedTask2End := time.Date(2026, 1, 22, 9, 45, 0, 0, time.UTC)
+	if !task2.End.Equal(expectedTask2End) {
+		t.Errorf("Expected task2 end at %v (slot-aligned), got %v", expectedTask2End, task2.End)
+	}
+}
+
+// TestSchedule_SlotAlignedEndTime verifies that PlannedTask.End is always aligned to a
+// 15-minute slot boundary, even when the raw task duration is not a multiple of 15 minutes.
+func TestSchedule_SlotAlignedEndTime(t *testing.T) {
+	start := time.Date(2026, 1, 22, 9, 0, 0, 0, time.UTC)
+	window := 2 * time.Hour
+
+	tests := []struct {
+		name        string
+		duration    time.Duration
+		expectedEnd time.Time
+	}{
+		// 33 min → ceil(33/15) = 3 slots → end = 9:00 + 45 min
+		{"33min_task", 33 * time.Minute, start.Add(45 * time.Minute)},
+		// 28 min → ceil(28/15) = 2 slots → end = 9:00 + 30 min
+		{"28min_task", 28 * time.Minute, start.Add(30 * time.Minute)},
+		// 1 min → ceil(1/15) = 1 slot → end = 9:00 + 15 min
+		{"1min_task", 1 * time.Minute, start.Add(15 * time.Minute)},
+		// 15 min → ceil(15/15) = 1 slot → end = 9:00 + 15 min
+		{"15min_task", 15 * time.Minute, start.Add(15 * time.Minute)},
+		// 30 min → ceil(30/15) = 2 slots → end = 9:00 + 30 min
+		{"30min_task", 30 * time.Minute, start.Add(30 * time.Minute)},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := CalculateSchedule([]domain.Task{
+				{ID: domain.TaskID(tt.name), Duration: tt.duration, Priority: 1},
+			}, start, window)
+
+			if len(result.Planned) != 1 {
+				t.Fatalf("Expected 1 planned task, got %d", len(result.Planned))
+			}
+			task := result.Planned[0]
+			if !task.End.Equal(tt.expectedEnd) {
+				t.Errorf("duration=%v: expected slot-aligned end %v, got %v", tt.duration, tt.expectedEnd, task.End)
+			}
+		})
+	}
+}
+
+// TestSchedule_FixedTask_SlotAlignedEndTime verifies that fixed tasks also get
+// slot-aligned end times stored in PlannedTask.
+func TestSchedule_FixedTask_SlotAlignedEndTime(t *testing.T) {
+	start := time.Date(2026, 1, 22, 9, 0, 0, 0, time.UTC)
+	window := 2 * time.Hour
+	fixedStart := time.Date(2026, 1, 22, 9, 30, 0, 0, time.UTC)
+
+	tasks := []domain.Task{
+		{
+			ID:        "fixed1",
+			Duration:  20 * time.Minute, // 20 min → ceil(20/15) = 2 slots → end at 9:30 + 30 min = 10:00
+			StartTime: &fixedStart,
+			Priority:  1,
+		},
+	}
+
+	result := CalculateSchedule(tasks, start, window)
+
+	if len(result.Planned) != 1 {
+		t.Fatalf("Expected 1 planned task, got %d", len(result.Planned))
+	}
+
+	planned := result.Planned[0]
+	expectedEnd := time.Date(2026, 1, 22, 10, 0, 0, 0, time.UTC)
+	if !planned.End.Equal(expectedEnd) {
+		t.Errorf("Expected slot-aligned end %v, got %v", expectedEnd, planned.End)
+	}
 }
 
 func TestSchedule_ExactSlotBoundary(t *testing.T) {
