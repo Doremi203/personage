@@ -12,5 +12,4 @@ jobs:
     with:
       service_name: tasker
       db_name: tasker
-      run_functional_tests: 'true'
     secrets: inherit

@@ -15,11 +15,6 @@ on:
         type: string
         description: "Service need for migrations"
         default: true
-      run_functional_tests:
-        required: false
-        type: string
-        description: "Run Jest functional tests from tests/{service_name}/"
-        default: 'false'
 
 permissions:
   contents: write
@@ -64,56 +59,8 @@ jobs:
       - name: Run tests
         run: BASE_MIGRATIONS_PATH=${{ github.workspace }}/backend go test ./... -race
 
-#  test-functional:
-#    needs: codegen
-#    runs-on: ubuntu-latest
-#    timeout-minutes: 10
-#    defaults:
-#      run:
-#        working-directory: backend/pytest
-#    steps:
-#      - uses: actions/checkout@v4
-#
-#      - name: Download codegen results
-#        uses: actions/download-artifact@v4
-#        with:
-#          name: codegen-output
-#          path: backend
-#
-#      - name: Docker compose
-#        run: cd .. && docker compose -f docker-compose.tests.yml up -d
-#
-#      - name: Setup Python
-#        uses: actions/setup-python@v5
-#        with:
-#          python-version: '3.x'
-#
-#      - name: Install test dependencies
-#        run: |
-#          python -m venv .venv
-#          source .venv/bin/activate
-#          pip install -r requirements.txt
-#          pip install allure-pytest allure-commandline
-#
-#      - name: Run functional tests with Allure
-#        run: |
-#          source .venv/bin/activate
-#          pytest ${{ inputs.service_name }} --alluredir=allure-results
-#
-#      - name: Generate Allure report
-#        run: |
-#          source .venv/bin/activate
-#          allure generate allure-results -o allure-report --clean
-#
-#      - name: Upload Allure report
-#        uses: actions/upload-artifact@v4
-#        with:
-#          name: allure-report
-#          path: backend/pytest/allure-report
-
   test-functional:
     needs: build
-    if: inputs.run_functional_tests == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -158,17 +105,17 @@ jobs:
         with:
           node-version: '22'
           cache: 'npm'
-          cache-dependency-path: tests/${{ inputs.service_name }}/package-lock.json
+          cache-dependency-path: tests/package-lock.json
 
       - name: Install test dependencies
-        working-directory: tests/${{ inputs.service_name }}
+        working-directory: tests
         run: npm ci
 
       - name: Run functional tests
-        working-directory: tests/${{ inputs.service_name }}
+        working-directory: tests
         env:
           TASKER_URL: http://localhost:9090
-        run: npm test
+        run: npx jest --config ${{ inputs.service_name }}/jest.config.ts
 
       - name: Show service logs on failure
         if: failure()

@@ -1,10 +1,11 @@
 {
-  "name": "tasker-functional-tests",
+  "name": "functional-tests",
   "private": true,
   "version": "0.0.0",
   "scripts": {
     "test": "jest",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "test:tasker": "jest --config tasker/jest.config.ts"
   },
   "devDependencies": {
     "@types/jest": "^29.5.14",

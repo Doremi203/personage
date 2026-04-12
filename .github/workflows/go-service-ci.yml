@@ -10,11 +10,6 @@ on:
         required: false
         type: string
         description: "Database name for migrations"
-      run_functional_tests:
-        required: false
-        type: string
-        description: "Run Jest functional tests from tests/{service_name}/"
-        default: 'false'
 
 permissions:
   actions: read
@@ -119,7 +114,6 @@ jobs:
 
   test-functional:
     needs: codegen
-    if: inputs.run_functional_tests == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -157,17 +151,17 @@ jobs:
         with:
           node-version: '22'
           cache: 'npm'
-          cache-dependency-path: tests/${{ inputs.service_name }}/package-lock.json
+          cache-dependency-path: tests/package-lock.json
 
       - name: Install test dependencies
-        working-directory: tests/${{ inputs.service_name }}
+        working-directory: tests
         run: npm ci
 
       - name: Run functional tests
-        working-directory: tests/${{ inputs.service_name }}
+        working-directory: tests
         env:
           TASKER_URL: http://localhost:9090
-        run: npm test
+        run: npx jest --config ${{ inputs.service_name }}/jest.config.ts
 
       - name: Show service logs on failure
         if: failure()
