@@ -47,10 +47,16 @@ func (r *repo) CreateTask(ctx context.Context, task domain.Task) error {
 		ON CONFLICT (cluster_id) DO NOTHING
 	`
 
+	var clusterID *string
+	if task.ClusterID != nil {
+		s := task.ClusterID.String()
+		clusterID = &s
+	}
+
 	_, err := r.client.Exec(ctx, query,
 		task.ID,
 		task.UserID,
-		task.ClusterID,
+		clusterID,
 		task.Title,
 		task.Description,
 		int(task.Duration.Minutes()),
@@ -430,7 +436,7 @@ func (r *repo) ListTasks(ctx context.Context, filter domain.TaskFilter, paginati
 type taskEntity struct {
 	TaskID          string     `db:"task_id"`
 	UserID          string     `db:"user_id"`
-	ClusterID       string     `db:"cluster_id"`
+	ClusterID       *string    `db:"cluster_id"`
 	Title           string     `db:"title"`
 	Description     string     `db:"description"`
 	DurationMinutes int        `db:"duration_minutes"`
@@ -445,10 +451,16 @@ type taskEntity struct {
 }
 
 func (e taskEntity) ToDomain() domain.Task {
+	var clusterID *domain.ClusterID
+	if e.ClusterID != nil {
+		cid := domain.ClusterID(*e.ClusterID)
+		clusterID = &cid
+	}
+
 	return domain.Task{
 		ID:          domain.TaskID(e.TaskID),
 		UserID:      domain.UserID(e.UserID),
-		ClusterID:   domain.ClusterID(e.ClusterID),
+		ClusterID:   clusterID,
 		Title:       e.Title,
 		Description: e.Description,
 		Duration:    time.Duration(e.DurationMinutes) * time.Minute,

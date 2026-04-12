@@ -15,6 +15,11 @@ on:
         type: string
         description: "Service need for migrations"
         default: true
+      run_functional_tests:
+        required: false
+        type: string
+        description: "Run Jest functional tests from tests/{service_name}/"
+        default: 'false'
 
 permissions:
   contents: write
@@ -106,6 +111,70 @@ jobs:
 #          name: allure-report
 #          path: backend/pytest/allure-report
 
+  test-functional:
+    needs: build
+    if: inputs.run_functional_tests == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set release version
+        run: echo "RELEASE_VERSION=${{ github.run_number }}" >> $GITHUB_ENV
+
+      - name: Setup yc
+        run: |
+          curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash -s -- -i /opt/yc -n
+          echo '${{ secrets.YC_SERVICE_KEY }}' > sa-key.json
+          /opt/yc/bin/yc config set folder-id ${{ secrets.YC_FOLDER_ID }}
+          /opt/yc/bin/yc config set service-account-key sa-key.json
+
+      - name: Generate YC token
+        run: echo "YC_TOKEN=$(/opt/yc/bin/yc iam create-token)" >> $GITHUB_ENV
+
+      - name: Login to docker registry
+        run: echo "${{ env.YC_TOKEN }}" | docker login --username iam --password-stdin cr.yandex
+
+      - name: Start database
+        working-directory: tests/${{ inputs.service_name }}
+        run: docker compose up -d --wait db
+
+      - name: Run migrations
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/pressly/goose/master/install.sh | sh
+          export GOOSE_DRIVER=postgres
+          export GOOSE_DBSTRING="postgres://user:pass@localhost:5432/${{ inputs.db_name }}?sslmode=disable"
+          goose -v -dir backend/${{ inputs.service_name }}/migrations up
+
+      - name: Start service
+        working-directory: tests/${{ inputs.service_name }}
+        env:
+          SERVICE_IMAGE: cr.yandex/${{ vars.DOCKER_REGISTRY }}/${{ inputs.service_name }}:${{ env.RELEASE_VERSION }}
+          YC_TOKEN: ${{ env.YC_TOKEN }}
+        run: docker compose up -d ${{ inputs.service_name }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: tests/${{ inputs.service_name }}/package-lock.json
+
+      - name: Install test dependencies
+        working-directory: tests/${{ inputs.service_name }}
+        run: npm ci
+
+      - name: Run functional tests
+        working-directory: tests/${{ inputs.service_name }}
+        env:
+          TASKER_URL: http://localhost:9090
+        run: npm test
+
+      - name: Show service logs on failure
+        if: failure()
+        working-directory: tests/${{ inputs.service_name }}
+        run: docker compose logs ${{ inputs.service_name }}
+
   build:
     needs:
       - codegen
@@ -184,6 +253,8 @@ jobs:
     needs:
       - build
       - migrate-up
+      - test-functional
+    if: ${{ !failure() && !cancelled() }}
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6

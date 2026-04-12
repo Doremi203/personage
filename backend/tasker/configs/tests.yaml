@@ -1,0 +1,29 @@
+database:
+  host: db
+  port: 5432
+  user: user
+  password: pass
+  database: tasker
+  options: sslmode=disable
+
+sqs:
+  endpoint: http://localhost:4566
+  region: us-east-1
+  accessKey: test
+  secretKey: test
+  queueUrl: http://localhost:4566/000000000000/events.fifo
+
+sqs-notificator:
+  endpoint: http://localhost:4566
+  region: us-east-1
+  accessKey: test
+  secretKey: test
+  queueUrl: http://localhost:4566/000000000000/notificator-commands
+
+llm:
+  model: dummy
+  apiKey: dummy
+
+embedding:
+  model: dummy
+  apiKey: dummy

@@ -124,10 +124,11 @@ func (uc *UseCase) processCluster(ctx context.Context, cluster domain.Cluster) e
 	}
 
 	now := time.Now()
+	clusterID := cluster.ID
 	task := domain.Task{
 		ID:          domain.TaskID(uuid.New().String()),
 		UserID:      cluster.UserID,
-		ClusterID:   cluster.ID,
+		ClusterID:   &clusterID,
 		Title:       generatedTask.Title,
 		Description: generatedTask.Description,
 		Duration:    time.Duration(generatedTask.DurationMinutes) * time.Minute,

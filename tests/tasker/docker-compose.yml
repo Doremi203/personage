@@ -1,0 +1,28 @@
+services:
+  db:
+    image: pgvector/pgvector:pg18-trixie
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: postgres
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+
+  tasker:
+    image: ${SERVICE_IMAGE}
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      APP_ENV: tests
+      CONFIGS_PATH: /app/configs
+      YC_TOKEN: ${YC_TOKEN:-}
+    ports:
+      - "9090:9090"
