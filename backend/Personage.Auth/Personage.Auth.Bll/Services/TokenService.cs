@@ -116,6 +116,10 @@ public class TokenService(
         {
             ValidateIssuerSigningKey = true,
             IssuerSigningKey = GetPublicSecurityKey(),
+            
+            ValidateIssuer = false,
+            ValidateAudience = false,
+            ValidateLifetime = false,
         };
     }
 
