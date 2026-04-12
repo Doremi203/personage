@@ -144,7 +144,7 @@ jobs:
         working-directory: tests
         env:
           SERVICE_IMAGE: ${{ inputs.service_name }}_service:${{ github.sha }}
-        run: docker compose up -d ${{ inputs.service_name }}
+        run: docker compose up -d service
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -166,4 +166,4 @@ jobs:
       - name: Show service logs on failure
         if: failure()
         working-directory: tests
-        run: docker compose logs ${{ inputs.service_name }}
+        run: docker compose logs service

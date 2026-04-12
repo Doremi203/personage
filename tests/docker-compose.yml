@@ -15,7 +15,7 @@ services:
     ports:
       - "5432:5432"
 
-  tasker:
+  service:
     image: ${SERVICE_IMAGE:-placeholder}
     depends_on:
       db:
