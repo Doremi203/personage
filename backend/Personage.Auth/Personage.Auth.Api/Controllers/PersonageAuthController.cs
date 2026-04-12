@@ -9,7 +9,10 @@ namespace Personage.Auth.Api.Controllers;
 
 [ApiController]
 [Route("auth/personage")]
-public class PersonageAuthController(IAuthService authService) : ControllerBase
+public class PersonageAuthController(
+    IAuthService authService,
+    ITokenService tokenService
+) : ControllerBase
 {
     [HttpPost("register")]
     [ProducesResponseType(typeof(PersonageAuthResponse), StatusCodes.Status200OK)]
@@ -58,7 +61,7 @@ public class PersonageAuthController(IAuthService authService) : ControllerBase
         CancellationToken ct
     )
     {
-        var res = await authService.RefreshAccessToken(request.RefreshToken, ct);
+        var res = await tokenService.RefreshAccessToken(request.RefreshToken, ct);
 
         return new PersonageAuthResponse
         {
