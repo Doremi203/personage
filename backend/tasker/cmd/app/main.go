@@ -283,6 +283,11 @@ func main() {
 
 		app.RegisterGRPCServices(tasksService)
 		app.AddGatewayHandlers(tasksService)
+
+		if app.Env == webapp.DevEnvironment || app.Env == webapp.TestsEnvironment {
+			app.AddHTTPHandler("/v1/test/tasks", taskergrpc.NewTestCreateTaskHandler(postgresTaskRepo))
+		}
+
 		app.AddGRPCUnaryInterceptor(
 			token.NewUnaryTokenInterceptor(
 				token.NewVerifierStub(),

@@ -146,6 +146,7 @@ type App struct {
 	gatewayOptions        []runtime.ServeMuxOption
 	grpcServices          []grpcService
 	gatewayHandlers       []grpcGatewayService
+	httpHandlers          []httpHandler
 	httpServer            *http.Server
 
 	backgroundJobs []backgroundJob
@@ -249,10 +250,13 @@ func initYCSdk(ctx context.Context, env Environment) (*ycsdk.SDK, error) {
 		}
 		ycToken = tokenResp.AccessToken
 	}
-	if env == DevEnvironment {
+	if env == DevEnvironment || env == TestsEnvironment {
 		ycToken = os.Getenv("YC_TOKEN")
 	}
 	if ycToken == "" {
+		if env == TestsEnvironment {
+			return nil, nil
+		}
 		return nil, errors.Error("yc token is empty")
 	}
 
@@ -403,6 +407,17 @@ func (a *App) AddGatewayHandlers(
 	a.gatewayHandlers = append(a.gatewayHandlers, services...)
 }
 
+type httpHandler struct {
+	pattern string
+	handler http.HandlerFunc
+}
+
+// AddHTTPHandler registers a plain HTTP handler at the given pattern.
+// It is served before the gRPC-Gateway catch-all, so it takes precedence.
+func (a *App) AddHTTPHandler(pattern string, handler http.HandlerFunc) {
+	a.httpHandlers = append(a.httpHandlers, httpHandler{pattern: pattern, handler: handler})
+}
+
 func (a *App) registerGatewayHandler(
 	grpcMux *runtime.ServeMux,
 	service grpcGatewayService,
@@ -503,6 +518,10 @@ func (a *App) initHTTPServer(grpcMux *runtime.ServeMux) error {
 		}
 		w.WriteHeader(http.StatusOK)
 	})
+
+	for _, h := range a.httpHandlers {
+		mux.HandleFunc(h.pattern, h.handler)
+	}
 
 	mux.Handle("/", grpcMux)
 

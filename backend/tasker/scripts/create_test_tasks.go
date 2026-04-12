@@ -116,7 +116,7 @@ func insertUserData(
 		task := domain.Task{
 			ID:          domain.TaskID(uuid.New().String()),
 			UserID:      u.UserID,
-			ClusterID:   clusterID,
+			ClusterID:   &clusterID,
 			Title:       t.Title,
 			Description: t.Description,
 			Duration:    time.Duration(t.DurationMinutes) * time.Minute,
