@@ -9,7 +9,7 @@ import {
   setConnectedGmailEmail,
   type UserApiResponse,
 } from '../utils/authService';
-import { toggleNotification } from '../utils/notificatorService';
+import { toggleNotification, getNotificationSettings } from '../utils/notificatorService';
 
 const UPCOMING_EVENT_TYPE = 'upcoming_event';
 const SCHEDULE_CHANGED_TYPE = 'schedule_changed';
@@ -30,6 +30,26 @@ const SettingsScreen = () => {
 
   const [userData, setUserData] = useState<UserApiResponse | null>(null);
   const [userLoading, setUserLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const { settings } = await getNotificationSettings();
+        if (!cancelled) {
+          for (const s of settings) {
+            if (s.type === UPCOMING_EVENT_TYPE) setUpcomingEventEnabled(s.enabled);
+            if (s.type === SCHEDULE_CHANGED_TYPE) setScheduleChangedEnabled(s.enabled);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch notification settings:', err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;

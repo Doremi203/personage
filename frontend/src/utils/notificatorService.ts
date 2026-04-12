@@ -56,6 +56,15 @@ async function fetchWithAuth<T>(
   return (text ? (JSON.parse(text) as T) : ({} as T));
 }
 
+export interface NotificationSettingItem {
+  type: string;
+  enabled: boolean;
+}
+
+export interface GetNotificationSettingsResponse {
+  settings: NotificationSettingItem[];
+}
+
 export async function listNotifications(
   page: number,
   pageSize: number,
@@ -75,4 +84,10 @@ export async function toggleNotification(type: string): Promise<boolean> {
     { method: 'POST' },
   );
   return data.enabled;
+}
+
+export async function getNotificationSettings(): Promise<GetNotificationSettingsResponse> {
+  return fetchWithAuth<GetNotificationSettingsResponse>(
+    `${NOTIFICATOR_API_URL}/notifications/settings`,
+  );
 }
