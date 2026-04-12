@@ -10,6 +10,7 @@ on:
       - 'backend/go.mod'
       - 'backend/go.sum'
       - 'tests/tasker/**'
+      - 'tests/setup/**'
       - '.github/workflows/tasker-ci.yml'
       - '.github/actions/codegen/**'
 

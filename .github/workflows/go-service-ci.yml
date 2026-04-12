@@ -161,7 +161,7 @@ jobs:
         working-directory: tests
         env:
           TASKER_URL: http://localhost:9090
-        run: npx jest --config ${{ inputs.service_name }}/jest.config.ts
+        run: npx jest --testPathPattern=${{ inputs.service_name }}
 
       - name: Show service logs on failure
         if: failure()
