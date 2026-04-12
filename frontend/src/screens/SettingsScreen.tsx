@@ -12,6 +12,7 @@ import {
 import { toggleNotification } from '../utils/notificatorService';
 
 const UPCOMING_EVENT_TYPE = 'upcoming_event';
+const SCHEDULE_CHANGED_TYPE = 'schedule_changed';
 
 const SettingsScreen = () => {
   const [connectedGmailEmail, setConnectedGmailEmailState] = useState<string | null>(
@@ -23,6 +24,9 @@ const SettingsScreen = () => {
 
   const [upcomingEventEnabled, setUpcomingEventEnabled] = useState(true);
   const [upcomingEventToggling, setUpcomingEventToggling] = useState(false);
+
+  const [scheduleChangedEnabled, setScheduleChangedEnabled] = useState(true);
+  const [scheduleChangedToggling, setScheduleChangedToggling] = useState(false);
 
   const [userData, setUserData] = useState<UserApiResponse | null>(null);
   const [userLoading, setUserLoading] = useState(true);
@@ -97,6 +101,21 @@ const SettingsScreen = () => {
       });
   };
 
+  const handleScheduleChangedToggle = () => {
+    if (scheduleChangedToggling) return;
+    setScheduleChangedToggling(true);
+    toggleNotification(SCHEDULE_CHANGED_TYPE)
+      .then((enabled) => {
+        setScheduleChangedEnabled(enabled);
+      })
+      .catch((err: unknown) => {
+        console.error('Failed to toggle notification setting:', err);
+      })
+      .finally(() => {
+        setScheduleChangedToggling(false);
+      });
+  };
+
   const cachedUserInfo = getUserInfo();
   const displayName = userLoading ? '' : (userData?.name ?? cachedUserInfo?.name ?? '');
   const displayEmail = userLoading ? '' : (userData?.email ?? cachedUserInfo?.email ?? '');
@@ -160,6 +179,22 @@ const SettingsScreen = () => {
                     checked={upcomingEventEnabled}
                     onChange={handleUpcomingEventToggle}
                     disabled={upcomingEventToggling}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[#5C6BFF]/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#5C6BFF]"></div>
+                </label>
+              </div>
+              <div className="flex items-center justify-between p-4 bg-[#F7F8FA] rounded-xl">
+                <div>
+                  <p className="font-medium text-[#2D2F31]">Изменения в расписании</p>
+                  <p className="text-sm text-gray-500">Уведомления об изменениях в расписании</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={scheduleChangedEnabled}
+                    onChange={handleScheduleChangedToggle}
+                    disabled={scheduleChangedToggling}
                     className="sr-only peer"
                   />
                   <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[#5C6BFF]/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#5C6BFF]"></div>
