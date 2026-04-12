@@ -5,7 +5,7 @@
   "scripts": {
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:tasker": "jest --config tasker/jest.config.ts"
+    "test:tasker": "jest --testPathPattern=tasker"
   },
   "devDependencies": {
     "@types/jest": "^29.5.14",
