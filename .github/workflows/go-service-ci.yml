@@ -130,7 +130,7 @@ jobs:
         run: docker build --build-arg service=${{ inputs.service_name }} -t ${{ inputs.service_name }}_service:${{ github.sha }} . -f go.Dockerfile
 
       - name: Start database
-        working-directory: tests/${{ inputs.service_name }}
+        working-directory: tests
         run: docker compose up -d --wait db
 
       - name: Run migrations
@@ -141,7 +141,7 @@ jobs:
           goose -v -dir backend/${{ inputs.service_name }}/migrations up
 
       - name: Start service
-        working-directory: tests/${{ inputs.service_name }}
+        working-directory: tests
         env:
           SERVICE_IMAGE: ${{ inputs.service_name }}_service:${{ github.sha }}
         run: docker compose up -d ${{ inputs.service_name }}
@@ -165,5 +165,5 @@ jobs:
 
       - name: Show service logs on failure
         if: failure()
-        working-directory: tests/${{ inputs.service_name }}
+        working-directory: tests
         run: docker compose logs ${{ inputs.service_name }}

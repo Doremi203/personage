@@ -83,7 +83,7 @@ jobs:
         run: echo "${{ env.YC_TOKEN }}" | docker login --username iam --password-stdin cr.yandex
 
       - name: Start database
-        working-directory: tests/${{ inputs.service_name }}
+        working-directory: tests
         run: docker compose up -d --wait db
 
       - name: Run migrations
@@ -94,7 +94,7 @@ jobs:
           goose -v -dir backend/${{ inputs.service_name }}/migrations up
 
       - name: Start service
-        working-directory: tests/${{ inputs.service_name }}
+        working-directory: tests
         env:
           SERVICE_IMAGE: cr.yandex/${{ vars.DOCKER_REGISTRY }}/${{ inputs.service_name }}:${{ env.RELEASE_VERSION }}
           YC_TOKEN: ${{ env.YC_TOKEN }}
@@ -119,7 +119,7 @@ jobs:
 
       - name: Show service logs on failure
         if: failure()
-        working-directory: tests/${{ inputs.service_name }}
+        working-directory: tests
         run: docker compose logs ${{ inputs.service_name }}
 
   build:
