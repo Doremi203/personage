@@ -16,7 +16,7 @@ services:
       - "5432:5432"
 
   tasker:
-    image: ${SERVICE_IMAGE}
+    image: ${SERVICE_IMAGE:-placeholder}
     depends_on:
       db:
         condition: service_healthy
