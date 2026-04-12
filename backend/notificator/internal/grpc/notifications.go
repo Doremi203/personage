@@ -84,6 +84,33 @@ func (s *notificationsService) ListNotificationsV1(
 	}, nil
 }
 
+func (s *notificationsService) GetNotificationSettingsV1(
+	ctx context.Context,
+	_ *pushpb.GetNotificationSettingsV1Request,
+) (*pushpb.GetNotificationSettingsV1Response, error) {
+	t, ok := token.FromContext(ctx)
+	if !ok {
+		return nil, status.Error(codes.Unauthenticated, "missing token")
+	}
+
+	settings, err := s.notificationsUseCase.GetSettings(ctx, t.GetUserID())
+	if err != nil {
+		return nil, errors.WrapFail(err, "get notification settings")
+	}
+
+	protoSettings := make([]*pushpb.NotificationSetting, 0, len(settings))
+	for _, s := range settings {
+		protoSettings = append(protoSettings, &pushpb.NotificationSetting{
+			Type:    s.Type,
+			Enabled: s.Enabled,
+		})
+	}
+
+	return &pushpb.GetNotificationSettingsV1Response{
+		Settings: protoSettings,
+	}, nil
+}
+
 func (s *notificationsService) ToggleNotificationV1(
 	ctx context.Context,
 	req *pushpb.ToggleNotificationV1Request,

@@ -1,6 +1,8 @@
+import { useState, useEffect } from 'react';
 import { Bell } from 'lucide-react';
 import NotificationList from '../components/NotificationList';
 import WeeklyDigest from '../components/WeeklyDigest';
+import { listNotifications, type ApiNotificationItem } from '../utils/notificatorService';
 
 export interface Notification {
   id: string;
@@ -11,43 +13,52 @@ export interface Notification {
   read: boolean;
 }
 
-const NotificationsScreen = () => {
-  const mockNotifications: Notification[] = [
-    {
-      id: '1',
-      type: 'reminder',
-      title: 'Напоминание о задаче',
-      message: 'Через 30 минут начинается встреча с клиентом',
-      timestamp: '2025-11-16T08:30:00',
-      read: false,
-    },
-    {
-      id: '2',
-      type: 'schedule',
-      title: 'Изменение в расписании',
-      message: 'Тренировка перенесена на 18:00',
-      timestamp: '2025-11-16T07:15:00',
-      read: false,
-    },
-    {
-      id: '3',
-      type: 'analytics',
-      title: 'Недельная аналитика',
-      message: 'Вы выполнили 85% запланированных задач',
-      timestamp: '2025-11-15T20:00:00',
-      read: true,
-    },
-    {
-      id: '4',
-      type: 'reminder',
-      title: 'Дедлайн приближается',
-      message: 'Осталось 2 дня до дедлайна "Подготовить презентацию"',
-      timestamp: '2025-11-15T10:00:00',
-      read: true,
-    },
-  ];
+function apiTypeToLocal(type: string): Notification['type'] {
+  if (type === 'schedule_change') return 'schedule';
+  if (type === 'analytics') return 'analytics';
+  return 'reminder';
+}
 
-  const unreadCount = mockNotifications.filter((n) => !n.read).length;
+function apiItemToNotification(item: ApiNotificationItem): Notification {
+  return {
+    id: item.id,
+    type: apiTypeToLocal(item.type),
+    title: item.title,
+    message: item.text,
+    timestamp: item.sentAt,
+    read: true,
+  };
+}
+
+const PAGE_SIZE = 10;
+
+const NotificationsScreen = () => {
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const data = await listNotifications(1, PAGE_SIZE);
+        if (!cancelled) {
+          setNotifications((data.notifications ?? []).map(apiItemToNotification));
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Не удалось загрузить уведомления');
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const unreadCount = notifications.filter((n) => !n.read).length;
 
   return (
     <div className="h-full flex flex-col lg:flex-row md:pt-0 pt-16">
@@ -70,7 +81,15 @@ const NotificationsScreen = () => {
               <Bell size={18} className="text-[#5C6BFF]" />
               <h3 className="font-semibold text-base md:text-lg text-[#2D2F31]">Последние уведомления</h3>
             </div>
-            <NotificationList notifications={mockNotifications} />
+            {loading ? (
+              <div className="text-sm text-gray-500 py-4">Загрузка...</div>
+            ) : error ? (
+              <div className="text-sm text-red-500 py-4">{error}</div>
+            ) : notifications.length === 0 ? (
+              <div className="text-sm text-gray-500 py-4">Уведомлений пока нет</div>
+            ) : (
+              <NotificationList notifications={notifications} />
+            )}
           </div>
         </div>
       </div>

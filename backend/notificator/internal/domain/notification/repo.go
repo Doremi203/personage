@@ -19,4 +19,7 @@ type Repo interface {
 	// If no row exists yet, it inserts one with enabled=false (toggled from the default true).
 	// Returns the new state after toggling.
 	ToggleSetting(ctx context.Context, userID uuid.UUID, notificationType string) (Setting, error)
+
+	// GetSettings returns all notification settings rows for the given user.
+	GetSettings(ctx context.Context, userID uuid.UUID) ([]Setting, error)
 }

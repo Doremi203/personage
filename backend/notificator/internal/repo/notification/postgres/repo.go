@@ -59,9 +59,29 @@ func (r *repo) ListByUserID(ctx context.Context, userID uuid.UUID, limit, offset
 	return slices.Map(entities, entityToDomain), nil
 }
 
+func (r *repo) GetSettings(ctx context.Context, userID uuid.UUID) ([]notification.Setting, error) {
+	const query = `
+		SELECT recipient_id, type, enabled
+		FROM notification_settings
+		WHERE recipient_id = $1
+	`
+
+	rows, err := r.db.Query(ctx, query, userID)
+	if err != nil {
+		return nil, errors.WrapFail(err, "exec select notification settings query")
+	}
+	defer rows.Close()
+
+	entities, err := pgx.CollectRows(rows, pgx.RowToStructByName[settingEntity])
+	if err != nil {
+		return nil, errors.WrapFail(err, "collect notification settings rows")
+	}
+
+	return slices.Map(entities, settingEntityToDomain), nil
+}
+
 func (r *repo) ToggleSetting(ctx context.Context, userID uuid.UUID, notificationType string) (notification.Setting, error) {
 	const query = `
-		INSERT INTO notification_settings (recipient_id, type, enabled)
 		VALUES ($1, $2, false)
 		ON CONFLICT (recipient_id, type) DO UPDATE
 		SET enabled = NOT notification_settings.enabled

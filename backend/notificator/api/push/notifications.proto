@@ -45,6 +45,24 @@ service Notifications {
       }
     };
   }
+
+  rpc GetNotificationSettingsV1(GetNotificationSettingsV1Request) returns (GetNotificationSettingsV1Response) {
+    option (google.api.http) = {
+      get: "/notifications/settings"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Get notification settings";
+      description: "Returns all notification settings for the authenticated user.";
+      parameters: {
+        headers: {
+          name: "User-Token"
+          description: "User authentication token"
+          type: STRING
+          required: true
+        }
+      }
+    };
+  }
 }
 
 message NotificationItem {
@@ -76,4 +94,15 @@ message ToggleNotificationV1Request {
 
 message ToggleNotificationV1Response {
   bool enabled = 1;
+}
+
+message NotificationSetting {
+  string type = 1;
+  bool enabled = 2;
+}
+
+message GetNotificationSettingsV1Request {}
+
+message GetNotificationSettingsV1Response {
+  repeated NotificationSetting settings = 1;
 }
