@@ -290,31 +290,41 @@ func main() {
 			app.AddHTTPHandler("/v1/test/tasks", taskergrpc.NewTestCreateTaskHandler(postgresTaskRepo))
 		}
 
-		type AuthConfig struct {
-			Address string
-		}
-		authConfig := AuthConfig{}
-		err = app.Config.ReadSection(ctx, "auth", &authConfig)
-		if err != nil {
-			return err
-		}
+		if app.Env == webapp.TestsEnvironment {
+			app.AddGRPCUnaryInterceptor(
+				token.NewUnaryTokenInterceptor(
+					token.NewVerifierStub(),
+					app.Log,
+					token.InterceptAllMethodsOption,
+				),
+			)
+		} else {
+			type AuthConfig struct {
+				Address string
+			}
+			authConfig := AuthConfig{}
+			err = app.Config.ReadSection(ctx, "auth", &authConfig)
+			if err != nil {
+				return err
+			}
 
-		authConn, err := grpc.NewClient(
-			authConfig.Address,
-			grpc.WithTransportCredentials(insecure.NewCredentials()),
-		)
-		if err != nil {
-			return errors.WrapFail(err, "create auth grpc client")
-		}
-		app.AddCloser(authConn.Close)
+			authConn, err := grpc.NewClient(
+				authConfig.Address,
+				grpc.WithTransportCredentials(insecure.NewCredentials()),
+			)
+			if err != nil {
+				return errors.WrapFail(err, "create auth grpc client")
+			}
+			app.AddCloser(authConn.Close)
 
-		app.AddGRPCUnaryInterceptor(
-			token.NewUnaryTokenInterceptor(
-				token.NewGRPCVerifier(authConn),
-				app.Log,
-				token.InterceptAllMethodsOption,
-			),
-		)
+			app.AddGRPCUnaryInterceptor(
+				token.NewUnaryTokenInterceptor(
+					token.NewGRPCVerifier(authConn),
+					app.Log,
+					token.InterceptAllMethodsOption,
+				),
+			)
+		}
 
 		return nil
 	})

@@ -11,14 +11,14 @@ import (
 	"github.com/Doremi203/personage/backend/libs/go/webapp"
 	pushpb "github.com/Doremi203/personage/backend/notificator/gen/api/push"
 	"github.com/Doremi203/personage/backend/notificator/internal/grpc"
-	googlegrpc "google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	notificationpostgres "github.com/Doremi203/personage/backend/notificator/internal/repo/notification/postgres"
 	pushpostgres "github.com/Doremi203/personage/backend/notificator/internal/repo/push/postgres"
 	"github.com/Doremi203/personage/backend/notificator/internal/usecase"
 	sqspush "github.com/Doremi203/personage/backend/notificator/internal/worker"
 	"github.com/SherClockHolmes/webpush-go"
 	"github.com/jackc/pgx/v5/pgxpool"
+	googlegrpc "google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func main() {
@@ -114,36 +114,50 @@ func main() {
 			app.Log,
 		)
 
-		type AuthConfig struct {
-			Address string
-		}
-		authConfig := AuthConfig{}
-		err = app.Config.ReadSection(ctx, "auth", &authConfig)
-		if err != nil {
-			return err
-		}
-
-		authConn, err := googlegrpc.NewClient(
-			authConfig.Address,
-			googlegrpc.WithTransportCredentials(insecure.NewCredentials()),
-		)
-		if err != nil {
-			return errors.WrapFail(err, "create auth grpc client")
-		}
-		app.AddCloser(authConn.Close)
-
 		app.AddAPIKeyProtectedEndpoints(pushpb.Admin_SendPushV1_FullMethodName)
-		app.AddGRPCUnaryInterceptor(
-			token.NewUnaryTokenInterceptor(
-				token.NewGRPCVerifier(authConn),
-				app.Log,
-				pushpb.Subscription_SubscribeV1_FullMethodName,
-				pushpb.Subscription_UnsubscribeV1_FullMethodName,
-				pushpb.Notifications_ListNotificationsV1_FullMethodName,
-				pushpb.Notifications_ToggleNotificationV1_FullMethodName,
-				pushpb.Notifications_GetNotificationSettingsV1_FullMethodName,
-			),
-		)
+		if app.Env == webapp.TestsEnvironment {
+			app.AddGRPCUnaryInterceptor(
+				token.NewUnaryTokenInterceptor(
+					token.NewVerifierStub(),
+					app.Log,
+					pushpb.Subscription_SubscribeV1_FullMethodName,
+					pushpb.Subscription_UnsubscribeV1_FullMethodName,
+					pushpb.Notifications_ListNotificationsV1_FullMethodName,
+					pushpb.Notifications_ToggleNotificationV1_FullMethodName,
+					pushpb.Notifications_GetNotificationSettingsV1_FullMethodName,
+				),
+			)
+		} else {
+			type AuthConfig struct {
+				Address string
+			}
+			authConfig := AuthConfig{}
+			err = app.Config.ReadSection(ctx, "auth", &authConfig)
+			if err != nil {
+				return err
+			}
+
+			authConn, err := googlegrpc.NewClient(
+				authConfig.Address,
+				googlegrpc.WithTransportCredentials(insecure.NewCredentials()),
+			)
+			if err != nil {
+				return errors.WrapFail(err, "create auth grpc client")
+			}
+			app.AddCloser(authConn.Close)
+
+			app.AddGRPCUnaryInterceptor(
+				token.NewUnaryTokenInterceptor(
+					token.NewGRPCVerifier(authConn),
+					app.Log,
+					pushpb.Subscription_SubscribeV1_FullMethodName,
+					pushpb.Subscription_UnsubscribeV1_FullMethodName,
+					pushpb.Notifications_ListNotificationsV1_FullMethodName,
+					pushpb.Notifications_ToggleNotificationV1_FullMethodName,
+					pushpb.Notifications_GetNotificationSettingsV1_FullMethodName,
+				),
+			)
+		}
 		app.RegisterGRPCServices(
 			pushSubscriptionService,
 			pushAdminService,
