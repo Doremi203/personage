@@ -6,7 +6,7 @@ public abstract class ProcessingCredentialsBase;
 
 public sealed class GmailProcessingCredentials : ProcessingCredentialsBase
 {
-    public GmailTokenModel Tokens { get; init; } = null!;
+    public OAuthTokenModel Tokens { get; init; } = null!;
 }
 
 public sealed class TelegramProcessingCredentials : ProcessingCredentialsBase

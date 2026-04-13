@@ -3,7 +3,7 @@ using Personage.Auth.Api.Contracts.Auth.Personage.Requests;
 using Personage.Auth.Api.Contracts.Auth.Personage.Responses;
 using Personage.Auth.Api.Contracts.Common;
 using Personage.Auth.Domain.Interfaces;
-using Personage.Auth.Domain.Models.Auth.Requests;
+using Personage.Auth.Domain.Models.Auth.Gmail.Requests;
 
 namespace Personage.Auth.Api.Controllers;
 

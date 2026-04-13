@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
-using Personage.Auth.Api.Contracts.Auth.Gmail.Requests;
-using Personage.Auth.Api.Contracts.Auth.Gmail.Responses;
+using Personage.Auth.Api.Contracts.Auth.GoogleCalendar.Requests;
+using Personage.Auth.Api.Contracts.Auth.GoogleCalendar.Responses;
 using Personage.Auth.Api.Contracts.Common;
 using Personage.Auth.Domain.Interfaces;
 using Personage.Auth.Domain.Models.Auth.Gmail.Requests;
@@ -8,8 +8,8 @@ using Personage.Auth.Domain.Models.Auth.Gmail.Requests;
 namespace Personage.Auth.Api.Controllers;
 
 [ApiController]
-[Route("auth/gmail")]
-public class GmailAuthController(
+[Route("auth/google-calendar")]
+public class GoogleCalendarAuthController(
     IAuthService authService
 ) : ControllerBase
 {
@@ -18,7 +18,7 @@ public class GmailAuthController(
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<StartAuthResponse>> StartGmailAuth([FromBody] StartAuthRequest request, CancellationToken ct)
     {
-        var res = await authService.StartGmailAuth(request.UserEmail, request.RedirectUri, ct);
+        var res = await authService.StartGoogleCalendarAuth(request.RedirectUri, ct);
 
         return new StartAuthResponse
         {

@@ -1,6 +1,6 @@
 namespace Personage.Auth.Domain.Models.Common;
 
-public class GmailTokenModel
+public class OAuthTokenModel
 {
     public string AccessToken { get; init; } = null!;
     public string? RefreshToken { get; init; }

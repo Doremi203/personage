@@ -14,8 +14,10 @@ using Personage.Auth.Domain.Exceptions;
 using Personage.Auth.Domain.Exceptions.Base;
 using Personage.Auth.Domain.Interfaces;
 using Personage.Auth.Domain.Models.Auth;
-using Personage.Auth.Domain.Models.Auth.Requests;
+using Personage.Auth.Domain.Models.Auth.Gmail.Requests;
+using Personage.Auth.Domain.Models.Auth.Gmail.Responses;
 using Personage.Auth.Domain.Models.Common;
+using Personage.Auth.Domain.Models.GoogleAuth;
 
 namespace Personage.Auth.Bll.Services;
 
@@ -28,6 +30,7 @@ public class AuthService(
     IGoogleOAuthService googleOAuthService,
     IPostboxService postboxService,
     IOptionsMonitor<JwtSettings> jwtSettings,
+    IClaimValues claimValues,
     ILogger<AuthService> logger
 ) : IAuthService
 {
@@ -37,43 +40,57 @@ public class AuthService(
     private JwtSecurityTokenHandler JwtHandler { get; } = new();
 
 
-    public async Task<StartGmailAuthResponseModel> StartGmailAuth(string userEmail, string redirectUri,
+    public async Task<StartOAuthResponseModel> StartGmailAuth(string userEmail, string redirectUri,
         CancellationToken ct)
     {
         UserValidator.ValidateEmail(userEmail);
         //get user id from claims here and use it to check user and assign tokens
-        if (await userRepository.GetUserByEmail(userEmail, ct) is null)
+        if (await userRepository.GetUserByEmail(userEmail, ct) is not { } user)
         {
             //TODO: update flow, do not allow for gmail linking without an active account
             logger.LogWarning("User with email {Email} not found, creating new user", userEmail);
-            await userRepository.CreateShortUser(userEmail, ct);
+            throw new NotFoundException(ErrorCode.UserNotFound, "User with specified email not found");
         }
 
-        var state = GenerateState();
-
-        var oauthState = new OAuthState
-        {
-            State = state,
-            UserEmail = userEmail,
-            RedirectUri = redirectUri,
-            ExpiresAt = DateTime.UtcNow.AddMinutes(10)
-        };
-
-        await oauthStateRepository.SaveState(oauthState, ct);
-        var url = googleOAuthService.GetAuthorizationUrl(redirectUri, state);
-        logger.LogDebug("Started Gmail auth for {UserEmail} with state {State}", userEmail, state);
-
-        return new StartGmailAuthResponseModel
-        {
-            Uri = url,
-            State = state
-        };
+        return await StartOAuthInternal(redirectUri, user, GoogleServiceKind.Gmail, ct);
     }
 
-    public async Task<string> HandleGmailCallbackAsync(HandleGmailCallbackRequestModel request, CancellationToken ct)
+    public async Task<StartOAuthResponseModel> StartGoogleCalendarAuth(string redirectUri, CancellationToken ct)
+    {
+        var userId = claimValues.GetUserId();
+        
+        if (await userRepository.GetUserById(userId, ct) is not {} user)
+            throw new NotFoundException(ErrorCode.UserNotFound, "Invalid account. Try to relogin");
+        
+        return await StartOAuthInternal(redirectUri, user, GoogleServiceKind.Calendar, ct);
+    }
+    
+
+    public async Task<string> HandleGmailCallbackAsync(HandleOAuthCallbackRequestModel request, CancellationToken ct)
+    {
+        var (userId, tokenExchangeResult) = await HandleGmailCallbackInternal(request, ct);
+
+        var gmailToken = new GmailToken
+        {
+            UserId = userId,
+            AccessToken = tokenExchangeResult.AccessToken,
+            RefreshToken = tokenExchangeResult.RefreshToken ?? throw new ArgumentException("Invalid refresh token"),
+            ExpiresAt = tokenExchangeResult.ExpiresAt,
+            GmailEmail = tokenExchangeResult.GmailEmail
+        };
+        await gmailTokenRepository.SaveToken(gmailToken, ct);
+
+        logger.LogInformation("Successfully connected Gmail for {UserEmail} -> {GmailEmail}", request.UserEmail,
+            tokenExchangeResult.GmailEmail);
+
+        return tokenExchangeResult.GmailEmail;
+    }    
+
+    
+    private async Task<(Guid UserId, OAuthTokenModel TokenExchangeResult)> HandleGmailCallbackInternal(HandleOAuthCallbackRequestModel request, CancellationToken ct)
     {
         var requestEmail = request.UserEmail;
-        logger.LogDebug("Handling Gmail callback for {UserEmail}", request.UserEmail);
+        logger.LogDebug("Handling OAuth callback for {UserEmail}", request.UserEmail);
 
         var storedState = await oauthStateRepository.GetState(request.State, ct);
         if (storedState == null || storedState.UserEmail != requestEmail)
@@ -82,39 +99,26 @@ public class AuthService(
             throw new OAuthException("Invalid authorization request");
         }
 
-        await oauthStateRepository.DeleteState(request.State, ct);
-
-        var tokenExchangeResult = await googleOAuthService.ExchangeCode(request.Code, request.RedirectUri, ct);
-
         var user = await userRepository.GetUserByEmail(requestEmail, ct);
         if (user == null)
             throw new InvalidOperationException($"User {requestEmail} not found");
-
-        var gmailToken = new GmailToken
-        {
-            UserId = user.Id,
-            AccessToken = tokenExchangeResult.AccessToken,
-            RefreshToken = tokenExchangeResult.RefreshToken ?? throw new ArgumentException("Invalid refresh token"),
-            ExpiresAt = tokenExchangeResult.ExpiresAt,
-            GmailEmail = tokenExchangeResult.GmailEmail
-        };
-
-        await gmailTokenRepository.SaveToken(gmailToken, ct);
-
-        logger.LogInformation("Successfully connected Gmail for {UserEmail} -> {GmailEmail}", requestEmail,
-            tokenExchangeResult.GmailEmail);
-
-        return tokenExchangeResult.GmailEmail;
+        
+        await oauthStateRepository.DeleteState(request.State, ct);
+        return (user.Id, await googleOAuthService.ExchangeCode(request.Code, request.RedirectUri, ct));
     }
+    
+    
+    
+    
 
-    public async Task<GmailTokenModel> GetUserGmailToken(string userEmail, CancellationToken ct)
+    public async Task<OAuthTokenModel> GetUserGmailToken(string userEmail, CancellationToken ct)
     {
         var userToken = await gmailTokenRepository.GetTokenByUserEmail(userEmail, ct);
         if (userToken is null)
             throw new TokenNotFoundException($"Token for user with email {userEmail} not found");
 
         if (userToken.ExpiresAt >= DateTime.UtcNow.AddMinutes(TokenExpirationThresholdMinutes))
-            return new GmailTokenModel
+            return new OAuthTokenModel
             {
                 AccessToken = userToken.AccessToken,
                 RefreshToken = userToken.RefreshToken,
@@ -139,7 +143,7 @@ public class AuthService(
             throw new OAuthException($"Token refresh failed: {ex.Message}");
         }
 
-        return new GmailTokenModel
+        return new OAuthTokenModel
         {
             AccessToken = userToken.AccessToken,
             RefreshToken = userToken.RefreshToken,
@@ -281,6 +285,32 @@ public class AuthService(
         };
     }
 
+    private async Task<StartOAuthResponseModel> StartOAuthInternal(
+        string redirectUri,
+        User user,
+        GoogleServiceKind serviceKind,
+        CancellationToken ct)
+    {
+        var state = GenerateState();
+        var oauthState = new OAuthState
+        {
+            State = state,
+            UserEmail = user.Email,
+            RedirectUri = redirectUri,
+            ExpiresAt = DateTime.UtcNow.AddMinutes(10)
+        };
+
+        await oauthStateRepository.SaveState(oauthState, ct);
+        var url = googleOAuthService.GetAuthorizationUrl(redirectUri, state, serviceKind);
+        logger.LogDebug("Started OAuth flow for {UserEmail} with state {State} for service kind: {ServiceKind}", user.Email, state, serviceKind);
+
+        return new StartOAuthResponseModel
+        {
+            Uri = url,
+            State = state
+        };
+    }
+    
     private string GenerateAccessToken(User user)
     {
         var claims = new Claim[]

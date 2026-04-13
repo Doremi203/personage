@@ -173,7 +173,7 @@ public class StateTrackingService(
             LastProcessedAt = model.Token.LastProcessedAt,
             Credentials = new GmailProcessingCredentials
             {
-                Tokens = new GmailTokenModel
+                Tokens = new OAuthTokenModel
                 {
                     AccessToken = model.Token.AccessToken,
                     RefreshToken = model.Token.RefreshToken,
