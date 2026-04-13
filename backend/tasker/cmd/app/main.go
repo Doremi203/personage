@@ -9,8 +9,6 @@ import (
 	"github.com/Doremi203/personage/backend/libs/go/sqs"
 	"github.com/Doremi203/personage/backend/libs/go/token"
 	"github.com/Doremi203/personage/backend/libs/go/webapp"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	pushpb "github.com/Doremi203/personage/backend/notificator/gen/api/push"
 	eventsPb "github.com/Doremi203/personage/backend/tasker/gen/api/events"
 	"github.com/Doremi203/personage/backend/tasker/internal/domain"
@@ -35,6 +33,8 @@ import (
 	pgxvec "github.com/pgvector/pgvector-go/pgx"
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func main() {
