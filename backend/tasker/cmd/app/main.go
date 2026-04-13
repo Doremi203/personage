@@ -9,6 +9,8 @@ import (
 	"github.com/Doremi203/personage/backend/libs/go/sqs"
 	"github.com/Doremi203/personage/backend/libs/go/token"
 	"github.com/Doremi203/personage/backend/libs/go/webapp"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	pushpb "github.com/Doremi203/personage/backend/notificator/gen/api/push"
 	eventsPb "github.com/Doremi203/personage/backend/tasker/gen/api/events"
 	"github.com/Doremi203/personage/backend/tasker/internal/domain"
@@ -288,9 +290,27 @@ func main() {
 			app.AddHTTPHandler("/v1/test/tasks", taskergrpc.NewTestCreateTaskHandler(postgresTaskRepo))
 		}
 
+		type AuthConfig struct {
+			Address string
+		}
+		authConfig := AuthConfig{}
+		err = app.Config.ReadSection(ctx, "auth", &authConfig)
+		if err != nil {
+			return err
+		}
+
+		authConn, err := grpc.NewClient(
+			authConfig.Address,
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+		)
+		if err != nil {
+			return errors.WrapFail(err, "create auth grpc client")
+		}
+		app.AddCloser(authConn.Close)
+
 		app.AddGRPCUnaryInterceptor(
 			token.NewUnaryTokenInterceptor(
-				token.NewVerifierStub(),
+				token.NewGRPCVerifier(authConn),
 				app.Log,
 				token.InterceptAllMethodsOption,
 			),

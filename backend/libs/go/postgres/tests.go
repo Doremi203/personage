@@ -7,11 +7,11 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 	"time"
 
 	"github.com/Doremi203/personage/backend/libs/go/errors"
-	"github.com/docker/go-connections/nat"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/pressly/goose/v3"
@@ -74,12 +74,12 @@ func SetupTests(
 			"POSTGRES_USER":     cfg.User,
 			"POSTGRES_DB":       cfg.Database,
 		},
-		WaitingFor: wait.ForSQL(nat.Port(dbPort), "postgres", func(host string, port nat.Port) string {
+		WaitingFor: wait.ForSQL(dbPort, "postgres", func(host string, port string) string {
 			return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?%s",
 				cfg.User,
 				cfg.Password,
 				host,
-				port.Port(),
+				port,
 				cfg.Database,
 				cfg.Options,
 			)
@@ -108,7 +108,11 @@ func SetupTests(
 		log.Fatalf("couldn't get db port: %s", err)
 	}
 	cfg.Host = host
-	cfg.Port = port.Int()
+	portNum, err := strconv.Atoi(port.Port())
+	if err != nil {
+		log.Fatalf("couldn't parse db port: %s", err)
+	}
+	cfg.Port = portNum
 
 	sqlDB, err := sql.Open("postgres", cfg.ConnectionString())
 	if err != nil {

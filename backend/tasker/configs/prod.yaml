@@ -15,3 +15,6 @@ database:
 logging:
   level: info
   format: json
+
+auth:
+  address: grpc-auth.persomanage.ru:5051

@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package auth;
+
+option go_package = "github.com/Doremi203/personage/backend/libs/go/auth/gen/api/auth";
+
+import "api/auth/common.proto";
+
+service AuthService {
+  rpc GetGmailTokens(GetGmailTokensRequest) returns (GmailTokens) {}
+  rpc VerifyToken(VerifyTokenRequest) returns (VerifyTokenResponse) {}
+}
+
+message GetGmailTokensRequest {
+  string user_email = 1;
+}
+
+message VerifyTokenRequest {
+  string token = 1;
+}
+
+message VerifyTokenResponse {
+  bool is_valid = 1;
+}
