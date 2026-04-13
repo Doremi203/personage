@@ -121,6 +121,7 @@ func main() {
 				pushpb.Subscription_UnsubscribeV1_FullMethodName,
 				pushpb.Notifications_ListNotificationsV1_FullMethodName,
 				pushpb.Notifications_ToggleNotificationV1_FullMethodName,
+				pushpb.Notifications_GetNotificationSettingsV1_FullMethodName,
 			),
 		)
 		app.RegisterGRPCServices(
