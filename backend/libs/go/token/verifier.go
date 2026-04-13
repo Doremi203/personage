@@ -4,8 +4,10 @@ import (
 	"context"
 	"net/http"
 
+	authpb "github.com/Doremi203/personage/backend/libs/go/auth/gen/api/auth"
 	"github.com/Doremi203/personage/backend/libs/go/errors"
 	"github.com/go-resty/resty/v2"
+	"google.golang.org/grpc"
 )
 
 type Verifier interface {
@@ -57,4 +59,22 @@ func (v *verifier) VerifyToken(ctx context.Context, rawToken string) (bool, erro
 
 type verifyRequest struct {
 	Token string `json:"token"`
+}
+
+func NewGRPCVerifier(conn *grpc.ClientConn) *grpcVerifier {
+	return &grpcVerifier{
+		client: authpb.NewAuthServiceClient(conn),
+	}
+}
+
+type grpcVerifier struct {
+	client authpb.AuthServiceClient
+}
+
+func (v *grpcVerifier) VerifyToken(ctx context.Context, rawToken string) (bool, error) {
+	resp, err := v.client.VerifyToken(ctx, &authpb.VerifyTokenRequest{Token: rawToken})
+	if err != nil {
+		return false, errors.WrapFail(err, "call auth service VerifyToken")
+	}
+	return resp.GetIsValid(), nil
 }

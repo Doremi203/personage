@@ -33,6 +33,8 @@ import (
 	pgxvec "github.com/pgvector/pgvector-go/pgx"
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func main() {
@@ -288,13 +290,41 @@ func main() {
 			app.AddHTTPHandler("/v1/test/tasks", taskergrpc.NewTestCreateTaskHandler(postgresTaskRepo))
 		}
 
-		app.AddGRPCUnaryInterceptor(
-			token.NewUnaryTokenInterceptor(
-				token.NewVerifierStub(),
-				app.Log,
-				token.InterceptAllMethodsOption,
-			),
-		)
+		if app.Env == webapp.TestsEnvironment {
+			app.AddGRPCUnaryInterceptor(
+				token.NewUnaryTokenInterceptor(
+					token.NewVerifierStub(),
+					app.Log,
+					token.InterceptAllMethodsOption,
+				),
+			)
+		} else {
+			type AuthConfig struct {
+				Address string
+			}
+			authConfig := AuthConfig{}
+			err = app.Config.ReadSection(ctx, "auth", &authConfig)
+			if err != nil {
+				return err
+			}
+
+			authConn, err := grpc.NewClient(
+				authConfig.Address,
+				grpc.WithTransportCredentials(insecure.NewCredentials()),
+			)
+			if err != nil {
+				return errors.WrapFail(err, "create auth grpc client")
+			}
+			app.AddCloser(authConn.Close)
+
+			app.AddGRPCUnaryInterceptor(
+				token.NewUnaryTokenInterceptor(
+					token.NewGRPCVerifier(authConn),
+					app.Log,
+					token.InterceptAllMethodsOption,
+				),
+			)
+		}
 
 		return nil
 	})

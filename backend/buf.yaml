@@ -4,3 +4,4 @@ modules:
   - path: tasker
   - path: notificator
   - path: libs/proto
+  - path: libs/go/auth
