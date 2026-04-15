@@ -57,8 +57,6 @@ func SetupTests(
 		Options:  "sslmode=disable",
 	}
 
-	dbPort := "5432/tcp"
-
 	sCfg := setupConfig{
 		image: "postgres:18-alpine",
 	}
@@ -74,16 +72,9 @@ func SetupTests(
 			"POSTGRES_USER":     cfg.User,
 			"POSTGRES_DB":       cfg.Database,
 		},
-		WaitingFor: wait.ForSQL(dbPort, "postgres", func(host string, port string) string {
-			return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?%s",
-				cfg.User,
-				cfg.Password,
-				host,
-				port,
-				cfg.Database,
-				cfg.Options,
-			)
-		}).WithStartupTimeout(120 * time.Second).WithPollInterval(2 * time.Second),
+		WaitingFor: wait.ForLog("database system is ready to accept connections").
+			WithOccurrence(2).
+			WithStartupTimeout(120 * time.Second),
 	}
 
 	postgresC, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
@@ -91,6 +82,15 @@ func SetupTests(
 		Started:          true,
 	})
 	if err != nil {
+		if postgresC != nil {
+			logCtx := context.Background()
+			if logs, logsErr := postgresC.Logs(logCtx); logsErr == nil {
+				buf := make([]byte, 64*1024)
+				n, _ := logs.Read(buf)
+				logs.Close()
+				log.Printf("container logs:\n%s", buf[:n])
+			}
+		}
 		log.Fatalf("coudn't start db container: %s", err)
 	}
 	defer func() {

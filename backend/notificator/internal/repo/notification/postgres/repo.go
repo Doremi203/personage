@@ -101,6 +101,7 @@ func (r *repo) GetSettings(ctx context.Context, userID uuid.UUID) ([]notificatio
 
 func (r *repo) ToggleSetting(ctx context.Context, userID uuid.UUID, notificationType string) (notification.Setting, error) {
 	const query = `
+		INSERT INTO notification_settings (recipient_id, type, enabled)
 		VALUES ($1, $2, false)
 		ON CONFLICT (recipient_id, type) DO UPDATE
 		SET enabled = NOT notification_settings.enabled
