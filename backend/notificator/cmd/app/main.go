@@ -18,7 +18,7 @@ import (
 	"github.com/SherClockHolmes/webpush-go"
 	"github.com/jackc/pgx/v5/pgxpool"
 	googlegrpc "google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/credentials"
 )
 
 func main() {
@@ -139,7 +139,7 @@ func main() {
 
 			authConn, err := googlegrpc.NewClient(
 				authConfig.Address,
-				googlegrpc.WithTransportCredentials(insecure.NewCredentials()),
+				googlegrpc.WithTransportCredentials(credentials.NewClientTLSFromCert(nil, "")),
 			)
 			if err != nil {
 				return errors.WrapFail(err, "create auth grpc client")

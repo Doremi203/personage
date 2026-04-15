@@ -55,7 +55,10 @@ define CLONE_PROTO_REPO
 	@rm -rf tmp
 endef
 
-generate: tasker/generate notificator/generate
+generate: tasker/generate notificator/generate auth/proto/generate
+
+auth/proto/generate:
+	cd libs/go/auth && go generate ./...
 
 services/deploy:
 	docker compose up

@@ -26,8 +26,8 @@ personage/
 ### Backend (run from `backend/`)
 
 ```bash
-make deps                       # Install all dev tools (goose, buf, mockgen, protoc, linters)
-make generate                   # Run protobuf/gRPC codegen for all Go services
+make deps                       # Install all dev tools (goose, buf, mockgen, protoc, linters, go-test-coverage)
+make generate                   # Run protobuf/gRPC codegen for all Go services + auth lib
 make services/deploy            # Start docker-compose (PostgreSQL + services)
 make lint                       # Run golangci-lint
 make tests                      # Run all Go tests with race detection
@@ -64,14 +64,19 @@ make frontend-release # Build + deploy frontend to S3
 
 ### Backend - Go Services
 
-Both Go services (tasker, notificator) follow the same layered architecture under `internal/`:
+Go services follow a layered architecture under `internal/`:
 - **grpc/** - gRPC service implementations (entry points)
-- **handlers/** - Message handlers (SQS event processing)
 - **usecase/** - Business logic layer
-- **services/** - External service integrations (LLM, embeddings, push, scheduler)
-- **workers/** - Background workers (SQS consumers, scheduled jobs)
 - **repo/** - Database repositories (PostgreSQL)
 - **domain/** - Domain models
+
+Tasker additionally has:
+- **handlers/** - Message handlers (SQS event processing)
+- **services/** - External service integrations (LLM, embeddings, push, scheduler)
+- **workers/** - Background workers (SQS consumers, scheduled jobs)
+
+Notificator additionally has:
+- **worker/** - Background worker (SQS consumer)
 
 ### API Design
 
@@ -89,8 +94,10 @@ Generation pipeline: proto files → `buf generate` (via `go generate ./...`) �
 - **postgres** - Connection pooling via pgx, helpers
 - **sqs** - AWS SQS message consumer/producer
 - **token** - JWT verification middleware
+- **auth** - Auth service gRPC client stubs (proto-generated)
 - **errors** - Domain error types
 - **log** - Structured logging wrapper
+- **slices** - Slice utility helpers
 - **tx** - Database transaction helpers
 
 ### Inter-Service Communication
@@ -109,7 +116,7 @@ Generation pipeline: proto files → `buf generate` (via `go generate ./...`) �
 ### Frontend
 
 - React 19 SPA with PWA support (service worker in `sw.ts`)
-- `screens/` - Page-level components (Auth, Tasks, Schedule, Notifications, Settings)
+- `screens/` - Page-level components (Auth, ResetPassword, Tasks, Schedule, Notifications, Settings)
 - `components/` - Reusable UI components
 - `utils/` - API service clients (authService, taskerService, notificatorService, pushNotifications)
 - Styling: Tailwind CSS 4.2
@@ -129,7 +136,7 @@ GitHub Actions workflows per service follow the pattern:
 - **CI** (`{service}-ci.yml`): codegen → lint → test → build (on PR/push)
 - **Release** (`{service}-release.yml`): full pipeline + Docker push to Yandex Container Registry + DB migration + Terraform deploy
 
-Protobuf codegen in CI uses the custom action at `.github/actions/codegen/`.
+Protobuf codegen in CI uses the custom action at `.github/actions/codegen/`. Shared Go service templates: `go-service-ci.yml`, `go-service-release.yml`.
 
 ## Linting
 
@@ -142,3 +149,18 @@ Go tests use `testcontainers-go` for integration tests with real PostgreSQL. Env
 ```bash
 cd backend && go test ./tasker/internal/... -run TestName -race
 ```
+
+## Save decisions
+After successful feature implementations save relevant decisions here. Save only things that matters for next sessions. 
+If you are not sure that you would need this info to make less research of project do not save. You must update info if it becomes irrelevant after the feature was developed.
+
+## Decisions
+
+### Domain errors pattern
+Define sentinel errors with `errors.Error("...")` in domain packages (see `tasker/internal/domain/repo.go` `ErrTaskNotFound`, `notificator/internal/domain/notification/setting.go` `ErrInvalidSettingType`). Map them to gRPC status codes in the grpc layer with `errors.Is()`.
+
+### Notification types
+Available notification setting types are defined in code at `notificator/internal/domain/notification/setting.go` (`AvailableSettingTypes`), not in a DB table. Tasker sets the `Type` field on `domain.Notification` when sending via SQS (`"upcoming_event"`, `"schedule_change"`). Both lists must stay in sync.
+
+### Tasker → Notificator communication
+Tasker sends push notifications via SQS using protobuf `pushpb.Notification` messages (see `tasker/internal/services/notifications/service.go`). The notificator consumes these from SQS. Three send sites: upcoming event notifier, schedule change notifier (both in `scenarios.go`), and scheduling usecase (`usecase/scheduling/usecase.go`).

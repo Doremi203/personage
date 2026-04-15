@@ -9,6 +9,7 @@ type Notification struct {
 	UserID UserID
 	Title  string
 	Body   string
+	Type   string
 }
 
 //go:generate mockgen -source=notifications.go -destination=mock/notifications_mock.go -typed

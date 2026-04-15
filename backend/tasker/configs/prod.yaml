@@ -17,4 +17,4 @@ logging:
   format: json
 
 auth:
-  address: grpc-auth.persomanage.ru:5051
+  address: grpc-auth.persomanage.ru:443

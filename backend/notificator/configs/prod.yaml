@@ -17,4 +17,4 @@ database:
   options: sslmode=verify-full target_session_attrs=read-write sslrootcert=/root/.postgresql/root.crt
 
 auth:
-  address: grpc-auth.persomanage.ru:5051
+  address: grpc-auth.persomanage.ru:443

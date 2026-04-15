@@ -45,7 +45,7 @@ type settingEntity struct {
 func settingEntityToDomain(e settingEntity) notification.Setting {
 	return notification.Setting{
 		UserID:  e.RecipientID,
-		Type:    e.Type,
+		Type:    notification.SettingType(e.Type),
 		Enabled: e.Enabled,
 	}
 }
