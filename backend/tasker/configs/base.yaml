@@ -57,4 +57,4 @@ sqs-notificator:
   queueUrl: https://message-queue.api.cloud.yandex.net/b1gfkhf234165rrluh60/dj60000000gqu7d103cs/notificator-commands
 
 auth:
-  address: auth:50051
+  address: grpc-auth.persomanage.ru:443

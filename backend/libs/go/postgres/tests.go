@@ -60,7 +60,7 @@ func SetupTests(
 	dbPort := "5432/tcp"
 
 	sCfg := setupConfig{
-		image: "postgres",
+		image: "postgres:18-alpine",
 	}
 	for _, opt := range opts {
 		opt(&sCfg)
@@ -83,7 +83,7 @@ func SetupTests(
 				cfg.Database,
 				cfg.Options,
 			)
-		}).WithStartupTimeout(60 * time.Second).WithPollInterval(2 * time.Second),
+		}).WithStartupTimeout(120 * time.Second).WithPollInterval(2 * time.Second),
 	}
 
 	postgresC, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
