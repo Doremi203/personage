@@ -34,7 +34,7 @@ import (
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/credentials"
 )
 
 func main() {
@@ -310,7 +310,7 @@ func main() {
 
 			authConn, err := grpc.NewClient(
 				authConfig.Address,
-				grpc.WithTransportCredentials(insecure.NewCredentials()),
+				grpc.WithTransportCredentials(credentials.NewClientTLSFromCert(nil, "")),
 			)
 			if err != nil {
 				return errors.WrapFail(err, "create auth grpc client")

@@ -91,6 +91,7 @@ func (n *upcomingEventNotifier) NotifyUpcomingEvents(
 					UserID: userID,
 					Title:  n.formatUpcomingEventTitle(task, interval),
 					Body:   n.formatUpcomingEventBody(task),
+					Type:   "upcoming_event",
 				}
 
 				if err := n.sender.Send(ctx, notification); err != nil {
@@ -166,6 +167,7 @@ func (n *scheduleChangeNotifier) NotifyScheduleChanges(
 			UserID: userID,
 			Title:  n.formatScheduleChangeTitle(change),
 			Body:   n.formatScheduleChangeBody(change),
+			Type:   "schedule_change",
 		}
 
 		if err := n.sender.Send(ctx, notification); err != nil {

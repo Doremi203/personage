@@ -63,6 +63,10 @@ func (u Notifications) GetSettings(ctx context.Context, userID uuid.UUID) ([]not
 	return settings, nil
 }
 func (u Notifications) Toggle(ctx context.Context, userID uuid.UUID, notificationType string) (notification.Setting, error) {
+	if !notification.IsValidSettingType(notificationType) {
+		return notification.Setting{}, notification.ErrInvalidSettingType
+	}
+
 	setting, err := u.repo.ToggleSetting(ctx, userID, notificationType)
 	if err != nil {
 		return notification.Setting{}, errors.WrapFailf(

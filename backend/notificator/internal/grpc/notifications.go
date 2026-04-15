@@ -7,6 +7,7 @@ import (
 	"github.com/Doremi203/personage/backend/libs/go/log"
 	"github.com/Doremi203/personage/backend/libs/go/token"
 	pushpb "github.com/Doremi203/personage/backend/notificator/gen/api/push"
+	"github.com/Doremi203/personage/backend/notificator/internal/domain/notification"
 	"github.com/Doremi203/personage/backend/notificator/internal/usecase"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc"
@@ -101,7 +102,7 @@ func (s *notificationsService) GetNotificationSettingsV1(
 	protoSettings := make([]*pushpb.NotificationSetting, 0, len(settings))
 	for _, s := range settings {
 		protoSettings = append(protoSettings, &pushpb.NotificationSetting{
-			Type:    s.Type,
+			Type:    string(s.Type),
 			Enabled: s.Enabled,
 		})
 	}
@@ -126,6 +127,9 @@ func (s *notificationsService) ToggleNotificationV1(
 
 	setting, err := s.notificationsUseCase.Toggle(ctx, t.GetUserID(), req.GetType())
 	if err != nil {
+		if errors.Is(err, notification.ErrInvalidSettingType) {
+			return nil, status.Error(codes.InvalidArgument, "invalid notification type")
+		}
 		return nil, errors.WrapFailf(
 			err,
 			"toggle notification type %v",

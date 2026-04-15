@@ -31,5 +31,6 @@ func (s *notificatorPushService) Send(
 		Body:        notification.Body,
 		Icon:        "/icon-72x72.png",
 		Url:         "/",
+		Type:        notification.Type,
 	}, sqs.WithGroupID("tasker"))
 }

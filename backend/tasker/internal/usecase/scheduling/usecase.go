@@ -95,6 +95,7 @@ func (uc *UseCase) scheduleForUser(ctx context.Context, userID domain.UserID) er
 			UserID: userID,
 			Title:  "📅 Ваше расписание изменилось",
 			Body:   "Задачи были перепланированы, посмотрите в приложении...",
+			Type:   "schedule_change",
 		})
 		if err != nil {
 			uc.logger.Error(errors.WrapFail(err, "notify schedule changes"))
