@@ -11,8 +11,22 @@ import {
 } from '../utils/authService';
 import { toggleNotification, getNotificationSettings } from '../utils/notificatorService';
 
-const UPCOMING_EVENT_TYPE = 'upcoming_event';
-const SCHEDULE_CHANGED_TYPE = 'schedule_changed';
+const TYPE_LABELS: Record<string, { title: string; description: string }> = {
+  upcoming_event: {
+    title: 'Напоминания о задачах',
+    description: 'Уведомления о приближающихся дедлайнах',
+  },
+  schedule_changed: {
+    title: 'Изменения в расписании',
+    description: 'Уведомления об изменениях в расписании',
+  },
+};
+
+interface NotificationSettingState {
+  type: string;
+  enabled: boolean;
+  toggling: boolean;
+}
 
 const SettingsScreen = () => {
   const [connectedGmailEmail, setConnectedGmailEmailState] = useState<string | null>(
@@ -22,11 +36,7 @@ const SettingsScreen = () => {
   const [gmailLoading, setGmailLoading] = useState(false);
   const [gmailError, setGmailError] = useState<string | null>(null);
 
-  const [upcomingEventEnabled, setUpcomingEventEnabled] = useState(true);
-  const [upcomingEventToggling, setUpcomingEventToggling] = useState(false);
-
-  const [scheduleChangedEnabled, setScheduleChangedEnabled] = useState(true);
-  const [scheduleChangedToggling, setScheduleChangedToggling] = useState(false);
+  const [notificationSettings, setNotificationSettings] = useState<NotificationSettingState[]>([]);
 
   const [userData, setUserData] = useState<UserApiResponse | null>(null);
   const [userLoading, setUserLoading] = useState(true);
@@ -37,10 +47,7 @@ const SettingsScreen = () => {
       try {
         const { settings } = await getNotificationSettings();
         if (!cancelled) {
-          for (const s of settings) {
-            if (s.type === UPCOMING_EVENT_TYPE) setUpcomingEventEnabled(s.enabled);
-            if (s.type === SCHEDULE_CHANGED_TYPE) setScheduleChangedEnabled(s.enabled);
-          }
+          setNotificationSettings(settings.map((s) => ({ ...s, toggling: false })));
         }
       } catch (err) {
         console.error('Failed to fetch notification settings:', err);
@@ -106,33 +113,21 @@ const SettingsScreen = () => {
     void handleConnectGmail();
   };
 
-  const handleUpcomingEventToggle = () => {
-    if (upcomingEventToggling) return;
-    setUpcomingEventToggling(true);
-    toggleNotification(UPCOMING_EVENT_TYPE)
+  const handleToggle = (type: string) => {
+    setNotificationSettings((prev) =>
+      prev.map((s) => (s.type === type ? { ...s, toggling: true } : s)),
+    );
+    toggleNotification(type)
       .then((enabled) => {
-        setUpcomingEventEnabled(enabled);
+        setNotificationSettings((prev) =>
+          prev.map((s) => (s.type === type ? { ...s, enabled, toggling: false } : s)),
+        );
       })
       .catch((err: unknown) => {
         console.error('Failed to toggle notification setting:', err);
-      })
-      .finally(() => {
-        setUpcomingEventToggling(false);
-      });
-  };
-
-  const handleScheduleChangedToggle = () => {
-    if (scheduleChangedToggling) return;
-    setScheduleChangedToggling(true);
-    toggleNotification(SCHEDULE_CHANGED_TYPE)
-      .then((enabled) => {
-        setScheduleChangedEnabled(enabled);
-      })
-      .catch((err: unknown) => {
-        console.error('Failed to toggle notification setting:', err);
-      })
-      .finally(() => {
-        setScheduleChangedToggling(false);
+        setNotificationSettings((prev) =>
+          prev.map((s) => (s.type === type ? { ...s, toggling: false } : s)),
+        );
       });
   };
 
@@ -188,38 +183,29 @@ const SettingsScreen = () => {
             </div>
 
             <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-[#F7F8FA] rounded-xl">
-                <div>
-                  <p className="font-medium text-[#2D2F31]">Напоминания о задачах</p>
-                  <p className="text-sm text-gray-500">Уведомления о приближающихся дедлайнах</p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={upcomingEventEnabled}
-                    onChange={handleUpcomingEventToggle}
-                    disabled={upcomingEventToggling}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[#5C6BFF]/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#5C6BFF]"></div>
-                </label>
-              </div>
-              <div className="flex items-center justify-between p-4 bg-[#F7F8FA] rounded-xl">
-                <div>
-                  <p className="font-medium text-[#2D2F31]">Изменения в расписании</p>
-                  <p className="text-sm text-gray-500">Уведомления об изменениях в расписании</p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={scheduleChangedEnabled}
-                    onChange={handleScheduleChangedToggle}
-                    disabled={scheduleChangedToggling}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[#5C6BFF]/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#5C6BFF]"></div>
-                </label>
-              </div>
+              {notificationSettings.map(({ type, enabled, toggling }) => {
+                const label = TYPE_LABELS[type];
+                return (
+                  <div key={type} className="flex items-center justify-between p-4 bg-[#F7F8FA] rounded-xl">
+                    <div>
+                      <p className="font-medium text-[#2D2F31]">{label?.title ?? type}</p>
+                      {label?.description && (
+                        <p className="text-sm text-gray-500">{label.description}</p>
+                      )}
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={enabled}
+                        onChange={() => handleToggle(type)}
+                        disabled={toggling}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[#5C6BFF]/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#5C6BFF]"></div>
+                    </label>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
