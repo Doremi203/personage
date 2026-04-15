@@ -87,7 +87,7 @@ func SetupTests(
 			if logs, logsErr := postgresC.Logs(logCtx); logsErr == nil {
 				buf := make([]byte, 64*1024)
 				n, _ := logs.Read(buf)
-				logs.Close()
+				_ = logs.Close()
 				log.Printf("container logs:\n%s", buf[:n])
 			}
 		}
