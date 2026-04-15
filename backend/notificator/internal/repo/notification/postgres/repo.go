@@ -132,6 +132,32 @@ func (r *repo) GetSettings(ctx context.Context, userID uuid.UUID) ([]notificatio
 	return result, nil
 }
 
+func (r *repo) CreateAndReturnID(ctx context.Context, n notification.Notification) (uuid.UUID, error) {
+	const query = `
+		INSERT INTO notifications (recipient_id, title, type, text)
+		VALUES ($1, $2, $3, $4)
+		RETURNING id
+	`
+
+	e := domainToEntity(n)
+
+	rows, err := r.db.Query(ctx, query, e.RecipientID, e.Title, e.Type, e.Text)
+	if err != nil {
+		return uuid.Nil, errors.WrapFail(err, "exec insert notification query")
+	}
+	defer rows.Close()
+
+	id, err := pgx.CollectOneRow(rows, func(row pgx.CollectableRow) (uuid.UUID, error) {
+		var id uuid.UUID
+		return id, row.Scan(&id)
+	})
+	if err != nil {
+		return uuid.Nil, errors.WrapFail(err, "collect created notification id")
+	}
+
+	return id, nil
+}
+
 func (r *repo) ToggleSetting(ctx context.Context, userID uuid.UUID, notificationType string) (notification.Setting, error) {
 	const query = `
 		INSERT INTO notification_settings (recipient_id, type, enabled)

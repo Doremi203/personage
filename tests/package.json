@@ -5,7 +5,8 @@
   "scripts": {
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:tasker": "jest --testPathPattern=tasker"
+    "test:tasker": "jest --testPathPattern=tasker",
+    "test:notificator": "jest --testPathPattern=notificator"
   },
   "devDependencies": {
     "@types/jest": "^29.5.14",

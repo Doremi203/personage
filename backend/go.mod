@@ -11,7 +11,7 @@ require (
 	github.com/cloudwego/eino v0.8.8
 	github.com/cloudwego/eino-ext/components/embedding/openai v0.0.0-20260413110502-8d10f059c9a4
 	github.com/cloudwego/eino-ext/components/model/openrouter v0.1.8
-	github.com/envoyproxy/protoc-gen-validate v1.3.3
+	github.com/envoyproxy/protoc-gen-validate v1.3.0
 	github.com/go-resty/resty/v2 v2.17.2
 	github.com/google/uuid v1.6.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.28.0
