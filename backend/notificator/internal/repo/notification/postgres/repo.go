@@ -22,13 +22,13 @@ type repo struct {
 
 func (r *repo) Create(ctx context.Context, n notification.Notification) error {
 	const query = `
-		INSERT INTO notifications (recipient_id, title, type, text)
-		VALUES ($1, $2, $3, $4)
+		INSERT INTO notifications (recipient_id, title, type, text, idempotency_key)
+		VALUES ($1, $2, $3, $4, NULLIF($5, ''))
 	`
 
 	e := domainToEntity(n)
 
-	_, err := r.db.Exec(ctx, query, e.RecipientID, e.Title, e.Type, e.Text)
+	_, err := r.db.Exec(ctx, query, e.RecipientID, e.Title, e.Type, e.Text, n.IdempotencyKey)
 	if err != nil {
 		return errors.WrapFail(err, "exec insert notification query")
 	}
@@ -36,9 +36,42 @@ func (r *repo) Create(ctx context.Context, n notification.Notification) error {
 	return nil
 }
 
+func (r *repo) CreateIfAbsent(ctx context.Context, n notification.Notification) (bool, error) {
+	if n.IdempotencyKey == "" {
+		if err := r.Create(ctx, n); err != nil {
+			return false, err
+		}
+		return true, nil
+	}
+
+	const query = `
+		INSERT INTO notifications (recipient_id, title, type, text, idempotency_key)
+		VALUES ($1, $2, $3, $4, $5)
+		ON CONFLICT (idempotency_key) WHERE idempotency_key IS NOT NULL DO NOTHING
+		RETURNING id
+	`
+
+	e := domainToEntity(n)
+
+	rows, err := r.db.Query(ctx, query, e.RecipientID, e.Title, e.Type, e.Text, n.IdempotencyKey)
+	if err != nil {
+		return false, errors.WrapFail(err, "exec insert-if-absent notification query")
+	}
+	defer rows.Close()
+
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return false, errors.WrapFail(err, "iterate insert-if-absent rows")
+		}
+		return false, nil
+	}
+
+	return true, nil
+}
+
 func (r *repo) ListByUserID(ctx context.Context, userID uuid.UUID, limit, offset int) ([]notification.Notification, error) {
 	const query = `
-		SELECT id, recipient_id, title, type, text, sent_at
+		SELECT id, recipient_id, title, type, text, sent_at, idempotency_key
 		FROM notifications
 		WHERE recipient_id = $1
 		ORDER BY sent_at DESC
