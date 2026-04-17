@@ -19,6 +19,6 @@ const idempotencyBucket = 5 * time.Minute
 func IdempotencyKey(userID string, now time.Time, typ, title string) string {
 	bucket := now.UTC().Truncate(idempotencyBucket).Unix()
 	h := sha256.New()
-	fmt.Fprintf(h, "%s|%d|%s|%s", userID, bucket, typ, title)
+	_, _ = fmt.Fprintf(h, "%s|%d|%s|%s", userID, bucket, typ, title)
 	return hex.EncodeToString(h.Sum(nil))
 }
