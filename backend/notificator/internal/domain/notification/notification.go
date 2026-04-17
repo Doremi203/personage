@@ -14,4 +14,6 @@ type Notification struct {
 	Type   string
 	Text   string
 	SentAt time.Time
+	// IdempotencyKey dedupes writes. Empty means "no dedup, always insert".
+	IdempotencyKey string
 }
