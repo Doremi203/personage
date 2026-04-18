@@ -92,7 +92,7 @@ func (r *Retrier) process(ctx context.Context, n notification.Notification, now 
 		return
 	}
 
-	if n.ExpiresAt != nil && now.After(*n.ExpiresAt) {
+	if now.After(*n.ExpiresAt) {
 		if err := r.repo.Drop(ctx, n.ID); err != nil {
 			r.logError(err, "drop expired notification")
 		}
