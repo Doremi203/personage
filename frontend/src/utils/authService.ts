@@ -5,6 +5,7 @@ const AUTH_API_URL =
 const TOKENS_KEY = 'personage_auth_tokens';
 const USER_INFO_KEY = 'personage_user_info';
 const GMAIL_EMAIL_KEY = 'personage_gmail_email';
+export const AUTH_STATE_CHANGE_EVENT = 'personage-auth-state-change';
 
 export interface AuthTokens {
   accessToken: string;
@@ -28,6 +29,10 @@ export interface UserApiResponse {
   };
 }
 
+function notifyAuthStateChanged(): void {
+  window.dispatchEvent(new Event(AUTH_STATE_CHANGE_EVENT));
+}
+
 export function getTokens(): AuthTokens | null {
   const raw = localStorage.getItem(TOKENS_KEY);
   if (!raw) return null;
@@ -40,12 +45,14 @@ export function getTokens(): AuthTokens | null {
 
 export function setTokens(tokens: AuthTokens): void {
   localStorage.setItem(TOKENS_KEY, JSON.stringify(tokens));
+  notifyAuthStateChanged();
 }
 
 export function clearTokens(): void {
   localStorage.removeItem(TOKENS_KEY);
   localStorage.removeItem(USER_INFO_KEY);
   localStorage.removeItem(GMAIL_EMAIL_KEY);
+  notifyAuthStateChanged();
 }
 
 export function getUserInfo(): UserInfo | null {
@@ -163,6 +170,31 @@ export async function refreshAccessToken(): Promise<AuthTokens | null> {
   return newTokens;
 }
 
+export async function fetchWithTokenRefresh(
+  doFetch: (accessToken: string) => Promise<Response>,
+): Promise<Response> {
+  const tokens = getTokens();
+  if (!tokens) throw new Error('Не авторизован');
+
+  let response = await doFetch(tokens.accessToken);
+  if (response.status !== 401) {
+    return response;
+  }
+
+  const newTokens = await refreshAccessToken();
+  if (!newTokens) {
+    throw new Error('Сессия истекла');
+  }
+
+  response = await doFetch(newTokens.accessToken);
+  if (response.status === 401) {
+    clearTokens();
+    throw new Error('Сессия истекла');
+  }
+
+  return response;
+}
+
 export async function resetPassword(
   token: string,
   newPassword: string,
@@ -272,21 +304,11 @@ export async function handleGmailCallback(
 }
 
 export async function fetchCurrentUser(): Promise<UserApiResponse> {
-  const tokens = getTokens();
-  if (!tokens) throw new Error('Не авторизован');
-
-  const doFetch = (accessToken: string) =>
+  const response = await fetchWithTokenRefresh((accessToken) =>
     fetch(`${AUTH_API_URL}/user`, {
       headers: { Authorization: `Bearer ${accessToken}` },
-    });
-
-  let response = await doFetch(tokens.accessToken);
-
-  if (response.status === 401) {
-    const newTokens = await refreshAccessToken();
-    if (!newTokens) throw new Error('Сессия истекла');
-    response = await doFetch(newTokens.accessToken);
-  }
+    }),
+  );
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
@@ -296,5 +318,7 @@ export async function fetchCurrentUser(): Promise<UserApiResponse> {
     );
   }
 
-  return (await response.json()) as UserApiResponse;
+  const user = (await response.json()) as UserApiResponse;
+  setUserInfo({ email: user.email, name: user.name });
+  return user;
 }

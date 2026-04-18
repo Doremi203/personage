@@ -204,3 +204,6 @@ Tasker sends push notifications via SQS using protobuf `pushpb.Notification` mes
 
 ### Tasker eval Traitex transport
 The documented remote Traitex endpoint `grpc-traitex.persomanage.ru:443` requires TLS. `tasker/eval/cmd/f1` should default to TLS and only use plaintext when explicitly requested via `--traitex-insecure` for local testing.
+
+### Auth API JWT middleware
+`backend/Personage.Auth/Personage.Auth.Api/Program.cs` must include both `app.UseAuthentication()` and `app.UseAuthorization()` before `app.MapControllers()`. Without them, `[Authorize]` REST endpoints like `/user` return `401` even after a successful access-token refresh.
