@@ -14,7 +14,7 @@ personage/
 │   ├── tasker/       # Go - Task management, event clustering, LLM-based task generation
 │   ├── notificator/  # Go - Web push notifications via VAPID
 │   ├── Personage.Auth/  # C#/.NET - Authentication & JWT
-│   ├── telegram-auth/   # Python - Telegram OAuth
+│   ├── telegram-auth/   # Python - Server-side Telegram client session manager (full MTProto client authenticated per user)
 │   ├── traitex/         # Python - Trait extraction/NLP
 │   └── libs/            # Shared Go libraries (errors, log, postgres, sqs, token, webapp, tx)
 ├── frontend/         # React 19 + TypeScript + Vite + Tailwind PWA
@@ -27,7 +27,7 @@ personage/
 
 ```bash
 make deps                       # Install all dev tools (goose, buf, mockgen, protoc, linters, go-test-coverage)
-make generate                   # Run protobuf/gRPC codegen for all Go services + auth lib
+make generate                   # Run protobuf/gRPC codegen for all Go services + auth lib (uses buf generate via go generate ./... — NEVER run protoc or buf directly)
 make services/deploy            # Start docker-compose (PostgreSQL + services)
 make lint                       # Run golangci-lint
 make tests                      # Run all Go tests with race detection
@@ -40,6 +40,8 @@ make {service}/migrate/up       # Run DB migrations
 make {service}/migrate/down     # Reset DB migrations
 make {service}/migrate/down-one # Roll back one migration
 make {service}/migrate/create name=<name>  # Create new migration
+make tasker/create-test-tasks   # Seed DB with test tasks (runs scripts/create_test_tasks.go)
+make auth/proto/generate        # Regenerate auth client stubs in libs/go/auth
 ```
 
 Services: `tasker`, `notificator`, `auth`, `traitex`
@@ -57,6 +59,8 @@ npm run typecheck    # TypeScript type checking (tsc --noEmit)
 
 ```bash
 make secrets          # Fetch Yandex Cloud tokens and AWS credentials into secrets.env
+make frontend-build   # Vite production build only
+make frontend-deploy  # Deploy dist/ to S3 (requires secrets.env)
 make frontend-release # Build + deploy frontend to S3
 ```
 
@@ -130,6 +134,8 @@ Tasker uses AI for intelligent task management:
 3. Closed clusters are processed by an LLM (OpenRouter) to generate actionable tasks
 4. Tasks are scheduled and trigger notifications via the notificator service
 
+Design docs live in `backend/tasker/`: `DEFINITIONS.md`, `FUNCTIONAL_REQUIREMENTS.md`, `USE_CASES.md`, `ARCHITECTURE.puml`, `SEQUENCE_EVENT_TO_TASK.puml`. Consult before non-trivial changes to event→task flow.
+
 ## CI/CD
 
 GitHub Actions workflows per service follow the pattern:
@@ -149,6 +155,31 @@ Go tests use `testcontainers-go` for integration tests with real PostgreSQL. Env
 ```bash
 cd backend && go test ./tasker/internal/... -run TestName -race
 ```
+
+### Functional tests (`tests/`)
+
+End-to-end/API tests in TypeScript + Jest, separate from Go unit/integration tests. Own `docker-compose.yml` and `init.sql` spin up dependencies; specs live under `tests/{tasker,notificator}/specs`, clients under `tests/{service}/client`, shared helpers under `tests/{service}/helpers`.
+
+```bash
+cd tests && npm test              # all functional tests
+cd tests && npm run test:tasker   # tasker only
+cd tests && npm run test:watch    # watch mode
+```
+
+## Workflow
+
+### Commands
+Always use `make` targets instead of invoking tools directly. Never run `go test`, `golangci-lint`, `go build`, `goose`, or similar tools as raw commands — use the corresponding `make` target (e.g. `make tests` not `go test ./...`, `make lint` not `golangci-lint ./...`).
+
+### Codebase exploration
+Before reading files in the main session, use the Explore agent whenever you are not yet sure which files or line ranges to read. Only read directly when you already know the exact file and relevant lines.
+
+### Implementing plans
+When executing a multi-task plan, spawn a separate agent per task whenever you have enough context to write detailed instructions for it. This keeps the main session context lean and allows parallel execution.
+
+### Git Worktrees
+- Always use a git worktree for any code change. After creating and entering a worktree, run `cd backend && make generate` to generate all protobuf/gRPC gen files before making changes.
+- When development is complete, ask the user "Ready to remove the worktree?" before calling ExitWorktree with `action: "remove"`.
 
 ## Save decisions
 After successful feature implementations save relevant decisions here. Save only things that matters for next sessions. 
