@@ -168,6 +168,11 @@ cd tests && npm run test:watch    # watch mode
 
 ## Workflow
 
+### Git Worktrees
+- **Always use a git worktree for any code change.** Create and enter one before touching any file.
+- After creating and entering a worktree, run `cd backend && make generate` to generate all protobuf/gRPC gen files before making changes.
+- When development is complete, ask the user "Ready to remove the worktree?" before calling ExitWorktree with `action: "remove"`.
+
 ### Commands
 Always use `make` targets instead of invoking tools directly. Never run `go test`, `golangci-lint`, `go build`, `goose`, or similar tools as raw commands — use the corresponding `make` target (e.g. `make tests` not `go test ./...`, `make lint` not `golangci-lint ./...`).
 
@@ -176,10 +181,6 @@ Before reading files in the main session, use the Explore agent whenever you are
 
 ### Implementing plans
 When executing a multi-task plan, spawn a separate agent per task whenever you have enough context to write detailed instructions for it. This keeps the main session context lean and allows parallel execution.
-
-### Git Worktrees
-- Always use a git worktree for any code change. After creating and entering a worktree, run `cd backend && make generate` to generate all protobuf/gRPC gen files before making changes.
-- When development is complete, ask the user "Ready to remove the worktree?" before calling ExitWorktree with `action: "remove"`.
 
 ## Save decisions
 After successful feature implementations save relevant decisions here. Save only things that matters for next sessions. 
