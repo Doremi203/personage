@@ -29,7 +29,8 @@ class EventProducer(IEventProducer):
     async def send(
             self,
             event: EnrichedEventModel,
-            additional_attributes: dict[str, Any] | None = None
+            additional_attributes: dict[str, Any] | None = None,
+            target_queue_url: str | None = None
     ) -> dict[str, Any]:
         proto_event = self._flatten_event(event)
         binary_data = proto_event.SerializeToString()
@@ -49,7 +50,8 @@ class EventProducer(IEventProducer):
             deduplication_id=str(event.id),
             message_group_id=str(event.user_id),
             message_body=message_body,
-            message_attributes=message_attributes
+            message_attributes=message_attributes,
+            target_queue_url=target_queue_url
         )
 
     @staticmethod

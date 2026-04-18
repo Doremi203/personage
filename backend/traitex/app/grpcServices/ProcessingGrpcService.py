@@ -17,8 +17,10 @@ class ProcessingGrpcService(processing_pb2_grpc.ProcessingServiceServicer):
             request: processing_pb2. SendProcessingSnapshotRequest,
             context: ServicerContext
     ) -> processing_pb2.SendProcessingSnapshotResponse:
+        target_queue_url = request.target_queue_url if request.HasField("target_queue_url") else None
         sent_events_count = await self.processing_service.resend_processing_snapshot(
             snapshot_id=UUID(request.snapshot_id),
+            target_queue_url=target_queue_url,
         )
         return processing_pb2.SendProcessingSnapshotResponse(events_count=sent_events_count)
 

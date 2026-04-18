@@ -33,7 +33,8 @@ class YMQClient(IQueueClient):
             deduplication_id: str,
             message_group_id: str,
             message_body: str,
-            message_attributes: dict[str, Any] | None = None
+            message_attributes: dict[str, Any] | None = None,
+            target_queue_url: str | None = None
     ) -> dict[str, Any]:
         async with self.session.client(
                 service_name='sqs',
@@ -44,7 +45,7 @@ class YMQClient(IQueueClient):
                 )
         ) as client:
             params = {
-                'QueueUrl': self.endpoint_url,
+                'QueueUrl': target_queue_url if target_queue_url is not None else self.endpoint_url,
                 'MessageBody': message_body,
                 'MessageGroupId': message_group_id,
                 'MessageDeduplicationId': deduplication_id,

@@ -3,164 +3,182 @@
 isort:skip_file
 """
 
-import builtins
-import collections.abc
-import google.protobuf.descriptor
-import google.protobuf.internal.containers
-import google.protobuf.message
-import google.protobuf.timestamp_pb2
+from collections import abc as _abc
+from google.protobuf import descriptor as _descriptor
+from google.protobuf import message as _message
+from google.protobuf import timestamp_pb2 as _timestamp_pb2
+from google.protobuf.internal import containers as _containers
+import builtins as _builtins
 import sys
-import typing
+import typing as _typing
 
 if sys.version_info >= (3, 10):
-    import typing as typing_extensions
+    from typing import TypeAlias as _TypeAlias
 else:
-    import typing_extensions
+    from typing_extensions import TypeAlias as _TypeAlias
 
-DESCRIPTOR: google.protobuf.descriptor.FileDescriptor
+DESCRIPTOR: _descriptor.FileDescriptor
 
-@typing.final
-class ProcessingSnapshot(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+@_typing.final
+class ProcessingSnapshot(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
 
-    ID_FIELD_NUMBER: builtins.int
-    FROM__FIELD_NUMBER: builtins.int
-    TO_FIELD_NUMBER: builtins.int
-    id: builtins.str
-    @property
-    def from_(self) -> google.protobuf.timestamp_pb2.Timestamp: ...
-    @property
-    def to(self) -> google.protobuf.timestamp_pb2.Timestamp: ...
+    ID_FIELD_NUMBER: _builtins.int
+    FROM__FIELD_NUMBER: _builtins.int
+    TO_FIELD_NUMBER: _builtins.int
+    id: _builtins.str
+    @_builtins.property
+    def from_(self) -> _timestamp_pb2.Timestamp: ...
+    @_builtins.property
+    def to(self) -> _timestamp_pb2.Timestamp: ...
     def __init__(
         self,
         *,
-        id: builtins.str = ...,
-        from_: google.protobuf.timestamp_pb2.Timestamp | None = ...,
-        to: google.protobuf.timestamp_pb2.Timestamp | None = ...,
+        id: _builtins.str = ...,
+        from_: _timestamp_pb2.Timestamp | None = ...,
+        to: _timestamp_pb2.Timestamp | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing.Literal["from_", b"from_", "to", b"to"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing.Literal["from_", b"from_", "id", b"id", "to", b"to"]) -> None: ...
+    _HasFieldArgType: _TypeAlias = _typing.Literal["from_", b"from_", "to", b"to"]  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["from_", b"from_", "id", b"id", "to", b"to"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-Global___ProcessingSnapshot: typing_extensions.TypeAlias = ProcessingSnapshot
+Global___ProcessingSnapshot: _TypeAlias = ProcessingSnapshot  # noqa: Y015
 
-@typing.final
-class GetProcessingSnapshotsRequest(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+@_typing.final
+class GetProcessingSnapshotsRequest(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
 
     def __init__(
         self,
     ) -> None: ...
 
-Global___GetProcessingSnapshotsRequest: typing_extensions.TypeAlias = GetProcessingSnapshotsRequest
+Global___GetProcessingSnapshotsRequest: _TypeAlias = GetProcessingSnapshotsRequest  # noqa: Y015
 
-@typing.final
-class GetProcessingSnapshotsResponse(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+@_typing.final
+class GetProcessingSnapshotsResponse(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
 
-    SNAPSHOTS_FIELD_NUMBER: builtins.int
-    @property
-    def snapshots(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[Global___ProcessingSnapshot]: ...
-    def __init__(
-        self,
-        *,
-        snapshots: collections.abc.Iterable[Global___ProcessingSnapshot] | None = ...,
-    ) -> None: ...
-    def ClearField(self, field_name: typing.Literal["snapshots", b"snapshots"]) -> None: ...
-
-Global___GetProcessingSnapshotsResponse: typing_extensions.TypeAlias = GetProcessingSnapshotsResponse
-
-@typing.final
-class CreateProcessingSnapshotRequest(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
-
-    FROM__FIELD_NUMBER: builtins.int
-    TO_FIELD_NUMBER: builtins.int
-    @property
-    def from_(self) -> google.protobuf.timestamp_pb2.Timestamp: ...
-    @property
-    def to(self) -> google.protobuf.timestamp_pb2.Timestamp: ...
+    SNAPSHOTS_FIELD_NUMBER: _builtins.int
+    @_builtins.property
+    def snapshots(self) -> _containers.RepeatedCompositeFieldContainer[Global___ProcessingSnapshot]: ...
     def __init__(
         self,
         *,
-        from_: google.protobuf.timestamp_pb2.Timestamp | None = ...,
-        to: google.protobuf.timestamp_pb2.Timestamp | None = ...,
+        snapshots: _abc.Iterable[Global___ProcessingSnapshot] | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing.Literal["from_", b"from_", "to", b"to"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing.Literal["from_", b"from_", "to", b"to"]) -> None: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["snapshots", b"snapshots"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-Global___CreateProcessingSnapshotRequest: typing_extensions.TypeAlias = CreateProcessingSnapshotRequest
+Global___GetProcessingSnapshotsResponse: _TypeAlias = GetProcessingSnapshotsResponse  # noqa: Y015
 
-@typing.final
-class CreateProcessingSnapshotResponse(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+@_typing.final
+class CreateProcessingSnapshotRequest(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
 
-    SNAPSHOT_ID_FIELD_NUMBER: builtins.int
-    snapshot_id: builtins.str
+    FROM__FIELD_NUMBER: _builtins.int
+    TO_FIELD_NUMBER: _builtins.int
+    @_builtins.property
+    def from_(self) -> _timestamp_pb2.Timestamp: ...
+    @_builtins.property
+    def to(self) -> _timestamp_pb2.Timestamp: ...
     def __init__(
         self,
         *,
-        snapshot_id: builtins.str = ...,
+        from_: _timestamp_pb2.Timestamp | None = ...,
+        to: _timestamp_pb2.Timestamp | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing.Literal["snapshot_id", b"snapshot_id"]) -> None: ...
+    _HasFieldArgType: _TypeAlias = _typing.Literal["from_", b"from_", "to", b"to"]  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["from_", b"from_", "to", b"to"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-Global___CreateProcessingSnapshotResponse: typing_extensions.TypeAlias = CreateProcessingSnapshotResponse
+Global___CreateProcessingSnapshotRequest: _TypeAlias = CreateProcessingSnapshotRequest  # noqa: Y015
 
-@typing.final
-class CreateSnapshotFromCurrentMomentRequest(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+@_typing.final
+class CreateProcessingSnapshotResponse(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
 
-    FOR_SECONDS_FIELD_NUMBER: builtins.int
-    for_seconds: builtins.int
+    SNAPSHOT_ID_FIELD_NUMBER: _builtins.int
+    snapshot_id: _builtins.str
     def __init__(
         self,
         *,
-        for_seconds: builtins.int = ...,
+        snapshot_id: _builtins.str = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing.Literal["for_seconds", b"for_seconds"]) -> None: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["snapshot_id", b"snapshot_id"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-Global___CreateSnapshotFromCurrentMomentRequest: typing_extensions.TypeAlias = CreateSnapshotFromCurrentMomentRequest
+Global___CreateProcessingSnapshotResponse: _TypeAlias = CreateProcessingSnapshotResponse  # noqa: Y015
 
-@typing.final
-class CreateSnapshotFromCurrentMomentResponse(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+@_typing.final
+class CreateSnapshotFromCurrentMomentRequest(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
 
-    SNAPSHOT_ID_FIELD_NUMBER: builtins.int
-    snapshot_id: builtins.str
+    FOR_SECONDS_FIELD_NUMBER: _builtins.int
+    for_seconds: _builtins.int
     def __init__(
         self,
         *,
-        snapshot_id: builtins.str = ...,
+        for_seconds: _builtins.int = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing.Literal["snapshot_id", b"snapshot_id"]) -> None: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["for_seconds", b"for_seconds"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-Global___CreateSnapshotFromCurrentMomentResponse: typing_extensions.TypeAlias = CreateSnapshotFromCurrentMomentResponse
+Global___CreateSnapshotFromCurrentMomentRequest: _TypeAlias = CreateSnapshotFromCurrentMomentRequest  # noqa: Y015
 
-@typing.final
-class SendProcessingSnapshotRequest(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+@_typing.final
+class CreateSnapshotFromCurrentMomentResponse(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
 
-    SNAPSHOT_ID_FIELD_NUMBER: builtins.int
-    snapshot_id: builtins.str
+    SNAPSHOT_ID_FIELD_NUMBER: _builtins.int
+    snapshot_id: _builtins.str
     def __init__(
         self,
         *,
-        snapshot_id: builtins.str = ...,
+        snapshot_id: _builtins.str = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing.Literal["snapshot_id", b"snapshot_id"]) -> None: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["snapshot_id", b"snapshot_id"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
 
-Global___SendProcessingSnapshotRequest: typing_extensions.TypeAlias = SendProcessingSnapshotRequest
+Global___CreateSnapshotFromCurrentMomentResponse: _TypeAlias = CreateSnapshotFromCurrentMomentResponse  # noqa: Y015
 
-@typing.final
-class SendProcessingSnapshotResponse(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+@_typing.final
+class SendProcessingSnapshotRequest(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
 
-    EVENTS_COUNT_FIELD_NUMBER: builtins.int
-    events_count: builtins.int
+    SNAPSHOT_ID_FIELD_NUMBER: _builtins.int
+    TARGET_QUEUE_URL_FIELD_NUMBER: _builtins.int
+    snapshot_id: _builtins.str
+    target_queue_url: _builtins.str
     def __init__(
         self,
         *,
-        events_count: builtins.int = ...,
+        snapshot_id: _builtins.str = ...,
+        target_queue_url: _builtins.str | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing.Literal["events_count", b"events_count"]) -> None: ...
+    _HasFieldArgType: _TypeAlias = _typing.Literal["_target_queue_url", b"_target_queue_url", "target_queue_url", b"target_queue_url"]  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["_target_queue_url", b"_target_queue_url", "snapshot_id", b"snapshot_id", "target_queue_url", b"target_queue_url"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+    _WhichOneofReturnType__target_queue_url: _TypeAlias = _typing.Literal["target_queue_url"]  # noqa: Y015
+    _WhichOneofArgType__target_queue_url: _TypeAlias = _typing.Literal["_target_queue_url", b"_target_queue_url"]  # noqa: Y015
+    def WhichOneof(self, oneof_group: _WhichOneofArgType__target_queue_url) -> _WhichOneofReturnType__target_queue_url | None: ...
 
-Global___SendProcessingSnapshotResponse: typing_extensions.TypeAlias = SendProcessingSnapshotResponse
+Global___SendProcessingSnapshotRequest: _TypeAlias = SendProcessingSnapshotRequest  # noqa: Y015
+
+@_typing.final
+class SendProcessingSnapshotResponse(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
+
+    EVENTS_COUNT_FIELD_NUMBER: _builtins.int
+    events_count: _builtins.int
+    def __init__(
+        self,
+        *,
+        events_count: _builtins.int = ...,
+    ) -> None: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["events_count", b"events_count"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+
+Global___SendProcessingSnapshotResponse: _TypeAlias = SendProcessingSnapshotResponse  # noqa: Y015

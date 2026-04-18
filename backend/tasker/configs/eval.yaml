@@ -1,0 +1,5 @@
+database:
+  database: tasker_eval
+
+sqs:
+  queueUrl: "env:EVAL_QUEUE_URL"
