@@ -16,7 +16,7 @@ const TYPE_LABELS: Record<string, { title: string; description: string }> = {
     title: 'Напоминания о задачах',
     description: 'Уведомления о приближающихся дедлайнах',
   },
-  schedule_changed: {
+  schedule_change: {
     title: 'Изменения в расписании',
     description: 'Уведомления об изменениях в расписании',
   },
