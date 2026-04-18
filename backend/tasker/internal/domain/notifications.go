@@ -10,6 +10,10 @@ type Notification struct {
 	Title  string
 	Body   string
 	Type   string
+	// NotificationTime, when set, is used as the idempotency time anchor instead of
+	// time.Now(). Callers with a stable reference time (e.g. upcoming-event notifier)
+	// set this to avoid bucket-boundary races.
+	NotificationTime *time.Time
 }
 
 //go:generate mockgen -source=notifications.go -destination=mock/notifications_mock.go -typed

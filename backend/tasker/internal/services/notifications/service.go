@@ -28,6 +28,10 @@ func (s *notificatorPushService) Send(
 	ctx context.Context,
 	notification domain.Notification,
 ) error {
+	t := s.now()
+	if notification.NotificationTime != nil {
+		t = *notification.NotificationTime
+	}
 	userID := notification.UserID.String()
 	return s.client.SendMessage(ctx, &pushpb.Notification{
 		RecipientId:    userID,
@@ -36,6 +40,6 @@ func (s *notificatorPushService) Send(
 		Icon:           "/icon-72x72.png",
 		Url:            "/",
 		Type:           notification.Type,
-		IdempotencyKey: IdempotencyKey(userID, s.now(), notification.Type, notification.Title),
+		IdempotencyKey: IdempotencyKey(userID, t, notification.Type, notification.Title),
 	}, sqs.WithGroupID("tasker"))
 }
