@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
 	"flag"
@@ -20,6 +21,7 @@ import (
 	processingpb "github.com/Doremi203/personage/backend/tasker/gen/api/processing"
 	"github.com/Doremi203/personage/backend/tasker/internal/domain"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
 )
@@ -27,6 +29,7 @@ import (
 func main() {
 	fixturePath := flag.String("fixture", "", "path to fixture JSON (required)")
 	traitexGRPC := flag.String("traitex-grpc", "", "host:port of traitex gRPC (required)")
+	traitexInsecure := flag.Bool("traitex-insecure", false, "use plaintext gRPC for traitex")
 	taskerHTTP := flag.String("tasker-http", "", "base URL of eval tasker, e.g. http://localhost:8091 (required)")
 	evalQueueURL := flag.String("eval-queue-url", "", "eval SQS queue URL (required)")
 	reportPath := flag.String("report", "", "output report JSON path (default: stdout only)")
@@ -45,7 +48,12 @@ func main() {
 		fatalf("load fixture: %v", err)
 	}
 
-	traitexConn, err := grpc.NewClient(*traitexGRPC, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	traitexCreds := credentials.NewTLS(&tls.Config{MinVersion: tls.VersionTLS12})
+	if *traitexInsecure {
+		traitexCreds = insecure.NewCredentials()
+	}
+
+	traitexConn, err := grpc.NewClient(*traitexGRPC, grpc.WithTransportCredentials(traitexCreds))
 	if err != nil {
 		fatalf("connect to traitex: %v", err)
 	}

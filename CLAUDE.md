@@ -198,3 +198,9 @@ Available notification setting types are defined in code at `notificator/interna
 
 ### Tasker → Notificator communication
 Tasker sends push notifications via SQS using protobuf `pushpb.Notification` messages (see `tasker/internal/services/notifications/service.go`). The notificator consumes these from SQS. Three send sites: upcoming event notifier, schedule change notifier (both in `scenarios.go`), and scheduling usecase (`usecase/scheduling/usecase.go`).
+
+### Tasker eval bootstrap fixtures
+`backend/tasker/eval` fixtures may start with `expected_tasks: []` for the first curation run. The eval loader should allow empty expected tasks so the initial report can surface `unmatched_generated` items.
+
+### Tasker eval Traitex transport
+The documented remote Traitex endpoint `grpc-traitex.persomanage.ru:443` requires TLS. `tasker/eval/cmd/f1` should default to TLS and only use plaintext when explicitly requested via `--traitex-insecure` for local testing.

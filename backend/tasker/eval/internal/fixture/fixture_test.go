@@ -96,8 +96,8 @@ func TestLoad_EmptyExpectedTasks(t *testing.T) {
 	f := validFixture()
 	f.ExpectedTasks = nil
 	path := writeFixture(t, f)
-	if _, err := fixture.Load(path); err == nil {
-		t.Error("expected error for empty expected_tasks")
+	if _, err := fixture.Load(path); err != nil {
+		t.Errorf("Load returned error: %v", err)
 	}
 }
 

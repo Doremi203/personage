@@ -76,9 +76,6 @@ func validate(f Fixture) error {
 	if f.UserID == "" {
 		return fmt.Errorf("user_id is required")
 	}
-	if len(f.ExpectedTasks) == 0 {
-		return fmt.Errorf("expected_tasks must not be empty")
-	}
 	for i, et := range f.ExpectedTasks {
 		if et.Title == "" {
 			return fmt.Errorf("expected_tasks[%d].title is required", i)
