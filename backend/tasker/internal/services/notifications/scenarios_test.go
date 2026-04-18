@@ -1,6 +1,7 @@
 package notifications
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -524,4 +525,52 @@ func TestFormatScheduleChangeBody(t *testing.T) {
 			assert.Equal(t, tt.want, got)
 		})
 	}
+}
+
+// testNotificationSender captures sent notifications for assertions.
+type testNotificationSender struct {
+	sent []domain.Notification
+}
+
+func (s *testNotificationSender) Send(_ context.Context, n domain.Notification) error {
+	s.sent = append(s.sent, n)
+	return nil
+}
+
+func TestNotifyUpcomingEvents_SetsNotificationTimeAnchor(t *testing.T) {
+	startTime := time.Date(2026, 4, 18, 10, 15, 0, 0, time.UTC)
+	interval := 15 * time.Minute
+	expectedNotifTime := startTime.Add(-interval) // 10:00:00 — on a bucket edge
+
+	// Two worker ticks straddling the 09:55/10:00 boundary
+	tick1 := expectedNotifTime.Add(-30 * time.Second) // 09:59:30
+	tick2 := expectedNotifTime.Add(30 * time.Second)  // 10:00:30
+
+	task := domain.Task{
+		ID:        "task-1",
+		Title:     "Test",
+		StartTime: &startTime,
+		Status:    domain.TaskStatusPlanned,
+		Priority:  5,
+	}
+
+	sender := &testNotificationSender{}
+	notifier, err := NewUpcomingEventNotifier(sender, domain.NotificationConfig{
+		UpcomingEventMinPriority: 0,
+		UpcomingEventIntervals:   []time.Duration{interval},
+	}, message.NewPrinter(language.Russian))
+	require.NoError(t, err)
+
+	notifier.now = func() time.Time { return tick1 }
+	require.NoError(t, notifier.NotifyUpcomingEvents(context.Background(), "user-1", []domain.Task{task}))
+
+	notifier.now = func() time.Time { return tick2 }
+	require.NoError(t, notifier.NotifyUpcomingEvents(context.Background(), "user-1", []domain.Task{task}))
+
+	require.Len(t, sender.sent, 2, "both ticks are within the 2-minute window")
+	require.NotNil(t, sender.sent[0].NotificationTime)
+	require.NotNil(t, sender.sent[1].NotificationTime)
+	assert.Equal(t, expectedNotifTime, *sender.sent[0].NotificationTime)
+	assert.Equal(t, *sender.sent[0].NotificationTime, *sender.sent[1].NotificationTime,
+		"both ticks must carry the same NotificationTime anchor")
 }

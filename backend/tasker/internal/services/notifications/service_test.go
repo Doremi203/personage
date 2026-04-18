@@ -51,7 +51,7 @@ func TestNotificatorPushService_UsesNotificationTimeAsAnchor(t *testing.T) {
 	require.NoError(t, svc.Send(context.Background(), notif))
 
 	require.Len(t, writer.messages, 2)
-	assert.Equal(t, writer.messages[0].IdempotencyKey, writer.messages[1].IdempotencyKey,
+	assert.Equal(t, writer.messages[0].GetIdempotencyKey(), writer.messages[1].GetIdempotencyKey(),
 		"both ticks must produce the same key when NotificationTime is set")
 }
 
@@ -75,5 +75,5 @@ func TestNotificatorPushService_FallsBackToNowWhenNotificationTimeAbsent(t *test
 	require.Len(t, writer.messages, 1)
 
 	expected := IdempotencyKey("user-1", fixedNow, "schedule_change", "title")
-	assert.Equal(t, expected, writer.messages[0].IdempotencyKey)
+	assert.Equal(t, expected, writer.messages[0].GetIdempotencyKey())
 }

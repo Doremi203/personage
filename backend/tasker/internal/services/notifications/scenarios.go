@@ -58,6 +58,7 @@ func NewUpcomingEventNotifier(
 		sender:  sender,
 		config:  config,
 		printer: printer,
+		now:     time.Now,
 	}, nil
 }
 
@@ -65,6 +66,7 @@ type upcomingEventNotifier struct {
 	sender  domain.NotificationsService
 	config  domain.NotificationConfig
 	printer *message.Printer
+	now     func() time.Time
 }
 
 func (n *upcomingEventNotifier) NotifyUpcomingEvents(
@@ -72,7 +74,7 @@ func (n *upcomingEventNotifier) NotifyUpcomingEvents(
 	userID domain.UserID,
 	tasks []domain.Task,
 ) error {
-	now := time.Now()
+	now := n.now()
 
 	for _, task := range tasks {
 		if task.StartTime == nil || task.Priority < n.config.UpcomingEventMinPriority {
@@ -88,10 +90,11 @@ func (n *upcomingEventNotifier) NotifyUpcomingEvents(
 
 			if now.After(notificationTime.Add(-time.Minute)) && now.Before(notificationTime.Add(time.Minute)) {
 				notification := domain.Notification{
-					UserID: userID,
-					Title:  n.formatUpcomingEventTitle(task, interval),
-					Body:   n.formatUpcomingEventBody(task),
-					Type:   "upcoming_event",
+					UserID:           userID,
+					Title:            n.formatUpcomingEventTitle(task, interval),
+					Body:             n.formatUpcomingEventBody(task),
+					Type:             "upcoming_event",
+					NotificationTime: &notificationTime,
 				}
 
 				if err := n.sender.Send(ctx, notification); err != nil {
