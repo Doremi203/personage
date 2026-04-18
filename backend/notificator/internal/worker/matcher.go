@@ -64,6 +64,29 @@ func (p *notificationHandler) Process(
 		return nil
 	}
 
+	inserted, err := p.notificationRepo.CreateIfAbsent(ctx, notification.Notification{
+		UserID:         recipientUUID,
+		Title:          data.GetTitle(),
+		Type:           data.GetType(),
+		Text:           data.GetDetailedText(),
+		IdempotencyKey: data.GetIdempotencyKey(),
+	})
+	if err != nil {
+		return errors.WrapFailf(
+			err,
+			"persist notification for recipient %v",
+			errors.Token("id", pushRecipientID),
+		)
+	}
+	if !inserted {
+		p.logger.Infof(
+			"duplicate notification skipped for recipient %v key %v",
+			errors.Token("id", pushRecipientID),
+			errors.Token("idempotency_key", data.GetIdempotencyKey()),
+		)
+		return nil
+	}
+
 	err = p.senderUseCase.Send(ctx, pushRecipient, push.Push{
 		Title: data.GetTitle(),
 		Body:  data.GetBody(),
@@ -74,20 +97,6 @@ func (p *notificationHandler) Process(
 		return errors.WrapFailf(
 			err,
 			"send push to recipient with id %v",
-			errors.Token("id", pushRecipientID),
-		)
-	}
-
-	err = p.notificationRepo.Create(ctx, notification.Notification{
-		UserID: recipientUUID,
-		Title:  data.GetTitle(),
-		Type:   data.GetType(),
-		Text:   data.GetDetailedText(),
-	})
-	if err != nil {
-		return errors.WrapFailf(
-			err,
-			"persist notification for recipient %v",
 			errors.Token("id", pushRecipientID),
 		)
 	}
