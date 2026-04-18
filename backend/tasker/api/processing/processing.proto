@@ -4,7 +4,7 @@ package api.processing;
 
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/Doremi203/personage/backend/tasker/eval/gen/api/processing";
+option go_package = "github.com/Doremi203/personage/backend/tasker/gen/api/processing";
 
 service ProcessingService {
   rpc SendProcessingSnapshot(SendProcessingSnapshotRequest) returns (SendProcessingSnapshotResponse) {}

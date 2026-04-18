@@ -18,7 +18,8 @@ class ICommonProcessingService(ABC):
     @abstractmethod
     async def resend_processing_snapshot(
             self,
-            snapshot_id: SnapshotId
+            snapshot_id: SnapshotId,
+            target_queue_url: str | None = None
     ) -> int:
         pass
 

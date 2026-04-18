@@ -10,6 +10,62 @@ import (
 	"github.com/google/uuid"
 )
 
+type testTaskLister interface {
+	GetTasksByUserID(ctx context.Context, userID domain.UserID) ([]domain.Task, error)
+}
+
+type testListTaskItem struct {
+	ID              string     `json:"id"`
+	Title           string     `json:"title"`
+	Description     string     `json:"description"`
+	DurationMinutes int        `json:"duration_minutes"`
+	Priority        int        `json:"priority"`
+	Deadline        *time.Time `json:"deadline,omitempty"`
+	StartTime       *time.Time `json:"start_time,omitempty"`
+	Category        string     `json:"category"`
+}
+
+// NewTestListTasksHandler returns an HTTP handler for GET /v1/test/tasks/list.
+// It lists tasks for a given user_id directly from the repo, bypassing auth.
+// Must only be registered in non-production environments.
+func NewTestListTasksHandler(repo testTaskLister) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		userIDStr := r.URL.Query().Get("user_id")
+		if userIDStr == "" {
+			http.Error(w, "user_id is required", http.StatusBadRequest)
+			return
+		}
+
+		tasks, err := repo.GetTasksByUserID(r.Context(), domain.UserID(userIDStr))
+		if err != nil {
+			http.Error(w, "failed to list tasks", http.StatusInternalServerError)
+			return
+		}
+
+		items := make([]testListTaskItem, 0, len(tasks))
+		for _, t := range tasks {
+			items = append(items, testListTaskItem{
+				ID:              t.ID.String(),
+				Title:           t.Title,
+				Description:     t.Description,
+				DurationMinutes: int(t.Duration.Minutes()),
+				Priority:        t.Priority,
+				Deadline:        t.Deadline,
+				StartTime:       t.StartTime,
+				Category:        string(t.Category),
+			})
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(items)
+	}
+}
+
 type testTaskCreator interface {
 	CreateTask(ctx context.Context, task domain.Task) error
 }

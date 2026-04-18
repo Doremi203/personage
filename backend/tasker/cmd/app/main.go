@@ -286,11 +286,12 @@ func main() {
 		app.RegisterGRPCServices(tasksService)
 		app.AddGatewayHandlers(tasksService)
 
-		if app.Env == webapp.DevEnvironment || app.Env == webapp.TestsEnvironment {
+		if app.Env == webapp.DevEnvironment || app.Env == webapp.TestsEnvironment || app.Env == webapp.EvalEnvironment {
 			app.AddHTTPHandler("/v1/test/tasks", taskergrpc.NewTestCreateTaskHandler(postgresTaskRepo))
+			app.AddHTTPHandler("/v1/test/tasks/list", taskergrpc.NewTestListTasksHandler(postgresTaskRepo))
 		}
 
-		if app.Env == webapp.TestsEnvironment {
+		if app.Env == webapp.TestsEnvironment || app.Env == webapp.EvalEnvironment {
 			app.AddGRPCUnaryInterceptor(
 				token.NewUnaryTokenInterceptor(
 					token.NewVerifierStub(),

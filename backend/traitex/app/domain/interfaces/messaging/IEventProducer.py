@@ -9,6 +9,7 @@ class IEventProducer(ABC):
     async def send(
             self,
             event: EnrichedEventModel,
-            additional_attributes: dict[str, Any] | None = None
+            additional_attributes: dict[str, Any] | None = None,
+            target_queue_url: str | None = None
     ) -> dict[str, Any]:
         pass
