@@ -183,6 +183,7 @@ export async function fetchWithTokenRefresh(
 
   const newTokens = await refreshAccessToken();
   if (!newTokens) {
+    clearTokens();
     throw new Error('Сессия истекла');
   }
 
