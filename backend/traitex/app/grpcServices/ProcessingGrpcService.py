@@ -30,8 +30,8 @@ class ProcessingGrpcService(processing_pb2_grpc.ProcessingServiceServicer):
             context: ServicerContext
     ) -> processing_pb2.CreateProcessingSnapshotResponse:
         snapshot_id = await self.processing_service.create_processing_snapshot(
-            from_=request.from_,
-            to=request.to,
+            from_=request.from_.ToDatetime(tzinfo=timezone.utc),
+            to=request.to.ToDatetime(tzinfo=timezone.utc),
         )
         return processing_pb2.CreateProcessingSnapshotResponse(snapshot_id=str(snapshot_id))
 
