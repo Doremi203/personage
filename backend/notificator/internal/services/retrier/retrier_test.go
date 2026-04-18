@@ -49,6 +49,12 @@ func (m *mockSubscriptions) GetRecipient(_ context.Context, id push.RecipientID)
 	}, nil
 }
 
+type errorSubscriptions struct{}
+
+func (m *errorSubscriptions) GetRecipient(_ context.Context, id push.RecipientID) (push.Recipient, error) {
+	return push.Recipient{}, assert.AnError
+}
+
 func expiredNotif() notification.Notification {
 	expired := now.Add(-3 * time.Hour)
 	retryT := now.Add(-time.Minute)
@@ -145,5 +151,16 @@ func TestRetrier_ProcessOnce_Empty(t *testing.T) {
 	repo.EXPECT().ListPending(gomock.Any()).Return(nil, nil)
 
 	r := retrier.New(repo, &mockRateLimiter{allow: true}, &mockSender{}, &mockSubscriptions{}, retryInt)
+	r.ProcessOnce(context.Background(), now)
+}
+
+func TestRetrier_ProcessOnce_GetRecipientError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	repo := mock_notification.NewMockRepo(ctrl)
+
+	repo.EXPECT().ListPending(gomock.Any()).Return([]notification.Notification{readyNotif()}, nil)
+	// No Drop, MarkSent, or UpdateRetryAfter — error getting recipient should just log and skip
+
+	r := retrier.New(repo, &mockRateLimiter{allow: true}, &mockSender{}, &errorSubscriptions{}, retryInt)
 	r.ProcessOnce(context.Background(), now)
 }

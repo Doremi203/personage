@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/Doremi203/personage/backend/libs/go/errors"
 	"github.com/Doremi203/personage/backend/libs/go/log"
 	"github.com/Doremi203/personage/backend/notificator/internal/domain/notification"
 	"github.com/Doremi203/personage/backend/notificator/internal/domain/push"
@@ -86,6 +87,11 @@ func (r *Retrier) ProcessOnce(ctx context.Context, now time.Time) {
 }
 
 func (r *Retrier) process(ctx context.Context, n notification.Notification, now time.Time) {
+	if n.ExpiresAt == nil {
+		r.logError(errors.Error("notification has no expiry"), "process pending notification")
+		return
+	}
+
 	if n.ExpiresAt != nil && now.After(*n.ExpiresAt) {
 		if err := r.repo.Drop(ctx, n.ID); err != nil {
 			r.logError(err, "drop expired notification")
@@ -143,8 +149,8 @@ func (r *Retrier) process(ctx context.Context, n notification.Notification, now 
 	}
 }
 
-func (r *Retrier) logError(err error, _ string) {
+func (r *Retrier) logError(err error, msg string) {
 	if r.logger != nil {
-		r.logger.Error(err)
+		r.logger.Error(errors.WrapFail(err, msg))
 	}
 }
