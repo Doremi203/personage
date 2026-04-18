@@ -170,7 +170,9 @@ cd tests && npm run test:watch    # watch mode
 
 ### Git Worktrees
 - **Always use a git worktree for any code change.** Create and enter one before touching any file.
+- **Create worktrees under `.claude/worktrees/`.** Do not create worktrees outside this directory.
 - After creating and entering a worktree, run `cd backend && make generate` to generate all protobuf/gRPC gen files before making changes.
+- After finishing work in a worktree, always create a pull request before removing the worktree.
 - When development is complete, ask the user "Ready to remove the worktree?" before calling ExitWorktree with `action: "remove"`.
 
 ### Commands
