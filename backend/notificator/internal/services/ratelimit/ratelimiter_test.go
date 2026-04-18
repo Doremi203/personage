@@ -3,7 +3,6 @@ package ratelimit_test
 import (
 	"context"
 	"testing"
-	"time"
 
 	mock_notification "github.com/Doremi203/personage/backend/notificator/internal/domain/notification/mock"
 	"github.com/Doremi203/personage/backend/notificator/internal/domain/notification"
@@ -15,10 +14,9 @@ import (
 
 var (
 	userID = uuid.MustParse("11111111-1111-1111-1111-111111111111")
-	now    = time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
 )
 
-func newLimiter(ctrl *gomock.Controller, repo *mock_notification.MockRepo) *ratelimit.RateLimiter {
+func newLimiter(repo *mock_notification.MockRepo) *ratelimit.RateLimiter {
 	return ratelimit.New(repo, map[notification.SettingType]ratelimit.Limits{
 		notification.SettingTypeScheduleChange: {Hourly: 2, Daily: 10},
 	})
@@ -28,7 +26,7 @@ func TestRateLimiter_Allow_typeNotInLimits(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	repo := mock_notification.NewMockRepo(ctrl)
 	// repo should NOT be called for unconstrained types
-	limiter := newLimiter(ctrl, repo)
+	limiter := newLimiter(repo)
 
 	allowed, err := limiter.Allow(context.Background(), userID, notification.SettingTypeUpcomingEvent)
 
@@ -39,7 +37,7 @@ func TestRateLimiter_Allow_typeNotInLimits(t *testing.T) {
 func TestRateLimiter_Allow_withinBothLimits(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	repo := mock_notification.NewMockRepo(ctrl)
-	limiter := newLimiter(ctrl, repo)
+	limiter := newLimiter(repo)
 
 	repo.EXPECT().
 		CountSentSince(gomock.Any(), userID, notification.SettingTypeScheduleChange, gomock.Any()).
@@ -59,7 +57,7 @@ func TestRateLimiter_Allow_withinBothLimits(t *testing.T) {
 func TestRateLimiter_Allow_exceedsHourlyLimit(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	repo := mock_notification.NewMockRepo(ctrl)
-	limiter := newLimiter(ctrl, repo)
+	limiter := newLimiter(repo)
 
 	repo.EXPECT().
 		CountSentSince(gomock.Any(), userID, notification.SettingTypeScheduleChange, gomock.Any()).
@@ -75,7 +73,7 @@ func TestRateLimiter_Allow_exceedsHourlyLimit(t *testing.T) {
 func TestRateLimiter_Allow_exceedsDailyLimit(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	repo := mock_notification.NewMockRepo(ctrl)
-	limiter := newLimiter(ctrl, repo)
+	limiter := newLimiter(repo)
 
 	repo.EXPECT().
 		CountSentSince(gomock.Any(), userID, notification.SettingTypeScheduleChange, gomock.Any()).
@@ -95,7 +93,7 @@ func TestRateLimiter_Allow_exceedsDailyLimit(t *testing.T) {
 func TestRateLimiter_Allow_dbError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	repo := mock_notification.NewMockRepo(ctrl)
-	limiter := newLimiter(ctrl, repo)
+	limiter := newLimiter(repo)
 
 	repo.EXPECT().
 		CountSentSince(gomock.Any(), userID, notification.SettingTypeScheduleChange, gomock.Any()).
