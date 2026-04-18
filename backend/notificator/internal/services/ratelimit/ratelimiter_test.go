@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	mock_notification "github.com/Doremi203/personage/backend/notificator/internal/domain/notification/mock"
 	"github.com/Doremi203/personage/backend/notificator/internal/domain/notification"
+	mock_notification "github.com/Doremi203/personage/backend/notificator/internal/domain/notification/mock"
 	"github.com/Doremi203/personage/backend/notificator/internal/services/ratelimit"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -101,6 +101,6 @@ func TestRateLimiter_Allow_dbError(t *testing.T) {
 
 	allowed, err := limiter.Allow(context.Background(), userID, notification.SettingTypeScheduleChange)
 
-	assert.NoError(t, err) // no error returned to caller
+	assert.NoError(t, err)   // no error returned to caller
 	assert.False(t, allowed) // fail-safe: deny on DB error
 }
