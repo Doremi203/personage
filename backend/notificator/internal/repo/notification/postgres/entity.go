@@ -2,6 +2,7 @@ package notificationpostgres
 
 import (
 	"database/sql"
+	"encoding/json"
 	"time"
 
 	"github.com/Doremi203/personage/backend/notificator/internal/domain/notification"
@@ -14,30 +15,60 @@ type notificationEntity struct {
 	Title          string         `db:"title"`
 	Type           string         `db:"type"`
 	Text           string         `db:"text"`
-	SentAt         time.Time      `db:"sent_at"`
+	Status         string         `db:"status"`
+	SentAt         *time.Time     `db:"sent_at"`
+	RetryAfter     *time.Time     `db:"retry_after"`
+	ExpiresAt      *time.Time     `db:"expires_at"`
+	PushPayload    *string        `db:"push_payload"`
 	IdempotencyKey sql.NullString `db:"idempotency_key"`
 }
 
 func entityToDomain(e notificationEntity) notification.Notification {
-	return notification.Notification{
+	n := notification.Notification{
 		ID:             e.ID,
 		UserID:         e.RecipientID,
 		Title:          e.Title,
 		Type:           e.Type,
 		Text:           e.Text,
+		Status:         notification.NotificationStatus(e.Status),
 		SentAt:         e.SentAt,
+		RetryAfter:     e.RetryAfter,
+		ExpiresAt:      e.ExpiresAt,
 		IdempotencyKey: e.IdempotencyKey.String,
 	}
+	if e.PushPayload != nil {
+		var p notification.PushPayload
+		if err := json.Unmarshal([]byte(*e.PushPayload), &p); err == nil {
+			n.PushPayload = &p
+		}
+	}
+	return n
 }
 
 func domainToEntity(n notification.Notification) notificationEntity {
-	return notificationEntity{
+	status := string(n.Status)
+	if status == "" {
+		status = string(notification.StatusSent)
+	}
+	e := notificationEntity{
 		RecipientID:    n.UserID,
 		Title:          n.Title,
 		Type:           n.Type,
 		Text:           n.Text,
+		Status:         status,
+		SentAt:         n.SentAt,
+		RetryAfter:     n.RetryAfter,
+		ExpiresAt:      n.ExpiresAt,
 		IdempotencyKey: sql.NullString{String: n.IdempotencyKey, Valid: n.IdempotencyKey != ""},
 	}
+	if n.PushPayload != nil {
+		b, err := json.Marshal(n.PushPayload)
+		if err == nil {
+			s := string(b)
+			e.PushPayload = &s
+		}
+	}
+	return e
 }
 
 type settingEntity struct {
