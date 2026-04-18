@@ -46,12 +46,16 @@ func entityToDomain(e notificationEntity) notification.Notification {
 }
 
 func domainToEntity(n notification.Notification) notificationEntity {
+	status := string(n.Status)
+	if status == "" {
+		status = string(notification.StatusSent)
+	}
 	e := notificationEntity{
 		RecipientID:    n.UserID,
 		Title:          n.Title,
 		Type:           n.Type,
 		Text:           n.Text,
-		Status:         string(n.Status),
+		Status:         status,
 		SentAt:         n.SentAt,
 		RetryAfter:     n.RetryAfter,
 		ExpiresAt:      n.ExpiresAt,
