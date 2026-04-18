@@ -10,9 +10,12 @@ import (
 	"github.com/Doremi203/personage/backend/libs/go/token"
 	"github.com/Doremi203/personage/backend/libs/go/webapp"
 	pushpb "github.com/Doremi203/personage/backend/notificator/gen/api/push"
+	"github.com/Doremi203/personage/backend/notificator/internal/domain/notification"
 	"github.com/Doremi203/personage/backend/notificator/internal/grpc"
 	notificationpostgres "github.com/Doremi203/personage/backend/notificator/internal/repo/notification/postgres"
 	pushpostgres "github.com/Doremi203/personage/backend/notificator/internal/repo/push/postgres"
+	"github.com/Doremi203/personage/backend/notificator/internal/services/ratelimit"
+	"github.com/Doremi203/personage/backend/notificator/internal/services/retrier"
 	"github.com/Doremi203/personage/backend/notificator/internal/usecase"
 	sqspush "github.com/Doremi203/personage/backend/notificator/internal/worker"
 	"github.com/SherClockHolmes/webpush-go"
@@ -45,6 +48,19 @@ func main() {
 			return err
 		}
 
+		rateLimitConfig := struct {
+			ScheduleChangeHourlyLimit int
+			ScheduleChangeDailyLimit  int
+			RetryInterval             time.Duration
+			MaxAge                    time.Duration
+		}{
+			ScheduleChangeHourlyLimit: 2,
+			ScheduleChangeDailyLimit:  10,
+			RetryInterval:             15 * time.Minute,
+			MaxAge:                    2 * time.Hour,
+		}
+		_ = app.Config.ReadSection(ctx, "rate-limit", &rateLimitConfig)
+
 		poolConfig, err := pgxpool.ParseConfig(dbConfig.ConnectionString())
 		if err != nil {
 			return errors.WrapFail(err, "create pool config")
@@ -59,13 +75,15 @@ func main() {
 		pushRepo := pushpostgres.NewRepo(dbClient)
 		notificationRepo := notificationpostgres.NewRepo(dbClient)
 
-		pushSubscriptionUseCase := usecase.NewPushSubscription(
-			pushRepo,
-		)
-		pushSubscriptionService := grpc.NewPushSubscriptionService(
-			pushSubscriptionUseCase,
-			app.Log,
-		)
+		rateLimiter := ratelimit.New(notificationRepo, map[notification.SettingType]ratelimit.Limits{
+			notification.SettingTypeScheduleChange: {
+				Hourly: rateLimitConfig.ScheduleChangeHourlyLimit,
+				Daily:  rateLimitConfig.ScheduleChangeDailyLimit,
+			},
+		})
+
+		pushSubscriptionUseCase := usecase.NewPushSubscription(pushRepo)
+		pushSubscriptionService := grpc.NewPushSubscriptionService(pushSubscriptionUseCase, app.Log)
 
 		pushSenderUseCase := usecase.NewPushSender(
 			&webpush.Options{
@@ -78,11 +96,7 @@ func main() {
 			app.Log,
 		)
 
-		pushAdminService := grpc.NewAdminService(
-			pushRepo,
-			pushSenderUseCase,
-			app.Log,
-		)
+		pushAdminService := grpc.NewAdminService(pushRepo, pushSenderUseCase, app.Log)
 
 		notificationMessagesProcessor, err := sqs.NewMessageProcessor(
 			ctx,
@@ -94,6 +108,9 @@ func main() {
 				pushSenderUseCase,
 				pushSubscriptionUseCase,
 				notificationRepo,
+				rateLimiter,
+				rateLimitConfig.RetryInterval,
+				rateLimitConfig.MaxAge,
 			),
 			5*time.Second,
 			5,
@@ -101,18 +118,26 @@ func main() {
 		if err != nil {
 			return errors.WrapFail(err, "create notification messages processor")
 		}
-		app.AddBackgroundJob(
-			webapp.NewBackgroundJob(
-				"sqs-notifications-worker",
-				notificationMessagesProcessor.ProcessMessages,
-			),
-		)
+		app.AddBackgroundJob(webapp.NewBackgroundJob(
+			"sqs-notifications-worker",
+			notificationMessagesProcessor.ProcessMessages,
+		))
 
-		notificationsUseCase := usecase.NewNotifications(notificationRepo)
-		notificationsService := grpc.NewNotificationsService(
-			notificationsUseCase,
+		notificationRetrier := retrier.NewWithLogger(
+			notificationRepo,
+			rateLimiter,
+			pushSenderUseCase,
+			pushSubscriptionUseCase,
+			rateLimitConfig.RetryInterval,
 			app.Log,
 		)
+		app.AddBackgroundJob(webapp.NewBackgroundJob(
+			"notification-retrier",
+			notificationRetrier.Run,
+		))
+
+		notificationsUseCase := usecase.NewNotifications(notificationRepo)
+		notificationsService := grpc.NewNotificationsService(notificationsUseCase, app.Log)
 
 		app.AddAPIKeyProtectedEndpoints(pushpb.Admin_SendPushV1_FullMethodName)
 		if app.Env == webapp.TestsEnvironment {
@@ -158,16 +183,9 @@ func main() {
 				),
 			)
 		}
-		app.RegisterGRPCServices(
-			pushSubscriptionService,
-			pushAdminService,
-			notificationsService,
-		)
-		app.AddGatewayHandlers(
-			pushSubscriptionService,
-			pushAdminService,
-			notificationsService,
-		)
+
+		app.RegisterGRPCServices(pushSubscriptionService, pushAdminService, notificationsService)
+		app.AddGatewayHandlers(pushSubscriptionService, pushAdminService, notificationsService)
 
 		return nil
 	})

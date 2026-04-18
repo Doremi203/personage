@@ -76,7 +76,7 @@ func (s *notificationsService) ListNotificationsV1(
 			Title:  n.Title,
 			Type:   n.Type,
 			Text:   n.Text,
-			SentAt: timestamppb.New(n.SentAt),
+			SentAt: timestamppb.New(*n.SentAt),
 		})
 	}
 
