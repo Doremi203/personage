@@ -124,6 +124,8 @@ public class Program
         });
         
         app.UseCors();
+        app.UseAuthentication();
+        app.UseAuthorization();
         
         app.UseGrpcWeb();
         app.MapGrpcReflectionService();

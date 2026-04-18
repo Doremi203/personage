@@ -9,6 +9,7 @@ import Sidebar from './components/Sidebar';
 import PWAInstallPrompt from './components/PWAInstallPrompt';
 import WelcomeScreen from './components/WelcomeScreen';
 import {
+  AUTH_STATE_CHANGE_EVENT,
   isAuthenticated,
   logout,
   getUserInfo,
@@ -52,6 +53,17 @@ function App() {
   const [onboardingComplete, setOnboardingComplete] = useState(
     () => localStorage.getItem(ONBOARDING_KEY) === 'true',
   );
+
+  useEffect(() => {
+    const syncAuthenticatedState = () => {
+      setAuthenticated(isAuthenticated());
+    };
+
+    window.addEventListener(AUTH_STATE_CHANGE_EVENT, syncAuthenticatedState);
+    return () => {
+      window.removeEventListener(AUTH_STATE_CHANGE_EVENT, syncAuthenticatedState);
+    };
+  }, []);
 
   useEffect(() => {
     const params = getGmailCallbackParams();
