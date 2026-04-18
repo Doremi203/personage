@@ -2,6 +2,25 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Workflow
+
+### Git Worktrees
+- **Always use a git worktree for any code change if user not explicitly said overwise.** Create and enter one before touching any file.
+- **Create worktrees under `.claude/worktrees/`.** Do not create worktrees outside this directory.
+- After creating and entering a worktree, run `cd backend && make generate` to generate all protobuf/gRPC gen files before making changes.
+- After finishing work in a worktree, always create a pull request before removing the worktree.
+- When development is complete, ask the user "Ready to remove the worktree?" before calling ExitWorktree with `action: "remove"`.
+
+### Commands
+Always use `make` targets instead of invoking tools directly. Never run `go test`, `golangci-lint`, `go build`, `goose`, or similar tools as raw commands — use the corresponding `make` target (e.g. `make tests` not `go test ./...`, `make lint` not `golangci-lint ./...`).
+
+### Codebase exploration
+Before reading files in the main session, use the Explore agent whenever you are not yet sure which files or line ranges to read. Only read directly when you already know the exact file and relevant lines.
+
+### Implementing plans
+When executing a multi-task plan, spawn a separate agent per task whenever you have enough context to write detailed instructions for it. This keeps the main session context lean and allows parallel execution.
+
+
 ## Project Overview
 
 Personage is a personal assistant web application with intelligent task management, scheduling, and notifications. It uses a microservices architecture deployed to Yandex Cloud.
@@ -166,24 +185,6 @@ cd tests && npm run test:tasker   # tasker only
 cd tests && npm run test:watch    # watch mode
 ```
 
-## Workflow
-
-### Git Worktrees
-- **Always use a git worktree for any code change.** Create and enter one before touching any file.
-- **Create worktrees under `.claude/worktrees/`.** Do not create worktrees outside this directory.
-- After creating and entering a worktree, run `cd backend && make generate` to generate all protobuf/gRPC gen files before making changes.
-- After finishing work in a worktree, always create a pull request before removing the worktree.
-- When development is complete, ask the user "Ready to remove the worktree?" before calling ExitWorktree with `action: "remove"`.
-
-### Commands
-Always use `make` targets instead of invoking tools directly. Never run `go test`, `golangci-lint`, `go build`, `goose`, or similar tools as raw commands — use the corresponding `make` target (e.g. `make tests` not `go test ./...`, `make lint` not `golangci-lint ./...`).
-
-### Codebase exploration
-Before reading files in the main session, use the Explore agent whenever you are not yet sure which files or line ranges to read. Only read directly when you already know the exact file and relevant lines.
-
-### Implementing plans
-When executing a multi-task plan, spawn a separate agent per task whenever you have enough context to write detailed instructions for it. This keeps the main session context lean and allows parallel execution.
-
 ## Save decisions
 After successful feature implementations save relevant decisions here. Save only things that matters for next sessions. 
 If you are not sure that you would need this info to make less research of project do not save. You must update info if it becomes irrelevant after the feature was developed.
@@ -204,6 +205,9 @@ Tasker sends push notifications via SQS using protobuf `pushpb.Notification` mes
 
 ### Tasker eval Traitex transport
 The documented remote Traitex endpoint `grpc-traitex.persomanage.ru:443` requires TLS. `tasker/eval/cmd/f1` should default to TLS and only use plaintext when explicitly requested via `--traitex-insecure` for local testing.
+
+### Traitex processing snapshots
+Traitex snapshot recording is time-window based. Creating a snapshot only inserts a `[start, finish]` row into `traitex.processing_snapshot`; Gmail/Telegram consumers keep running normally, and if `now()` falls inside any snapshot window they also persist each enriched event to `processing_result` before sending it to SQS. Replay does not use `snapshot_id` links: `SendProcessingSnapshot` reloads rows by `processed_at BETWEEN snapshot.from_ AND snapshot.to`, capped at 1000 events.
 
 ### Auth API JWT middleware
 `backend/Personage.Auth/Personage.Auth.Api/Program.cs` must include both `app.UseAuthentication()` and `app.UseAuthorization()` before `app.MapControllers()`. Without them, `[Authorize]` REST endpoints like `/user` return `401` even after a successful access-token refresh.

@@ -1,5 +1,6 @@
 database:
+  host: db
   database: tasker_eval
 
 sqs:
-  queueUrl: "env:EVAL_QUEUE_URL"
+  queueUrl: https://message-queue.api.cloud.yandex.net/b1gfkhf234165rrluh60/dj60000000kjtgs303cs/tasker-eval-events.fifo

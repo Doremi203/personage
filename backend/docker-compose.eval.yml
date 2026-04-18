@@ -10,7 +10,6 @@ services:
     environment:
       APP_ENV: eval
       CONFIGS_PATH: /app/configs
-      EVAL_QUEUE_URL: ${EVAL_QUEUE_URL}
     env_file:
       - ../secrets.env
     ports:

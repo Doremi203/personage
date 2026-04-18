@@ -27,7 +27,7 @@ database:
   options: sslmode=disable
 
 llm:
-  model: stepfun/step-3.5-flash:free
+  model: nvidia/nemotron-3-super-120b-a12b:free
   apiKey: "secret:e6qd2ljggdrvefjgg0gf:e6q72jfficuq9om25sab:open-router"
 
 embedding:

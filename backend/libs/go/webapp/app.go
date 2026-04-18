@@ -250,7 +250,7 @@ func initYCSdk(ctx context.Context, env Environment) (*ycsdk.SDK, error) {
 		}
 		ycToken = tokenResp.AccessToken
 	}
-	if env == DevEnvironment || env == TestsEnvironment {
+	if env == DevEnvironment || env == TestsEnvironment || env == EvalEnvironment {
 		ycToken = os.Getenv("YC_TOKEN")
 	}
 	if ycToken == "" {

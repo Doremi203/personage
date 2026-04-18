@@ -2,8 +2,6 @@
 
 Offline script that scores tasker's end-to-end task generation (clustering + LLM) against a curated set of expected tasks for a fixed traitex snapshot.
 
-Design spec: `docs/superpowers/specs/2026-04-18-task-generation-f1-eval-design.md`
-
 **Output:** precision, recall, F1 at task level, plus per-field accuracy on matched pairs.
 
 ---
@@ -29,20 +27,22 @@ make tasker-eval/run
 
 # Run the eval script
 go run ./tasker/eval/cmd/f1 \
-  --fixture=tasker/eval/fixtures/golden_v1.json \
-  --traitex-grpc=localhost:50053 \
-  --tasker-http=http://localhost:8091 \
-  --eval-queue-url=$EVAL_QUEUE_URL \
+  --fixture=tasker/eval/fixtures/test1.json \
+  --traitex-grpc=grpc-traitex.persomanage.ru:443 \
+  --tasker-http=http://localhost:9091 \
+  --eval-queue-url=https://message-queue.api.cloud.yandex.net/b1gfkhf234165rrluh60/dj60000000kjtgs303cs/tasker-eval-events.fifo \
   --report=/tmp/golden_v1_$(date +%s).json
 
 # Average over 3 runs (LLM non-determinism mitigation)
 go run ./tasker/eval/cmd/f1 \
   --fixture=tasker/eval/fixtures/golden_v1.json \
-  --traitex-grpc=localhost:50053 \
-  --tasker-http=http://localhost:8091 \
-  --eval-queue-url=$EVAL_QUEUE_URL \
+  --traitex-grpc=grpc-traitex.persomanage.ru:443 \
+  --tasker-http=http://localhost:9091 \
+  --eval-queue-url=https://message-queue.api.cloud.yandex.net/b1gfkhf234165rrluh60/dj60000000kjtgs303cs/tasker-eval-events.fifo \
   --runs=3
 ```
+
+`docker-compose.eval.yml` exposes two tasker ports locally: `8091` for gRPC and `9091` for HTTP. The eval script uses the HTTP test endpoint, so `--tasker-http` must point to `http://localhost:9091`.
 
 ### Flags
 
@@ -50,7 +50,7 @@ go run ./tasker/eval/cmd/f1 \
 |---|---|---|
 | `--fixture` | _(required)_ | Path to fixture JSON |
 | `--traitex-grpc` | _(required)_ | `host:port` of traitex gRPC server |
-| `--tasker-http` | _(required)_ | Base URL of eval tasker (e.g. `http://localhost:8091`) |
+| `--tasker-http` | `http://localhost:9091` | Base URL of eval tasker HTTP server |
 | `--eval-queue-url` | _(required)_ | Eval SQS/YMQ queue URL |
 | `--report` | _(stdout only)_ | Write report JSON to this path |
 | `--runs` | `1` | Number of independent runs to average |
