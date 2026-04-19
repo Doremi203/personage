@@ -214,3 +214,6 @@ Traitex snapshot recording is time-window based. Creating a snapshot only insert
 
 ### Auth API JWT middleware
 `backend/Personage.Auth/Personage.Auth.Api/Program.cs` must include both `app.UseAuthentication()` and `app.UseAuthorization()` before `app.MapControllers()`. Without them, `[Authorize]` REST endpoints like `/user` return `401` even after a successful access-token refresh.
+
+### Traitex YMQ client config
+`backend/traitex` must keep the YMQ service endpoint and default queue URL as separate settings. `YMQ.EndpointUrl` is the base API endpoint (`https://message-queue.api.cloud.yandex.net`), while `YMQ.QueueUrl` is the default queue; `traitex/messaging/YMQClient.py` normalizes old queue-in-endpoint configs, but custom replay targets in `SendProcessingSnapshot` rely on the client endpoint staying at the base service URL.

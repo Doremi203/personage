@@ -59,9 +59,14 @@ class CommonProcessingService(ICommonProcessingService):
             for event in events:
                 await self.event_producer.send(event, target_queue_url=target_queue_url)
                 sent_events_count += 1
-        except Exception as e:
-            self.logger.error(f"Error occurred while sending event to event producer: {str(e)}. Sent {sent_events_count} events. Skipped events: {len(events) - sent_events_count}")
-            return sent_events_count
+        except Exception:
+            self.logger.exception(
+                "Failed to resend processing snapshot %s after %s/%s events",
+                snapshot_id,
+                sent_events_count,
+                len(events),
+            )
+            raise
 
         return len(events)
 
