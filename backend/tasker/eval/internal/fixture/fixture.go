@@ -22,6 +22,7 @@ type Fixture struct {
 
 // ExpectedTask is a single hand-curated expected task.
 type ExpectedTask struct {
+	ID              string     `json:"id,omitempty"`
 	Title           string     `json:"title"`
 	Description     string     `json:"description"`
 	DurationMinutes int        `json:"duration_minutes"`
@@ -33,6 +34,7 @@ type ExpectedTask struct {
 
 func (et ExpectedTask) ToScoreTask() score.Task {
 	return score.Task{
+		ID:              et.ID,
 		Title:           et.Title,
 		Description:     et.Description,
 		DurationMinutes: et.DurationMinutes,

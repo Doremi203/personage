@@ -27,12 +27,18 @@ database:
   options: sslmode=disable
 
 llm:
-  model: nvidia/nemotron-3-super-120b-a12b:free
+  model: meta-llama/llama-3.1-8b-instruct
   apiKey: "secret:e6qd2ljggdrvefjgg0gf:e6q72jfficuq9om25sab:open-router"
 
 embedding:
   model: openai/text-embedding-3-small
   apiKey: "secret:e6qd2ljggdrvefjgg0gf:e6q72jfficuq9om25sab:open-router"
+
+cluster-closure:
+  maxEventCount: 25
+  inactivityMinutes: 10
+  interval: 5s
+  batchSize: 10
 
 scheduling:
   windowHours: 24

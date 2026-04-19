@@ -22,23 +22,29 @@ import (
 	"github.com/Doremi203/personage/backend/tasker/internal/domain"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
 )
 
+const prodTraitexGRPC = "grpc-traitex.persomanage.ru:443"
+
 func main() {
 	fixturePath := flag.String("fixture", "", "path to fixture JSON (required)")
-	traitexGRPC := flag.String("traitex-grpc", "", "host:port of traitex gRPC (required)")
-	traitexInsecure := flag.Bool("traitex-insecure", false, "use plaintext gRPC for traitex")
 	taskerHTTP := flag.String("tasker-http", "", "base URL of eval tasker, e.g. http://localhost:8091 (required)")
 	evalQueueURL := flag.String("eval-queue-url", "", "eval SQS queue URL (required)")
 	reportPath := flag.String("report", "", "output report JSON path (default: stdout only)")
+	reportOnly := flag.Bool("report-only", false, "skip DB reset and snapshot replay; list tasks and generate report from current state")
 	runs := flag.Int("runs", 1, "number of independent runs to average")
 	pollInterval := flag.Duration("poll-interval", 10*time.Second, "task poll interval")
-	overallTimeout := flag.Duration("overall-timeout", 15*time.Minute, "max time per run")
+	overallTimeout := flag.Duration("overall-timeout", 20*time.Minute, "max time per run")
+	embeddingModel := flag.String("embedding-model", "", "embedding model (default: openai/text-embedding-3-small)")
+	embeddingBaseURL := flag.String("embedding-base-url", "", "embedding API base URL (default: https://openrouter.ai/api/v1)")
+	matchTokenThreshold := flag.Float64("match-token-threshold", 0, "max cost (1−tokenF1) for a title match; default 0.7 (tokenF1 ≥ 0.3)")
+	matchEmbedThreshold := flag.Float64("match-embed-threshold", 0, "max cost (1−cosine) for a title match when embedding matching is used; default 0.45 (cosine ≥ 0.55)")
 	flag.Parse()
 
-	if *fixturePath == "" || *traitexGRPC == "" || *taskerHTTP == "" || *evalQueueURL == "" {
+	embeddingAPIKey := os.Getenv("EMBEDDING_API_KEY")
+
+	if *fixturePath == "" || *taskerHTTP == "" || *evalQueueURL == "" {
 		flag.Usage()
 		os.Exit(1)
 	}
@@ -48,12 +54,7 @@ func main() {
 		fatalf("load fixture: %v", err)
 	}
 
-	traitexCreds := credentials.NewTLS(&tls.Config{MinVersion: tls.VersionTLS12})
-	if *traitexInsecure {
-		traitexCreds = insecure.NewCredentials()
-	}
-
-	traitexConn, err := grpc.NewClient(*traitexGRPC, grpc.WithTransportCredentials(traitexCreds))
+	traitexConn, err := grpc.NewClient(prodTraitexGRPC, grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{MinVersion: tls.VersionTLS12})))
 	if err != nil {
 		fatalf("connect to traitex: %v", err)
 	}
@@ -67,9 +68,15 @@ func main() {
 			backendDir: findBackendDir(),
 		},
 		Cfg: runner.Config{
-			EvalQueueURL:   *evalQueueURL,
-			PollInterval:   *pollInterval,
-			OverallTimeout: *overallTimeout,
+			EvalQueueURL:        *evalQueueURL,
+			PollInterval:        *pollInterval,
+			OverallTimeout:      *overallTimeout,
+			ReportOnly:          *reportOnly,
+			EmbeddingAPIKey:     embeddingAPIKey,
+			EmbeddingModel:      *embeddingModel,
+			EmbeddingBaseURL:    *embeddingBaseURL,
+			MatchTokenThreshold: *matchTokenThreshold,
+			MatchEmbedThreshold: *matchEmbedThreshold,
 		},
 	}
 
@@ -180,13 +187,27 @@ type taskerClient struct {
 
 type testListItem struct {
 	ID              string     `json:"id"`
+	UserID          string     `json:"user_id"`
+	ClusterID       *string    `json:"cluster_id,omitempty"`
 	Title           string     `json:"title"`
 	Description     string     `json:"description"`
 	DurationMinutes int        `json:"duration_minutes"`
 	Priority        int        `json:"priority"`
 	Deadline        *time.Time `json:"deadline,omitempty"`
 	StartTime       *time.Time `json:"start_time,omitempty"`
+	EndTime         *time.Time `json:"end_time,omitempty"`
+	Status          string     `json:"status"`
 	Category        string     `json:"category"`
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
+}
+
+func parseClusterID(s *string) *domain.ClusterID {
+	if s == nil {
+		return nil
+	}
+	c := domain.ClusterID(*s)
+	return &c
 }
 
 func (c *taskerClient) ListTasks(ctx context.Context, userID string) ([]domain.Task, error) {
@@ -221,13 +242,19 @@ func (c *taskerClient) ListTasks(ctx context.Context, userID string) ([]domain.T
 	for i, it := range items {
 		tasks[i] = domain.Task{
 			ID:          domain.TaskID(it.ID),
+			UserID:      domain.UserID(it.UserID),
+			ClusterID:   parseClusterID(it.ClusterID),
 			Title:       it.Title,
 			Description: it.Description,
 			Duration:    time.Duration(it.DurationMinutes) * time.Minute,
 			Priority:    it.Priority,
 			Deadline:    it.Deadline,
 			StartTime:   it.StartTime,
+			EndTime:     it.EndTime,
+			Status:      domain.TaskStatus(it.Status),
 			Category:    domain.TaskCategory(it.Category),
+			CreatedAt:   it.CreatedAt,
+			UpdatedAt:   it.UpdatedAt,
 		}
 	}
 	return tasks, nil

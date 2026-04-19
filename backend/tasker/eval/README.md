@@ -28,18 +28,9 @@ make tasker-eval/run
 # Run the eval script
 go run ./tasker/eval/cmd/f1 \
   --fixture=tasker/eval/fixtures/test1.json \
-  --traitex-grpc=grpc-traitex.persomanage.ru:443 \
   --tasker-http=http://localhost:9091 \
   --eval-queue-url=https://message-queue.api.cloud.yandex.net/b1gfkhf234165rrluh60/dj60000000kjtgs303cs/tasker-eval-events.fifo \
-  --report=/tmp/golden_v1_$(date +%s).json
-
-# Average over 3 runs (LLM non-determinism mitigation)
-go run ./tasker/eval/cmd/f1 \
-  --fixture=tasker/eval/fixtures/golden_v1.json \
-  --traitex-grpc=grpc-traitex.persomanage.ru:443 \
-  --tasker-http=http://localhost:9091 \
-  --eval-queue-url=https://message-queue.api.cloud.yandex.net/b1gfkhf234165rrluh60/dj60000000kjtgs303cs/tasker-eval-events.fifo \
-  --runs=3
+  --report=./tasker/eval/fixtures/report.json --report-only=true
 ```
 
 `docker-compose.eval.yml` exposes two tasker ports locally: `8091` for gRPC and `9091` for HTTP. The eval script uses the HTTP test endpoint, so `--tasker-http` must point to `http://localhost:9091`.
