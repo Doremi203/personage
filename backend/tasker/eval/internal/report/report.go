@@ -10,27 +10,48 @@ import (
 	"github.com/Doremi203/personage/backend/tasker/eval/internal/score"
 )
 
+// TaskSnapshot holds a complete task record for human-readable report output.
+type TaskSnapshot struct {
+	ID              string     `json:"id,omitempty"`
+	UserID          string     `json:"user_id,omitempty"`
+	ClusterID       *string    `json:"cluster_id,omitempty"`
+	Title           string     `json:"title"`
+	Description     string     `json:"description"`
+	DurationMinutes int        `json:"duration_minutes"`
+	Priority        int        `json:"priority"`
+	Deadline        *time.Time `json:"deadline,omitempty"`
+	StartTime       *time.Time `json:"start_time,omitempty"`
+	EndTime         *time.Time `json:"end_time,omitempty"`
+	Category        string     `json:"category"`
+}
+
 // MatchDetail describes one matched pair in the report.
 type MatchDetail struct {
-	ExpectedIdx  int      `json:"expected_idx"`
-	GeneratedID  string   `json:"generated_id"`
-	TitleF1      float64  `json:"title_f1"`
-	FieldsPassed []string `json:"fields_passed"`
-	FieldsFailed []string `json:"fields_failed"`
+	ExpectedID        string       `json:"expected_id"`
+	GeneratedID       string       `json:"generated_id"`
+	TitleF1           float64      `json:"title_f1"`
+	TitleEmbeddingSim float64      `json:"title_embedding_sim,omitempty"`
+	FieldsPassed      []string     `json:"fields_passed"`
+	FieldsFailed      []string     `json:"fields_failed"`
+	Generated         TaskSnapshot `json:"generated"`
+	Expected          TaskSnapshot `json:"expected"`
 }
 
 // UnmatchedGenerated describes a generated task with no match.
 type UnmatchedGenerated struct {
-	ID              string  `json:"id"`
-	Title           string  `json:"title"`
-	ClosestExpected int     `json:"closest_expected"`
-	ClosestTitleF1  float64 `json:"closest_title_f1"`
+	ID                       string       `json:"id"`
+	Title                    string       `json:"title"`
+	ClosestExpected          string       `json:"closest_expected"`
+	ClosestTitleF1           float64      `json:"closest_title_f1"`
+	ClosestTitleEmbeddingSim float64      `json:"closest_title_embedding_sim,omitempty"`
+	Task                     TaskSnapshot `json:"task"`
 }
 
 // UnmatchedExpected describes an expected task with no match.
 type UnmatchedExpected struct {
-	Idx   int    `json:"idx"`
-	Title string `json:"title"`
+	ID    string       `json:"id"`
+	Title string       `json:"title"`
+	Task  TaskSnapshot `json:"task"`
 }
 
 // Counts holds task-level matching counts.
@@ -44,18 +65,21 @@ type Counts struct {
 
 // Report is the full JSON output written by the eval script.
 type Report struct {
-	Fixture              string                      `json:"fixture"`
-	SnapshotID           string                      `json:"snapshot_id"`
-	Timestamp            time.Time                   `json:"timestamp"`
-	LLMModel             string                      `json:"llm_model"`
-	Counts               Counts                      `json:"counts"`
-	Precision            float64                     `json:"precision"`
-	Recall               float64                     `json:"recall"`
-	F1                   float64                     `json:"f1"`
-	MatchedFieldAccuracy map[string]score.FieldScore `json:"matched_field_accuracy"`
-	Matches              []MatchDetail               `json:"matches"`
-	UnmatchedGenerated   []UnmatchedGenerated        `json:"unmatched_generated"`
-	UnmatchedExpected    []UnmatchedExpected         `json:"unmatched_expected"`
+	Fixture    string    `json:"fixture"`
+	SnapshotID string    `json:"snapshot_id"`
+	Timestamp  time.Time `json:"timestamp"`
+	LLMModel   string    `json:"llm_model"`
+	// MatcherType is "embedding" when embedding-based title matching was used,
+	// "tokenf1" otherwise.
+	MatcherType        string               `json:"matcher_type"`
+	Counts             Counts               `json:"counts"`
+	Precision          float64              `json:"precision"`
+	Recall             float64              `json:"recall"`
+	F1                 float64              `json:"f1"`
+	FieldQuality       score.FieldQuality   `json:"field_quality"`
+	Matches            []MatchDetail        `json:"matches"`
+	UnmatchedGenerated []UnmatchedGenerated `json:"unmatched_generated"`
+	UnmatchedExpected  []UnmatchedExpected  `json:"unmatched_expected"`
 }
 
 // Compute calculates Precision, Recall, F1 from counts and sets them.
@@ -93,15 +117,57 @@ func Summarize(w io.Writer, r Report) {
 	p("=== F1 Eval Report: %s ===\n", r.Fixture)
 	p("Snapshot : %s\n", r.SnapshotID)
 	p("Model    : %s\n", r.LLMModel)
+	matcher := r.MatcherType
+	if matcher == "" {
+		matcher = "tokenf1"
+	}
+	p("Matcher  : %s\n", matcher)
 	p("Tasks    : expected=%d generated=%d TP=%d FP=%d FN=%d\n",
 		r.Counts.Expected, r.Counts.Generated, r.Counts.TP, r.Counts.FP, r.Counts.FN)
 	p("Precision: %.3f  Recall: %.3f  F1: %.3f\n", r.Precision, r.Recall, r.F1)
-	if len(r.MatchedFieldAccuracy) > 0 {
-		p("Field accuracy (matched pairs):\n")
-		for field, fs := range r.MatchedFieldAccuracy {
-			if fs.Total > 0 {
-				p("  %-20s %d/%d (%.0f%%)\n", field, fs.Passed, fs.Total, fs.Accuracy()*100)
-			}
+
+	fq := r.FieldQuality
+	if r.Counts.TP > 0 {
+		p("Field quality (matched pairs=%d):\n", r.Counts.TP)
+		if fq.Title.EmbeddingSimMean > 0 {
+			p("  %-20s token_f1=%.3f  emb_sim=%.3f\n", "title", fq.Title.TokenF1Mean, fq.Title.EmbeddingSimMean)
+		} else {
+			p("  %-20s token_f1=%.3f\n", "title", fq.Title.TokenF1Mean)
 		}
+		p("  %-20s token_f1=%.3f\n", "description", fq.Description.TokenF1Mean)
+		p("  %-20s mae=%.1fmin  rel_err=%.0f%%  tol_30=%.0f%%  tol_60=%.0f%%\n",
+			"duration_minutes",
+			fq.DurationMinutes.MAE,
+			fq.DurationMinutes.RelErrorMean*100,
+			fq.DurationMinutes.Tol30Acc*100,
+			fq.DurationMinutes.Tol60Acc*100,
+		)
+		p("  %-20s exact=%.0f%%  band=%.0f%%  mae=%.1f\n",
+			"priority",
+			fq.Priority.ExactAcc*100,
+			fq.Priority.BandAcc*100,
+			fq.Priority.MAE,
+		)
+		p("  %-20s accuracy=%.0f%%\n", "category", fq.Category.Accuracy*100)
+		for cls, cs := range fq.Category.PerClass {
+			p("    %-18s p=%.0f%%  r=%.0f%%  f1=%.0f%%\n", cls, cs.P*100, cs.R*100, cs.F1*100)
+		}
+		printTimeField(w, "deadline", fq.Deadline)
+		printTimeField(w, "start_time", fq.StartTime)
+	}
+}
+
+func printTimeField(w io.Writer, name string, q score.TimeFieldQuality) {
+	p := func(format string, args ...any) { _, _ = fmt.Fprintf(w, format, args...) }
+	if q.ValueMAEMinutes > 0 {
+		p("  %-20s presence=%.0f%%  value_mae=%.1fmin  tol_1h=%.0f%%  tol_24h=%.0f%%\n",
+			name,
+			q.PresenceAcc*100,
+			q.ValueMAEMinutes,
+			q.Tol1hAcc*100,
+			q.Tol24hAcc*100,
+		)
+	} else {
+		p("  %-20s presence=%.0f%%\n", name, q.PresenceAcc*100)
 	}
 }

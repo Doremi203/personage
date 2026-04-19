@@ -16,13 +16,27 @@ type testTaskLister interface {
 
 type testListTaskItem struct {
 	ID              string     `json:"id"`
+	UserID          string     `json:"user_id"`
+	ClusterID       *string    `json:"cluster_id,omitempty"`
 	Title           string     `json:"title"`
 	Description     string     `json:"description"`
 	DurationMinutes int        `json:"duration_minutes"`
 	Priority        int        `json:"priority"`
 	Deadline        *time.Time `json:"deadline,omitempty"`
 	StartTime       *time.Time `json:"start_time,omitempty"`
+	EndTime         *time.Time `json:"end_time,omitempty"`
+	Status          string     `json:"status"`
 	Category        string     `json:"category"`
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
+}
+
+func clusterIDStr(c *domain.ClusterID) *string {
+	if c == nil {
+		return nil
+	}
+	s := c.String()
+	return &s
 }
 
 // NewTestListTasksHandler returns an HTTP handler for GET /v1/test/tasks/list.
@@ -51,13 +65,19 @@ func NewTestListTasksHandler(repo testTaskLister) http.HandlerFunc {
 		for _, t := range tasks {
 			items = append(items, testListTaskItem{
 				ID:              t.ID.String(),
+				UserID:          t.UserID.String(),
+				ClusterID:       clusterIDStr(t.ClusterID),
 				Title:           t.Title,
 				Description:     t.Description,
 				DurationMinutes: int(t.Duration.Minutes()),
 				Priority:        t.Priority,
 				Deadline:        t.Deadline,
 				StartTime:       t.StartTime,
+				EndTime:         t.EndTime,
+				Status:          string(t.Status),
 				Category:        string(t.Category),
+				CreatedAt:       t.CreatedAt,
+				UpdatedAt:       t.UpdatedAt,
 			})
 		}
 

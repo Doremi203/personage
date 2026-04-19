@@ -117,7 +117,7 @@ func main() {
 			embeddingService,
 			postgresEventRepo,
 			postgresClusterRepo,
-			0.6,
+			0.65,
 			5,
 		)
 

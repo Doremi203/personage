@@ -72,7 +72,14 @@ func TestTimeMatches(t *testing.T) {
 	}
 }
 
-func TestMatchedFieldAccuracy(t *testing.T) {
+func TestFieldQualityFromPairs_empty(t *testing.T) {
+	fq := score.FieldQualityFromPairs(nil)
+	if fq.Title.TokenF1Mean != 0 || fq.Category.Accuracy != 0 {
+		t.Error("empty pairs should return zero FieldQuality")
+	}
+}
+
+func TestFieldQualityFromPairs(t *testing.T) {
 	now := time.Date(2026, 4, 18, 12, 0, 0, 0, time.UTC)
 
 	pairs := []score.MatchedPair{
@@ -110,25 +117,90 @@ func TestMatchedFieldAccuracy(t *testing.T) {
 		},
 	}
 
-	result := score.MatchedFieldAccuracy(pairs)
+	fq := score.FieldQualityFromPairs(pairs)
 
-	// priority: all match (7→mid, 5→mid, 2→low same bands)
-	if result["priority"].Passed != 3 || result["priority"].Total != 3 {
-		t.Errorf("priority: got passed=%d total=%d, want 3/3", result["priority"].Passed, result["priority"].Total)
+	// Title: all identical titles → F1 = 1.0 for each pair → mean = 1.0
+	if fq.Title.TokenF1Mean < 0.99 {
+		t.Errorf("title token_f1_mean = %.3f, want ~1.0", fq.Title.TokenF1Mean)
 	}
 
-	// category: pair0=work/work=pass, pair1=work/personal=fail, pair2=personal/personal=pass → 2/3
-	if result["category"].Passed != 2 || result["category"].Total != 3 {
-		t.Errorf("category: got passed=%d total=%d, want 2/3", result["category"].Passed, result["category"].Total)
+	// Priority: all pairs have matching bands → band_acc = 1.0, exact_acc = 1.0
+	if fq.Priority.BandAcc != 1.0 {
+		t.Errorf("priority band_acc = %.3f, want 1.0", fq.Priority.BandAcc)
+	}
+	if fq.Priority.ExactAcc != 1.0 {
+		t.Errorf("priority exact_acc = %.3f, want 1.0", fq.Priority.ExactAcc)
 	}
 
-	// duration: pair0=30/30 (bucket1/1)=pass, pair1=45(bucket1)/60(bucket2)=fail, pair2=25(0)/20(0)=pass → 2/3
-	if result["duration_minutes"].Passed != 2 || result["duration_minutes"].Total != 3 {
-		t.Errorf("duration_minutes: got passed=%d total=%d, want 2/3", result["duration_minutes"].Passed, result["duration_minutes"].Total)
+	// Category: pair0=work/work=pass, pair1=work/personal=fail, pair2=personal/personal=pass → 2/3
+	wantCatAcc := 2.0 / 3.0
+	if fq.Category.Accuracy < wantCatAcc-0.001 || fq.Category.Accuracy > wantCatAcc+0.001 {
+		t.Errorf("category accuracy = %.3f, want %.3f", fq.Category.Accuracy, wantCatAcc)
 	}
 
-	// deadline: pair0 both set, within tol → TP; pair1,pair2 both nil → no contribution → total=1
-	if result["deadline"].TP != 1 || result["deadline"].Total != 1 {
-		t.Errorf("deadline: got tp=%d total=%d, want 1/1", result["deadline"].TP, result["deadline"].Total)
+	// Duration MAE: |30-30|=0, |45-60|=15, |25-20|=5 → mean = 20/3 ≈ 6.67
+	wantMAE := 20.0 / 3.0
+	if fq.DurationMinutes.MAE < wantMAE-0.1 || fq.DurationMinutes.MAE > wantMAE+0.1 {
+		t.Errorf("duration MAE = %.3f, want %.3f", fq.DurationMinutes.MAE, wantMAE)
+	}
+
+	// Duration tol_15: all diffs ≤ 15 → acc = 1.0
+	if fq.DurationMinutes.Tol15Acc != 1.0 {
+		t.Errorf("duration tol_15_acc = %.3f, want 1.0", fq.DurationMinutes.Tol15Acc)
+	}
+
+	// Deadline: pair0 both set (same time → within tol), pair1,pair2 both nil → presence_acc = 1.0
+	if fq.Deadline.PresenceAcc != 1.0 {
+		t.Errorf("deadline presence_acc = %.3f, want 1.0", fq.Deadline.PresenceAcc)
+	}
+	// value MAE: only pair0 contributes, diff = 0
+	if fq.Deadline.ValueMAEMinutes != 0 {
+		t.Errorf("deadline value_mae = %.3f, want 0", fq.Deadline.ValueMAEMinutes)
+	}
+}
+
+func TestFieldQualityFromPairs_embeddingSim(t *testing.T) {
+	pairs := []score.MatchedPair{
+		{
+			Pred:              score.Task{Title: "foo"},
+			Gold:              score.Task{Title: "foo"},
+			TitleEmbeddingSim: 0.9,
+		},
+		{
+			Pred:              score.Task{Title: "bar"},
+			Gold:              score.Task{Title: "bar"},
+			TitleEmbeddingSim: 0.8,
+		},
+	}
+	fq := score.FieldQualityFromPairs(pairs)
+	want := 0.85
+	if fq.Title.EmbeddingSimMean < want-0.001 || fq.Title.EmbeddingSimMean > want+0.001 {
+		t.Errorf("embedding_sim_mean = %.3f, want %.3f", fq.Title.EmbeddingSimMean, want)
+	}
+}
+
+func TestFieldQualityFromPairs_toleranceAccuracies(t *testing.T) {
+	t1 := time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)
+	t2 := t1.Add(20 * time.Minute) // within 1h
+	t3 := t1.Add(90 * time.Minute) // outside 1h, within 24h
+	t4 := t1.Add(25 * time.Hour)   // outside 24h
+
+	pairs := []score.MatchedPair{
+		{Pred: score.Task{StartTime: &t2}, Gold: score.Task{StartTime: &t1}}, // diff=20m
+		{Pred: score.Task{StartTime: &t3}, Gold: score.Task{StartTime: &t1}}, // diff=90m
+		{Pred: score.Task{StartTime: &t4}, Gold: score.Task{StartTime: &t1}}, // diff=25h
+	}
+	fq := score.FieldQualityFromPairs(pairs)
+
+	// tol_1h: only pair0 (20m ≤ 1h) → 1/3
+	want1h := 1.0 / 3.0
+	if fq.StartTime.Tol1hAcc < want1h-0.001 || fq.StartTime.Tol1hAcc > want1h+0.001 {
+		t.Errorf("start_time tol_1h_acc = %.3f, want %.3f", fq.StartTime.Tol1hAcc, want1h)
+	}
+
+	// tol_24h: pair0 and pair1 (both ≤ 24h) → 2/3
+	want24h := 2.0 / 3.0
+	if fq.StartTime.Tol24hAcc < want24h-0.001 || fq.StartTime.Tol24hAcc > want24h+0.001 {
+		t.Errorf("start_time tol_24h_acc = %.3f, want %.3f", fq.StartTime.Tol24hAcc, want24h)
 	}
 }

@@ -1,0 +1,522 @@
+{
+  "fixture": "test1.json",
+  "snapshot_id": "d0bb385f-ebff-46a8-a669-ce6cace9d4cc",
+  "timestamp": "2026-04-19T19:42:34.840377Z",
+  "llm_model": "",
+  "matcher_type": "tokenf1",
+  "counts": {
+    "expected": 15,
+    "generated": 16,
+    "tp": 7,
+    "fp": 9,
+    "fn": 8
+  },
+  "precision": 0.4375,
+  "recall": 0.4666666666666667,
+  "f1": 0.45161290322580644,
+  "field_quality": {
+    "title": {
+      "token_f1_mean": 0.6402145473574045
+    },
+    "description": {
+      "token_f1_mean": 0.27281481885451137
+    },
+    "duration_minutes": {
+      "mae": 25,
+      "rel_error_mean": 0.7023809523809523,
+      "tol_15_acc": 0.7142857142857143,
+      "tol_30_acc": 0.7142857142857143,
+      "tol_60_acc": 0.8571428571428571
+    },
+    "priority": {
+      "exact_acc": 0.14285714285714285,
+      "band_acc": 0.42857142857142855,
+      "mae": 1.8571428571428572
+    },
+    "category": {
+      "accuracy": 0.5714285714285714,
+      "per_class": {
+        "personal": {
+          "p": 1,
+          "r": 0.3333333333333333,
+          "f1": 0.5
+        },
+        "study": {
+          "p": 0,
+          "r": 0,
+          "f1": 0
+        },
+        "work": {
+          "p": 0.6,
+          "r": 1,
+          "f1": 0.7499999999999999
+        }
+      }
+    },
+    "deadline": {
+      "presence_acc": 1,
+      "value_mae_minutes": 550137.6833333333,
+      "tol_1h_acc": 0.5,
+      "tol_24h_acc": 0.5
+    },
+    "start_time": {
+      "presence_acc": 0.14285714285714285
+    }
+  },
+  "matches": [
+    {
+      "expected_id": "b514fb12-f31b-44d3-a12f-b187fb66f2d8",
+      "generated_id": "013b4e1e-3b12-468f-8e1b-90587d73f4ab",
+      "title_f1": 0.9333333333333333,
+      "fields_passed": [
+        "duration_minutes",
+        "priority",
+        "category"
+      ],
+      "fields_failed": null,
+      "generated": {
+        "id": "013b4e1e-3b12-468f-8e1b-90587d73f4ab",
+        "user_id": "68db274f-c5ae-42e2-a74a-180758a24c72",
+        "cluster_id": "e309fe04-4b90-415d-8cc8-9d44a362dd5d",
+        "title": "Renew domains couply.ru and couply.online",
+        "description": "Pay for domain renewal to prevent domain deletion and notification of domain expiration",
+        "duration_minutes": 15,
+        "priority": 10,
+        "deadline": "2024-03-23T22:04:37Z",
+        "category": "personal"
+      },
+      "expected": {
+        "title": "Renew expired couply.ru and couply.online domains",
+        "description": "Both couply.ru and couply.online have expired and delegation has been suspended. Renew them via reg.ru immediately to prevent permanent deletion and loss of the domain names.",
+        "duration_minutes": 15,
+        "priority": 10,
+        "deadline": "2026-04-26T23:59:59Z",
+        "start_time": "2026-04-19T08:30:00Z",
+        "category": "personal"
+      }
+    },
+    {
+      "expected_id": "fddcf35d-bf32-4fd0-9134-7bbf148dadda",
+      "generated_id": "a2f5037a-b68f-4ad8-a12d-09325c9b3776",
+      "title_f1": 0.8571428571428571,
+      "fields_passed": [
+        "duration_minutes",
+        "priority",
+        "category"
+      ],
+      "fields_failed": null,
+      "generated": {
+        "id": "a2f5037a-b68f-4ad8-a12d-09325c9b3776",
+        "user_id": "68db274f-c5ae-42e2-a74a-180758a24c72",
+        "cluster_id": "71e8998c-5329-4f0f-9284-99abbcf9fc26",
+        "title": "Review GitHub Copilot data usage policy settings",
+        "description": "Update preferences to allow or block data usage for AI model training before April 24.",
+        "duration_minutes": 10,
+        "priority": 6,
+        "deadline": "2026-04-24T00:00:00Z",
+        "category": "work"
+      },
+      "expected": {
+        "title": "Review GitHub Copilot interaction data usage policy",
+        "description": "GitHub notified that the Copilot Interaction Data Usage Policy is being updated. Go to GitHub Account Settings → Copilot before April 24 to decide whether to allow your interaction data to be used for AI model training.",
+        "duration_minutes": 10,
+        "priority": 7,
+        "deadline": "2026-04-24T00:00:00Z",
+        "start_time": "2026-04-19T11:00:00Z",
+        "category": "work"
+      }
+    },
+    {
+      "expected_id": "423b351c-e11a-47df-880e-acda3f5d97cd",
+      "generated_id": "8ed8ca56-4dc8-4332-9cff-85e031c45bee",
+      "title_f1": 0.8333333333333334,
+      "fields_passed": null,
+      "fields_failed": [
+        "duration_minutes",
+        "priority",
+        "category"
+      ],
+      "generated": {
+        "id": "8ed8ca56-4dc8-4332-9cff-85e031c45bee",
+        "user_id": "68db274f-c5ae-42e2-a74a-180758a24c72",
+        "cluster_id": "cd65d15b-9925-4234-8189-8677a3bad2ae",
+        "title": "Review Claude Code in Action course",
+        "description": "Verify course content and follow up if necessary",
+        "duration_minutes": 15,
+        "priority": 6,
+        "category": "study"
+      },
+      "expected": {
+        "title": "Access Claude Code in Action course",
+        "description": "Registration confirmed for the Claude Code in Action course. Log in to the course platform via the link in the confirmation email to begin the training.",
+        "duration_minutes": 60,
+        "priority": 3,
+        "start_time": "2026-04-19T14:00:00Z",
+        "category": "personal"
+      }
+    },
+    {
+      "expected_id": "d32ce4f6-7f79-4b92-a4e7-67d7b3f13eeb",
+      "generated_id": "e5f402e0-42d4-410a-abc8-2fd452cc12e4",
+      "title_f1": 0.75,
+      "fields_passed": null,
+      "fields_failed": [
+        "duration_minutes",
+        "priority",
+        "category"
+      ],
+      "generated": {
+        "id": "e5f402e0-42d4-410a-abc8-2fd452cc12e4",
+        "user_id": "68db274f-c5ae-42e2-a74a-180758a24c72",
+        "cluster_id": "6b4d1fc4-4724-4266-83de-89207d8bc1fc",
+        "title": "Explore Mermaid AI updates",
+        "description": "Review the new features and improvements in Mermaid AI, including flowchart highlight sync, custom styles, and more accurate AI",
+        "duration_minutes": 30,
+        "priority": 6,
+        "category": "work"
+      },
+      "expected": {
+        "title": "Explore Mermaid March updates",
+        "description": "Mermaid released a March update featuring highlight sync, custom styles, and improved AI accuracy. Read the digest to discover new diagramming capabilities and consider adopting them in project documentation.",
+        "duration_minutes": 20,
+        "priority": 1,
+        "category": "personal"
+      }
+    },
+    {
+      "expected_id": "67e0afaf-40f6-4427-b1cd-8e2ed253fbb3",
+      "generated_id": "edfd0521-50ec-4455-894d-5ceed9495c9f",
+      "title_f1": 0.4,
+      "fields_passed": [
+        "duration_minutes"
+      ],
+      "fields_failed": [
+        "priority",
+        "category"
+      ],
+      "generated": {
+        "id": "edfd0521-50ec-4455-894d-5ceed9495c9f",
+        "user_id": "68db274f-c5ae-42e2-a74a-180758a24c72",
+        "cluster_id": "d4bcaeae-eb13-496d-8cba-3f88e03d2fc1",
+        "title": "Review API request PR",
+        "description": "Address review feedback on API request by using proto string enums, rendering backend statuses directly, mapping start/end times, and removing unsupported filters",
+        "duration_minutes": 30,
+        "priority": 8,
+        "category": "work"
+      },
+      "expected": {
+        "title": "Review HSE homework feedback on PR #1",
+        "description": "Feedback has been posted on the hse-tcarzverey/hw2-Doremi203 pull request. Read the reviewer comments, implement requested changes, and push the updated solution.",
+        "duration_minutes": 45,
+        "priority": 6,
+        "start_time": "2026-04-19T16:00:00Z",
+        "category": "study"
+      }
+    },
+    {
+      "expected_id": "d48281c7-0758-44ed-9bdb-242a5d269592",
+      "generated_id": "78d50f76-ccb9-4880-a4e2-792e73937d3d",
+      "title_f1": 0.39999999999999997,
+      "fields_passed": [
+        "duration_minutes",
+        "category"
+      ],
+      "fields_failed": [
+        "priority"
+      ],
+      "generated": {
+        "id": "78d50f76-ccb9-4880-a4e2-792e73937d3d",
+        "user_id": "68db274f-c5ae-42e2-a74a-180758a24c72",
+        "cluster_id": "46b2a452-7c76-4cc7-9439-ceb40f845116",
+        "title": "Review Software Engineer/Backend Engineer job openings",
+        "description": "Review the provided job openings for Software Engineer/Backend Engineer positions in Russia, Portugal, and other locations, and update the list of job openings accordingly.",
+        "duration_minutes": 30,
+        "priority": 8,
+        "category": "work"
+      },
+      "expected": {
+        "title": "Review and apply to Golang/Backend job opportunities",
+        "description": "Multiple LinkedIn job alert emails arrived with openings at Microsoft, Wolt, GitHub, Grab, Kaiko, Prelude, Equativ, LemFi, Mercor, and others for Software Engineer and Golang Backend Engineer roles across Europe and remote. Review the listings and shortlist companies to apply to.",
+        "duration_minutes": 45,
+        "priority": 7,
+        "start_time": "2026-04-19T10:00:00Z",
+        "category": "work"
+      }
+    },
+    {
+      "expected_id": "d509c8a7-2345-4def-b7d5-9136130cde6b",
+      "generated_id": "d8217c87-0cfe-48d3-8d52-11c61d0b4167",
+      "title_f1": 0.30769230769230765,
+      "fields_passed": [
+        "priority",
+        "category"
+      ],
+      "fields_failed": [
+        "duration_minutes"
+      ],
+      "generated": {
+        "id": "d8217c87-0cfe-48d3-8d52-11c61d0b4167",
+        "user_id": "68db274f-c5ae-42e2-a74a-180758a24c72",
+        "cluster_id": "02a44f08-cebe-4938-bbc7-ec7c5a86f9b5",
+        "title": "Review PR #47 tasker API integration",
+        "description": "Review the tasker API integration on frontend and address Copilot's comments",
+        "duration_minutes": 120,
+        "priority": 9,
+        "category": "work"
+      },
+      "expected": {
+        "title": "Review auth user refresh handling PR #89",
+        "description": "PR #89 fixing auth user refresh handling has recent activity (2026-04-18). Review the changes, run tests, and ensure the fix is correct before merging.",
+        "duration_minutes": 30,
+        "priority": 8,
+        "start_time": "2026-04-19T09:00:00Z",
+        "category": "work"
+      }
+    }
+  ],
+  "unmatched_generated": [
+    {
+      "id": "7931e308-6beb-4664-aafa-606daf78c8c3",
+      "title": "Report and block spam emails from OZON",
+      "closest_expected": "b34d14a8-4405-43ba-9f3d-12ec24d34b94",
+      "closest_title_f1": 0.15384615384615383,
+      "task": {
+        "id": "7931e308-6beb-4664-aafa-606daf78c8c3",
+        "user_id": "68db274f-c5ae-42e2-a74a-180758a24c72",
+        "cluster_id": "e007ea26-cdb5-4218-80d3-515f07728698",
+        "title": "Report and block spam emails from OZON",
+        "description": "OZON has been sending suspicious and spam emails to your email account, related to a competition and prize. Report and block these emails to prevent future spam.",
+        "duration_minutes": 10,
+        "priority": 8,
+        "category": "personal"
+      }
+    },
+    {
+      "id": "a4e6a98f-5641-437e-bd78-5febe5e328e7",
+      "title": "Fix CVE-2026-26278 in couply library",
+      "closest_expected": "b9edd30c-d816-4545-811d-690e9214a946",
+      "closest_title_f1": 0.15384615384615383,
+      "task": {
+        "id": "a4e6a98f-5641-437e-bd78-5febe5e328e7",
+        "user_id": "68db274f-c5ae-42e2-a74a-180758a24c72",
+        "cluster_id": "f8198942-f575-480b-9611-526daf57a695",
+        "title": "Fix CVE-2026-26278 in couply library",
+        "description": "Upgrade fast-xml-parser to 5.3.7 and other dependencies to fix CVE-2026-26278 in couply library",
+        "duration_minutes": 120,
+        "priority": 8,
+        "category": "work"
+      }
+    },
+    {
+      "id": "bdf89561-8dbe-4bb6-9c5e-c1cd0d1a1f6e",
+      "title": "Review Payment Receipt",
+      "closest_expected": "b34d14a8-4405-43ba-9f3d-12ec24d34b94",
+      "closest_title_f1": 0.2222222222222222,
+      "task": {
+        "id": "bdf89561-8dbe-4bb6-9c5e-c1cd0d1a1f6e",
+        "user_id": "68db274f-c5ae-42e2-a74a-180758a24c72",
+        "cluster_id": "0db1870d-719b-424a-a337-7e6f05ea268a",
+        "title": "Review Payment Receipt",
+        "description": "Review payment receipt from Тovidatal Story 2026-03-14T21:01:08Z. Check balance and make a payment.",
+        "duration_minutes": 10,
+        "priority": 6,
+        "deadline": "2026-03-21T16:00:00Z",
+        "category": "work"
+      }
+    },
+    {
+      "id": "bfedfc7d-f891-4ef6-b46a-004c02923b09",
+      "title": "Review failed Traitex Service Release Flow run in Doremi203/personage",
+      "closest_expected": "b9edd30c-d816-4545-811d-690e9214a946",
+      "closest_title_f1": 0.25,
+      "task": {
+        "id": "bfedfc7d-f891-4ef6-b46a-004c02923b09",
+        "user_id": "68db274f-c5ae-42e2-a74a-180758a24c72",
+        "cluster_id": "a599bcf5-47f2-41e7-bd9b-097d228b9e7f",
+        "title": "Review failed Traitex Service Release Flow run in Doremi203/personage",
+        "description": "Investigate why the build failed in the recent Traitex Service Release Flow workflow run",
+        "duration_minutes": 10,
+        "priority": 8,
+        "category": "work"
+      }
+    },
+    {
+      "id": "89f2bbba-1d3b-4688-933e-26d710728f50",
+      "title": "Complete Anthropic Education signup",
+      "closest_expected": "e6b6316a-e7a7-4376-b7ee-d835ab06e79d",
+      "closest_title_f1": 0.25,
+      "task": {
+        "id": "89f2bbba-1d3b-4688-933e-26d710728f50",
+        "user_id": "68db274f-c5ae-42e2-a74a-180758a24c72",
+        "cluster_id": "0f4610ab-944a-4870-8eda-fc4eb1cf4ea1",
+        "title": "Complete Anthropic Education signup",
+        "description": "Follow the link to complete the signup process for Anthropic Education",
+        "duration_minutes": 5,
+        "priority": 6,
+        "category": "work"
+      }
+    },
+    {
+      "id": "c137f47a-85bf-48a7-94ab-b8e4a945232e",
+      "title": "Review Temporal MCP Server code samples",
+      "closest_expected": "423b351c-e11a-47df-880e-acda3f5d97cd",
+      "closest_title_f1": 0.16666666666666666,
+      "task": {
+        "id": "c137f47a-85bf-48a7-94ab-b8e4a945232e",
+        "user_id": "68db274f-c5ae-42e2-a74a-180758a24c72",
+        "cluster_id": "a1fec42c-49c5-47e5-a7de-1da61194b56f",
+        "title": "Review Temporal MCP Server code samples",
+        "description": "Check out the new Temporal MCP Server code samples in the Temporal Code Exchange and review them to understand how to connect AI assistants and Temporal workflow orchestration clusters",
+        "duration_minutes": 30,
+        "priority": 6,
+        "category": "work"
+      }
+    },
+    {
+      "id": "b1ee90b5-864e-4241-ac2a-6985b3a97e0f",
+      "title": "Review added GitHub token",
+      "closest_expected": "fddcf35d-bf32-4fd0-9134-7bbf148dadda",
+      "closest_title_f1": 0.36363636363636365,
+      "task": {
+        "id": "b1ee90b5-864e-4241-ac2a-6985b3a97e0f",
+        "user_id": "68db274f-c5ae-42e2-a74a-180758a24c72",
+        "cluster_id": "96be160d-6e63-4a66-8226-40e3aa37fbce",
+        "title": "Review added GitHub token",
+        "description": "Check the newly added personal access token for security settings and permissions.",
+        "duration_minutes": 15,
+        "priority": 8,
+        "category": "work"
+      }
+    },
+    {
+      "id": "0759ec14-5f24-433d-9f58-e46f89667d74",
+      "title": "Review PR #47 tasker API integration and code review",
+      "closest_expected": "b34d14a8-4405-43ba-9f3d-12ec24d34b94",
+      "closest_title_f1": 0.26666666666666666,
+      "task": {
+        "id": "0759ec14-5f24-433d-9f58-e46f89667d74",
+        "user_id": "68db274f-c5ae-42e2-a74a-180758a24c72",
+        "cluster_id": "32bc23bf-5715-485c-95a0-1962d6961775",
+        "title": "Review PR #47 tasker API integration and code review",
+        "description": "Review and address review feedback on tasker API integration and frontend code, fixing enum constant naming and more",
+        "duration_minutes": 120,
+        "priority": 8,
+        "category": "work"
+      }
+    },
+    {
+      "id": "65ca3ba6-2a9e-4df5-8064-f10119020868",
+      "title": "Review PR #47 tasker API integration",
+      "closest_expected": "67e0afaf-40f6-4427-b1cd-8e2ed253fbb3",
+      "closest_title_f1": 0.3333333333333333,
+      "task": {
+        "id": "65ca3ba6-2a9e-4df5-8064-f10119020868",
+        "user_id": "68db274f-c5ae-42e2-a74a-180758a24c72",
+        "cluster_id": "d0c86e63-547a-4b77-a3ed-ff1b75e8c257",
+        "title": "Review PR #47 tasker API integration",
+        "description": "Review the tasker API integration on frontend, addressing layout issues and adding complete/postpone/delete actions.",
+        "duration_minutes": 60,
+        "priority": 8,
+        "category": "work"
+      }
+    }
+  ],
+  "unmatched_expected": [
+    {
+      "id": "b9edd30c-d816-4545-811d-690e9214a946",
+      "title": "Update vulnerable dependencies in Doremi203 repositories",
+      "task": {
+        "title": "Update vulnerable dependencies in Doremi203 repositories",
+        "description": "Dependabot security advisories arrived for serialize-javascript, undici, and fast-xml-parser affecting repositories under Doremi203. Upgrade affected packages to patched versions to resolve high/critical vulnerabilities.",
+        "duration_minutes": 30,
+        "priority": 9,
+        "start_time": "2026-04-19T09:00:00Z",
+        "category": "work"
+      }
+    },
+    {
+      "id": "025f503f-353e-44c3-b75a-30d19316ac42",
+      "title": "Fix failed CI/CD release workflows",
+      "task": {
+        "title": "Fix failed CI/CD release workflows",
+        "description": "Build failures reported in Traitex Service Release Flow (03a83f1), Tasker Service Release Flow (fc41230), and Auth Service Release Flow (237a67b). Each workflow shows 1 annotation on the build job. Investigate build logs and fix the root causes.",
+        "duration_minutes": 10,
+        "priority": 8,
+        "start_time": "2026-04-19T09:30:00Z",
+        "category": "work"
+      }
+    },
+    {
+      "id": "eb00095f-5b9b-4eb9-9814-51b3fdc9bbe5",
+      "title": "Review T-Bank credit card statement and pay minimum balance",
+      "task": {
+        "title": "Review T-Bank credit card statement and pay minimum balance",
+        "description": "Statement for the period 28.02.2026–27.03.2026 has arrived. Review charges and ensure the minimum payment is made on time to avoid late fees.",
+        "duration_minutes": 15,
+        "priority": 8,
+        "deadline": "2026-04-21T23:59:59Z",
+        "category": "personal"
+      }
+    },
+    {
+      "id": "9660dba6-d1b0-4bfe-a465-8c282d06962a",
+      "title": "Respond to pending LinkedIn connection requests",
+      "task": {
+        "title": "Respond to pending LinkedIn connection requests",
+        "description": "Multiple connection requests arrived from professionals including Prashant Nimbark, Alexey Fedoseev (Golang Developer), Emil Gainullin (Middle Software Developer), and others. Review each profile and accept or decline.",
+        "duration_minutes": 15,
+        "priority": 4,
+        "start_time": "2026-04-19T13:00:00Z",
+        "category": "personal"
+      }
+    },
+    {
+      "id": "f277b6d3-5bee-4ddc-b269-ce39d46f2229",
+      "title": "Complete Gmail OAuth flow integration on frontend (PR #43)",
+      "task": {
+        "title": "Complete Gmail OAuth flow integration on frontend (PR #43)",
+        "description": "PR #43 implementing Gmail OAuth flow on the settings screen has been assigned and reviewed by Copilot. Address outstanding review comments and push the PR to a mergeable state.",
+        "duration_minutes": 15,
+        "priority": 7,
+        "start_time": "2026-04-19T10:30:00Z",
+        "category": "work"
+      }
+    },
+    {
+      "id": "b34d14a8-4405-43ba-9f3d-12ec24d34b94",
+      "title": "Review and activate T-Bank cashback offers",
+      "task": {
+        "title": "Review and activate T-Bank cashback offers",
+        "description": "T-Bank sent promotional cashback offers: an additional cashback category, 15% cashback on railway tickets, and other seasonal promotions. Log into T-Bank and activate the most relevant offers before they expire.",
+        "duration_minutes": 5,
+        "priority": 3,
+        "start_time": "2026-04-19T12:30:00Z",
+        "category": "personal"
+      }
+    },
+    {
+      "id": "13c08b08-37a1-455e-a489-e5795cee1813",
+      "title": "Merge frontend settings screen PR with Personage.Auth integration (PR #58)",
+      "task": {
+        "title": "Merge frontend settings screen PR with Personage.Auth integration (PR #58)",
+        "description": "PR to remove obsolete settings sections and integrate the /user endpoint from Personage.Auth API (PR #58) is under active review. Review final comments and merge or request changes.",
+        "duration_minutes": 20,
+        "priority": 7,
+        "start_time": "2026-04-19T11:30:00Z",
+        "category": "work"
+      }
+    },
+    {
+      "id": "e6b6316a-e7a7-4376-b7ee-d835ab06e79d",
+      "title": "Complete pending service signups",
+      "task": {
+        "title": "Complete pending service signups",
+        "description": "Two 'Complete your signup' emails arrived from an unidentified service. Locate the emails, determine what service they're from, and complete registration if legitimate.",
+        "duration_minutes": 10,
+        "priority": 3,
+        "start_time": "2026-04-19T17:00:00Z",
+        "category": "personal"
+      }
+    }
+  ]
+}
