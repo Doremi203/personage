@@ -27,7 +27,7 @@ database:
   options: sslmode=disable
 
 llm:
-  model: qwen/qwen-2.5-7b-instruct
+  model: google/gemma-3-12b-it
   apiKey: "secret:e6qd2ljggdrvefjgg0gf:e6q72jfficuq9om25sab:open-router"
 
 embedding:
