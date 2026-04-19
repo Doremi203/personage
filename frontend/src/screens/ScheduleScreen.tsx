@@ -19,9 +19,14 @@ const tokens = {
   ink2:     'oklch(0.42 0.015 60)',
   ink3:     'oklch(0.58 0.012 65)',
   ink4:     'oklch(0.72 0.01 65)',
-  high:   { fill: 'oklch(0.94 0.04 40)',   rail: 'oklch(0.62 0.14 35)',  ink: 'oklch(0.38 0.12 35)'  },
-  medium: { fill: 'oklch(0.93 0.04 260)',  rail: 'oklch(0.58 0.14 265)', ink: 'oklch(0.38 0.14 265)' },
-  low:    { fill: 'oklch(0.94 0.035 150)', rail: 'oklch(0.60 0.12 155)', ink: 'oklch(0.38 0.10 155)' },
+  // priority
+  high:     { fill: 'oklch(0.94 0.04 40)',   rail: 'oklch(0.62 0.14 35)',  ink: 'oklch(0.38 0.12 35)'  },
+  medium:   { fill: 'oklch(0.93 0.04 260)',  rail: 'oklch(0.58 0.14 265)', ink: 'oklch(0.38 0.14 265)' },
+  low:      { fill: 'oklch(0.94 0.035 150)', rail: 'oklch(0.60 0.12 155)', ink: 'oklch(0.38 0.10 155)' },
+  // category
+  work:     { fill: 'oklch(0.93 0.04 260)',  rail: 'oklch(0.58 0.14 265)', ink: 'oklch(0.38 0.14 265)' },
+  study:    { fill: 'oklch(0.94 0.04 70)',   rail: 'oklch(0.64 0.12 70)',  ink: 'oklch(0.40 0.10 70)'  },
+  personal: { fill: 'oklch(0.94 0.035 150)', rail: 'oklch(0.60 0.12 155)', ink: 'oklch(0.38 0.10 155)' },
   now:    'oklch(0.60 0.18 30)',
 } as const;
 
@@ -221,6 +226,14 @@ function HourGrid({ date, events, isToday, onEventClick, scrollRef }: HourGridPr
       setNowMins(n.getHours() * 60 + n.getMinutes());
     }, 60_000);
     return () => clearInterval(id);
+  }, []);
+
+  // Scroll so 08:00 is near the top on first render of this grid
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = (8 - GRID_START) * HOUR_PX - 10;
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const dayEvents = events.filter(e => e.date === toYYYYMMDD(date));
@@ -424,7 +437,7 @@ function EventSheet({ event, onClose }: EventSheetProps) {
 
   const prioLabel = { high: 'Высокий', medium: 'Средний', low: 'Низкий' }[event.priority];
   const catLabel  = { work: 'Работа', study: 'Учёба', personal: 'Личное' }[event.category as 'work' | 'study' | 'personal'] ?? event.category;
-  const catPal = tokens[event.category as 'high' | 'medium' | 'low'] ?? tokens.medium;
+  const catPal = tokens[event.category as 'work' | 'study' | 'personal'] ?? tokens.work;
 
   return (
     <>
@@ -546,13 +559,6 @@ const ScheduleScreen = () => {
   const [error, setError]               = useState<string | null>(null);
   const [sheet, setSheet]               = useState<ScheduleEvent | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
-
-  // Scroll to 08:00 on mount
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = (8 - GRID_START) * HOUR_PX - 10;
-    }
-  }, []);
 
   const fetchEvents = useCallback(async () => {
     setLoading(true);
