@@ -54,8 +54,10 @@ go run ./tasker/eval/cmd/f1 \
 | `--eval-queue-url` | _(required)_ | Eval SQS/YMQ queue URL |
 | `--report` | _(stdout only)_ | Write report JSON to this path |
 | `--runs` | `1` | Number of independent runs to average |
-| `--poll-interval` | `10s` | How often to check for new tasks |
-| `--overall-timeout` | `15m` | Max wall-clock time per run |
+| `--poll-interval` | `10s` | How often to log and refresh the current generated task count |
+| `--overall-timeout` | `15m` | How long to wait before collecting the latest task list (minimum `15m`) |
+
+The script now logs snapshot replay and task wait progress to stderr so you can see how many tasks have appeared while it waits.
 
 ---
 

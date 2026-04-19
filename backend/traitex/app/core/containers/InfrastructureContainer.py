@@ -21,5 +21,6 @@ class InfrastructureContainer(containers.DeclarativeContainer):
         access_key=config.ymq.access_key,
         secret_key=config.ymq.secret_key,
         endpoint_url=config.ymq.endpoint_url,
+        default_queue_url=config.ymq.queue_url,
         region=config.ymq.region,
     )
