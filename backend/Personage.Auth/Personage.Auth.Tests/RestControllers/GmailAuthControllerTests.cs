@@ -11,7 +11,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
-using Personage.Auth.Api.Contracts.Auth.Gmail.Requests;
+using Personage.Auth.Api.Contracts.Auth.OAuth.Requests;
 using Personage.Auth.DataAccess.Interfaces.Repositories;
 using Personage.Auth.DataAccess.Models;
 using Personage.Auth.Domain.Configuration;

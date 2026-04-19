@@ -9,6 +9,11 @@ public sealed class GmailProcessingCredentials : ProcessingCredentialsBase
     public OAuthTokenModel Tokens { get; init; } = null!;
 }
 
+public sealed class GoogleCalendarProcessingCredentials : ProcessingCredentialsBase
+{
+    public OAuthTokenModel Tokens { get; init; } = null!;
+}
+
 public sealed class TelegramProcessingCredentials : ProcessingCredentialsBase
 {
     public string SessionString { get; init; } = null!;

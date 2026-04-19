@@ -1,6 +1,3 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 using AutoFixture;
 using Dapper;
 using Personage.Auth.DataAccess.Interfaces;
@@ -10,7 +7,7 @@ namespace Personage.Auth.Tests.Infrastructure.Repositories;
 
 public class TestUserRepository(IDbConnectionFactory connectionFactory)
 {
-    private static Fixture Fixture { get; } = new Fixture();
+    private static Fixture Fixture { get; } = new();
 
     public async Task<Guid> CreateUser(string? email = null)
     {
@@ -26,12 +23,12 @@ public class TestUserRepository(IDbConnectionFactory connectionFactory)
             new { email });
     }
 
-    public async Task<(Guid UserId, GmailToken Token)> CreateUserWithToken(DateTime? userProcessedAt)
+    public async Task<(Guid UserId, OAuthToken Token)> CreateUserWithToken(DateTime? userProcessedAt)
     {
         var userId = await CreateUser();
         using var connection = await connectionFactory.CreateConnection(CancellationToken.None);
 
-        var token = await connection.QueryFirstAsync<GmailToken>(
+        var token = await connection.QueryFirstAsync<OAuthToken>(
             """
             INSERT INTO gmail_token(user_id, access_token, refresh_token, expires_at, gmail_email, last_processed_at)
             VALUES (@userId, @accessToken, @refreshToken, @expiresAt, @gmailEmail, @userProcessedAt)

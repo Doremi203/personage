@@ -4,10 +4,10 @@ public class UserWithToken
 {
     public Guid UserId { get; init; }
     public string UserEmail { get; init; } = null!;
-    public ShortGmailToken Token { get; set; } = null!;
+    public ShortOAuthToken Token { get; set; } = null!;
 }
 
-public class ShortGmailToken
+public class ShortOAuthToken
 {
     public Guid TokenId { get; init; }
     public string AccessToken { get; set; } = null!;

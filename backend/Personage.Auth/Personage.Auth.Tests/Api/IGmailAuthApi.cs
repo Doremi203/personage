@@ -1,7 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
-using Personage.Auth.Api.Contracts.Auth.Gmail.Requests;
-using Personage.Auth.Api.Contracts.Auth.Gmail.Responses;
+using Personage.Auth.Api.Contracts.Auth.OAuth.Requests;
+using Personage.Auth.Api.Contracts.Auth.OAuth.Responses;
 using RestEase;
 
 namespace Personage.Auth.Tests.Api;

@@ -1,11 +1,11 @@
 using Microsoft.AspNetCore.Mvc;
-using Personage.Auth.Api.Contracts.Auth.Gmail.Requests;
-using Personage.Auth.Api.Contracts.Auth.Gmail.Responses;
+using Personage.Auth.Api.Contracts.Auth.OAuth.Requests;
+using Personage.Auth.Api.Contracts.Auth.OAuth.Responses;
 using Personage.Auth.Api.Contracts.Common;
 using Personage.Auth.Domain.Interfaces;
 using Personage.Auth.Domain.Models.Auth.Gmail.Requests;
-using StartAuthRequest = Personage.Auth.Api.Contracts.Auth.GoogleCalendar.Requests.StartAuthRequest;
-using StartAuthResponse = Personage.Auth.Api.Contracts.Auth.GoogleCalendar.Responses.StartAuthResponse;
+using StartAuthRequest = Personage.Auth.Api.Contracts.Auth.OAuth.Requests.StartAuthRequest;
+using StartAuthResponse = Personage.Auth.Api.Contracts.Auth.OAuth.Responses.StartAuthResponse;
 
 namespace Personage.Auth.Api.Controllers;
 

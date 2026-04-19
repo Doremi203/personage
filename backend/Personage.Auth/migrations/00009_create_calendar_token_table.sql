@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS calendar_token
     expires_at    TIMESTAMPTZ NOT NULL,
     created_at    TIMESTAMPTZ DEFAULT NOW(),
     updated_at    TIMESTAMPTZ DEFAULT NOW(),
+    gmail_email   TEXT,
     last_processed_at TIMESTAMPTZ,
     status        SMALLINT NOT NULL,
     UNIQUE (user_id)

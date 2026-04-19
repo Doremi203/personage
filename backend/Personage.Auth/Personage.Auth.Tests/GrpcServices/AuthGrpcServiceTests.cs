@@ -1,6 +1,3 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 using AutoFixture;
 using FluentAssertions;
 using Grpc.Core;
@@ -61,7 +58,7 @@ public class AuthGrpcServiceTests : TestClassBase
             await TestCleaners.DeleteUser(user.Id);
         });
 
-        await TokenRepository.SaveToken(new GmailToken
+        await TokenRepository.SaveToken(new OAuthToken
         {
             UserId = user.Id,
             AccessToken = accessToken,

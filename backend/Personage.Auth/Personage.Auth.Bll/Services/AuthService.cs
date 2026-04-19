@@ -125,6 +125,7 @@ public class AuthService(
             throw new OAuthException("Invalid authorization request");
         }
 
+        //TODO: get user by id here, do not user email
         var user = await userRepository.GetUserByEmail(requestEmail, ct);
         if (user == null)
             throw new InvalidOperationException($"User {requestEmail} not found");

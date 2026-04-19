@@ -1,4 +1,4 @@
-namespace Personage.Auth.Api.Contracts.Auth.GoogleCalendar.Responses;
+namespace Personage.Auth.Api.Contracts.Auth.OAuth.Responses;
 
 public class StartAuthResponse
 {

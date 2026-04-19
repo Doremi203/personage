@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
-using Personage.Auth.Api.Contracts.Auth.Gmail.Requests;
-using Personage.Auth.Api.Contracts.Auth.Gmail.Responses;
+using Personage.Auth.Api.Contracts.Auth.OAuth.Requests;
+using Personage.Auth.Api.Contracts.Auth.OAuth.Responses;
 using Personage.Auth.Api.Contracts.Common;
 using Personage.Auth.Domain.Interfaces;
 using Personage.Auth.Domain.Models.Auth.Gmail.Requests;

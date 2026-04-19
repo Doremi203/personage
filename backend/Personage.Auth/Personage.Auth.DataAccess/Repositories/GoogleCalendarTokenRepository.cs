@@ -11,32 +11,20 @@ public class GoogleCalendarTokenRepository(IDbConnectionFactory connectionFactor
     {
         using var connection = await connectionFactory.CreateConnection(ct);
         
-        /*
-         *
-         * id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-           user_id       UUID NOT NULL REFERENCES "user" (id) ON DELETE CASCADE,
-           access_token  TEXT NOT NULL,
-           refresh_token TEXT NOT NULL,
-           expires_at    TIMESTAMPTZ NOT NULL,
-           created_at    TIMESTAMPTZ DEFAULT NOW(),
-           updated_at    TIMESTAMPTZ DEFAULT NOW(),
-           last_processed_at TIMESTAMPTZ,
-           status        SMALLINT NOT NULL,
-           UNIQUE (user_id)
-         */
-        
+        //TODO: gmail not saved?
         
         await connection.ExecuteAsync(
             """
             --GmailTokenRepository.SaveToken
-            INSERT INTO calendar_tokens (
+            INSERT INTO calendar_token (
                 user_id,
                 access_token,
                 refresh_token,
                 expires_at,
-                gmail_email
+                gmail_email,
+                status
             )
-            VALUES (@UserId, @AccessToken, @RefreshToken, @ExpiresAt, @GmailEmail)
+            VALUES (@UserId, @AccessToken, @RefreshToken, @ExpiresAt, @GmailEmail, @Status)
             ON CONFLICT (user_id) DO UPDATE SET
                 access_token = EXCLUDED.access_token,
                 refresh_token = EXCLUDED.refresh_token,

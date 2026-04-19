@@ -18,6 +18,20 @@ public static class CommonMapper
             ExpiresAt = Timestamp.FromDateTime(value.ExpiresAt),
             GmailEmail = value.GmailEmail
         };
+    }   
+    
+    public static GoogleCalendarTokens? ToGrpcGoogleCalendarTokens(OAuthTokenModel? value)
+    {
+        if (value is null)
+            return null;
+        
+        return new GoogleCalendarTokens
+        {
+            AccessToken = value.AccessToken,
+            RefreshToken = value.RefreshToken,
+            ExpiresAt = Timestamp.FromDateTime(value.ExpiresAt),
+            GmailEmail = value.GmailEmail
+        };
     }
 
     public static ServiceTypeModel ToDomainServiceType(ServiceType value)
@@ -27,6 +41,7 @@ public static class CommonMapper
             ServiceType.Unknown => ServiceTypeModel.Unknown,
             ServiceType.Gmail => ServiceTypeModel.Gmail,
             ServiceType.Telegram => ServiceTypeModel.Telegram,
+            ServiceType.GoogleCalendar => ServiceTypeModel.GoogleCalendar,
             _ => ServiceTypeModel.Unknown
         };
     }
