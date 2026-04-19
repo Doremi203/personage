@@ -2,7 +2,9 @@ package runner
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/Doremi203/personage/backend/tasker/eval/internal/fixture"
@@ -32,15 +34,14 @@ type DBResetter interface {
 type Config struct {
 	EvalQueueURL string
 
-	// PollInterval is how often to call ListTasks while waiting for tasks to stabilise.
+	// PollInterval is how often to call ListTasks while waiting for generated tasks.
 	PollInterval time.Duration // default 10s
 
-	// MinStableInterval is how long the task count must be stable before stopping.
-	MinStableInterval time.Duration // default 30s
-
-	// OverallTimeout is the maximum wall-clock time allowed for one run.
+	// OverallTimeout is how long to wait before collecting the latest task list.
 	OverallTimeout time.Duration // default 15m
 }
+
+var minTaskWaitTimeout = 15 * time.Minute
 
 const matchCostThreshold = 0.5
 
@@ -58,10 +59,12 @@ func (r *Runner) Run(ctx context.Context, fix fixture.Fixture, fixtureName strin
 		return report.Report{}, fmt.Errorf("reset eval DB: %w", err)
 	}
 
-	_, err := r.Traitex.SendProcessingSnapshot(ctx, fix.SnapshotID, r.Cfg.EvalQueueURL)
+	sentCount, err := r.Traitex.SendProcessingSnapshot(ctx, fix.SnapshotID, r.Cfg.EvalQueueURL)
 	if err != nil {
 		return report.Report{}, fmt.Errorf("send processing snapshot: %w", err)
 	}
+
+	fmt.Fprintf(os.Stderr, "replayed snapshot %s: sent %d events to eval queue\n", fix.SnapshotID, sentCount)
 
 	generated, err := r.poll(ctx, fix.UserID)
 	if err != nil {
@@ -72,34 +75,62 @@ func (r *Runner) Run(ctx context.Context, fix fixture.Fixture, fixtureName strin
 }
 
 func (r *Runner) poll(ctx context.Context, userID string) ([]domain.Task, error) {
-	overallCtx, cancel := context.WithTimeout(ctx, r.Cfg.OverallTimeout)
+	waitTimeout := r.Cfg.OverallTimeout
+	if waitTimeout < minTaskWaitTimeout {
+		waitTimeout = minTaskWaitTimeout
+	}
+
+	overallCtx, cancel := context.WithTimeout(ctx, waitTimeout)
 	defer cancel()
 
 	ticker := time.NewTicker(r.Cfg.PollInterval)
 	defer ticker.Stop()
 
-	lastCount := -1
-	stableSince := time.Time{}
+	start := time.Now()
+	deadline := start.Add(waitTimeout)
+	var lastTasks []domain.Task
+
+	fmt.Fprintf(os.Stderr, "waiting for tasks: user_id=%s timeout=%s poll_interval=%s\n", userID, waitTimeout, r.Cfg.PollInterval)
+
+	pollOnce := func() error {
+		tasks, err := r.Tasker.ListTasks(overallCtx, userID)
+		if err != nil {
+			return fmt.Errorf("list tasks: %w", err)
+		}
+
+		lastTasks = tasks
+		remaining := time.Until(deadline)
+		if remaining < 0 {
+			remaining = 0
+		}
+
+		fmt.Fprintf(
+			os.Stderr,
+			"task wait progress: elapsed=%s remaining=%s generated=%d\n",
+			time.Since(start).Round(time.Second),
+			remaining.Round(time.Second),
+			len(tasks),
+		)
+
+		return nil
+	}
+
+	if err := pollOnce(); err != nil {
+		return nil, err
+	}
 
 	for {
 		select {
 		case <-overallCtx.Done():
-			return nil, fmt.Errorf("eval timed out after %s waiting for tasks to stabilise", r.Cfg.OverallTimeout)
+			if err := overallCtx.Err(); err != nil && !errors.Is(err, context.DeadlineExceeded) {
+				return nil, fmt.Errorf("wait for tasks: %w", err)
+			}
+
+			fmt.Fprintf(os.Stderr, "task wait complete: waited=%s generated=%d\n", waitTimeout, len(lastTasks))
+			return lastTasks, nil
 		case <-ticker.C:
-			tasks, err := r.Tasker.ListTasks(overallCtx, userID)
-			if err != nil {
-				return nil, fmt.Errorf("list tasks: %w", err)
-			}
-
-			n := len(tasks)
-			if n != lastCount {
-				lastCount = n
-				stableSince = time.Now()
-				continue
-			}
-
-			if !stableSince.IsZero() && time.Since(stableSince) >= r.Cfg.MinStableInterval {
-				return tasks, nil
+			if err := pollOnce(); err != nil {
+				return nil, err
 			}
 		}
 	}

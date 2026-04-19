@@ -206,6 +206,9 @@ Tasker sends push notifications via SQS using protobuf `pushpb.Notification` mes
 ### Tasker eval Traitex transport
 The documented remote Traitex endpoint `grpc-traitex.persomanage.ru:443` requires TLS. `tasker/eval/cmd/f1` should default to TLS and only use plaintext when explicitly requested via `--traitex-insecure` for local testing.
 
+### Tasker eval wait window
+`backend/tasker/eval/internal/runner` must wait at least 15 minutes before collecting generated tasks. The old `30s` "stable task count" exit was too short because replayed snapshot events refresh cluster activity timestamps, so task generation may not begin until the inactivity window passes. The runner now logs snapshot replay and per-poll task count progress to stderr while waiting.
+
 ### Traitex processing snapshots
 Traitex snapshot recording is time-window based. Creating a snapshot only inserts a `[start, finish]` row into `traitex.processing_snapshot`; Gmail/Telegram consumers keep running normally, and if `now()` falls inside any snapshot window they also persist each enriched event to `processing_result` before sending it to SQS. Replay does not use `snapshot_id` links: `SendProcessingSnapshot` reloads rows by `processed_at BETWEEN snapshot.from_ AND snapshot.to`, capped at 1000 events.
 

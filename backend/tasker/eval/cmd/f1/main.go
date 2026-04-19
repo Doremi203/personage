@@ -67,10 +67,9 @@ func main() {
 			backendDir: findBackendDir(),
 		},
 		Cfg: runner.Config{
-			EvalQueueURL:      *evalQueueURL,
-			PollInterval:      *pollInterval,
-			MinStableInterval: 30 * time.Second,
-			OverallTimeout:    *overallTimeout,
+			EvalQueueURL:   *evalQueueURL,
+			PollInterval:   *pollInterval,
+			OverallTimeout: *overallTimeout,
 		},
 	}
 
