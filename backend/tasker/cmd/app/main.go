@@ -248,6 +248,7 @@ func main() {
 		type SchedulingConfig struct {
 			WindowHours int
 			Interval    time.Duration
+			Disabled    bool
 		}
 
 		schedulingConfig := SchedulingConfig{
@@ -259,21 +260,23 @@ func main() {
 			app.Log.Infof("scheduling config not found, using defaults: %+v", schedulingConfig)
 		}
 
-		schedulingUseCase := scheduling.NewUseCase(
-			app.Log,
-			postgresTaskRepo,
-			notificationSender,
-			time.Duration(schedulingConfig.WindowHours)*time.Hour,
-		)
+		if !schedulingConfig.Disabled {
+			schedulingUseCase := scheduling.NewUseCase(
+				app.Log,
+				postgresTaskRepo,
+				notificationSender,
+				time.Duration(schedulingConfig.WindowHours)*time.Hour,
+			)
 
-		schedulingWorker := schedulingworker.NewWorker(schedulingUseCase, app.Log)
+			schedulingWorker := schedulingworker.NewWorker(schedulingUseCase, app.Log)
 
-		app.AddBackgroundJob(
-			webapp.NewBackgroundJob(
-				"scheduling-worker",
-				schedulingWorker.Process,
-			).WithInterval(schedulingConfig.Interval),
-		)
+			app.AddBackgroundJob(
+				webapp.NewBackgroundJob(
+					"scheduling-worker",
+					schedulingWorker.Process,
+				).WithInterval(schedulingConfig.Interval),
+			)
+		}
 
 		taskListUseCase := tasklist.NewUseCase(
 			postgresTaskRepo,
