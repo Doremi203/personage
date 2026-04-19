@@ -7,11 +7,11 @@ namespace Personage.Auth.DataAccess.Repositories;
 
 public class GmailTokenRepository(IDbConnectionFactory connectionFactory) : IGmailTokenRepository
 {
-    public async Task<GmailTokenWithId?> GetTokenByUserEmail(string userEmail, CancellationToken ct)
+    public async Task<OAuthTokenWithId?> GetTokenByUserEmail(string userEmail, CancellationToken ct)
     {
         using var connection = await connectionFactory.CreateConnection(ct);
         
-        return await connection.QueryFirstOrDefaultAsync<GmailTokenWithId>(
+        return await connection.QueryFirstOrDefaultAsync<OAuthTokenWithId>(
             """
             --GmailTokenRepository.GetTokenByUserEmail
             SELECT
@@ -30,11 +30,11 @@ public class GmailTokenRepository(IDbConnectionFactory connectionFactory) : IGma
             new { userEmail });
     }
 
-    public async Task<GmailTokenWithId?> GetTokenByUserId(Guid userId, CancellationToken ct)
+    public async Task<OAuthTokenWithId?> GetTokenByUserId(Guid userId, CancellationToken ct)
     {
         using var connection = await connectionFactory.CreateConnection(ct);
         
-        return await connection.QueryFirstOrDefaultAsync<GmailTokenWithId>(
+        return await connection.QueryFirstOrDefaultAsync<OAuthTokenWithId>(
             """
             --GmailTokenRepository.GetTokenByUserId
             SELECT
@@ -51,7 +51,7 @@ public class GmailTokenRepository(IDbConnectionFactory connectionFactory) : IGma
             new { userId });
     }
 
-    public async Task SaveToken(GmailToken token, CancellationToken ct)
+    public async Task SaveToken(OAuthToken token, CancellationToken ct)
     {
         using var connection = await connectionFactory.CreateConnection(ct);
         

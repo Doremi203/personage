@@ -8,7 +8,8 @@ public interface IAuthService
 {
     Task<StartOAuthResponseModel> StartGmailAuth(string userEmail, string redirectUri, CancellationToken ct);
     Task<StartOAuthResponseModel> StartGoogleCalendarAuth(string redirectUri, CancellationToken ct);
-    Task<string> HandleGmailCallbackAsync(HandleOAuthCallbackRequestModel request, CancellationToken ct);
+    Task<string> HandleGmailCallback(HandleOAuthCallbackRequestModel request, CancellationToken ct);
+    Task<string> HandleGoogleCalendarCallback(HandleOAuthCallbackRequestModel request, CancellationToken ct);
     Task<OAuthTokenModel> GetUserGmailToken(string userEmail, CancellationToken ct);
     Task<PersonageTokenModel> AuthByPassword(string email, string password, CancellationToken ct);
     Task<PersonageTokenModel> RegisterWithPassword(RegisterUserRequestModel request, CancellationToken ct);

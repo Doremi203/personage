@@ -24,6 +24,7 @@ namespace Personage.Auth.Bll.Services;
 public class AuthService(
     IUserRepository userRepository,
     IGmailTokenRepository gmailTokenRepository,
+    IGoogleCalendarTokenRepository googleCalendarTokenRepository,
     IOAuthStateRepository oauthStateRepository,
     IRefreshTokenRepository refreshTokenRepository,
     IPasswordResetTokenRepository passwordResetTokenRepository,
@@ -47,7 +48,7 @@ public class AuthService(
         //get user id from claims here and use it to check user and assign tokens
         if (await userRepository.GetUserByEmail(userEmail, ct) is not { } user)
         {
-            //TODO: update flow, do not allow for gmail linking without an active account
+            //TODO: update flow, do not allow for Gmail linking without an active account
             logger.LogWarning("User with email {Email} not found, creating new user", userEmail);
             throw new NotFoundException(ErrorCode.UserNotFound, "User with specified email not found");
         }
@@ -66,17 +67,18 @@ public class AuthService(
     }
     
 
-    public async Task<string> HandleGmailCallbackAsync(HandleOAuthCallbackRequestModel request, CancellationToken ct)
+    public async Task<string> HandleGmailCallback(HandleOAuthCallbackRequestModel request, CancellationToken ct)
     {
-        var (userId, tokenExchangeResult) = await HandleGmailCallbackInternal(request, ct);
+        var (userId, tokenExchangeResult) = await HandleOAuthCallbackInternal(request, ct);
 
-        var gmailToken = new GmailToken
+        var gmailToken = new OAuthToken
         {
             UserId = userId,
             AccessToken = tokenExchangeResult.AccessToken,
             RefreshToken = tokenExchangeResult.RefreshToken ?? throw new ArgumentException("Invalid refresh token"),
             ExpiresAt = tokenExchangeResult.ExpiresAt,
-            GmailEmail = tokenExchangeResult.GmailEmail
+            GmailEmail = tokenExchangeResult.GmailEmail,
+            Status = OAuthTokenStatus.Active
         };
         await gmailTokenRepository.SaveToken(gmailToken, ct);
 
@@ -84,14 +86,38 @@ public class AuthService(
             tokenExchangeResult.GmailEmail);
 
         return tokenExchangeResult.GmailEmail;
-    }    
+    }
 
-    
-    private async Task<(Guid UserId, OAuthTokenModel TokenExchangeResult)> HandleGmailCallbackInternal(HandleOAuthCallbackRequestModel request, CancellationToken ct)
+    public async Task<string> HandleGoogleCalendarCallback(HandleOAuthCallbackRequestModel request, CancellationToken ct)
+    {
+        var (userId, tokenExchangeResult) = await HandleOAuthCallbackInternal(request, ct);
+        
+        var oauthToken = new OAuthToken
+        {
+            UserId = userId,
+            AccessToken = tokenExchangeResult.AccessToken,
+            RefreshToken = tokenExchangeResult.RefreshToken ?? throw new ArgumentException("Invalid refresh token"),
+            ExpiresAt = tokenExchangeResult.ExpiresAt,
+            Status = OAuthTokenStatus.Active
+        };
+        await googleCalendarTokenRepository.SaveToken(oauthToken, ct);
+
+        logger.LogInformation("Successfully connected Google Calendar for {UserEmail} -> {GmailEmail}", 
+            request.UserEmail,
+            tokenExchangeResult.GmailEmail);
+
+        return tokenExchangeResult.GmailEmail;
+    }
+
+    private async Task<(Guid UserId, OAuthTokenModel TokenExchangeResult)> HandleOAuthCallbackInternal(
+        HandleOAuthCallbackRequestModel request,
+        CancellationToken ct
+    )
     {
         var requestEmail = request.UserEmail;
         logger.LogDebug("Handling OAuth callback for {UserEmail}", request.UserEmail);
 
+        //TODO: tokens are stored separately but the state is shared - seems inconsistent
         var storedState = await oauthStateRepository.GetState(request.State, ct);
         if (storedState == null || storedState.UserEmail != requestEmail)
         {
@@ -107,10 +133,6 @@ public class AuthService(
         return (user.Id, await googleOAuthService.ExchangeCode(request.Code, request.RedirectUri, ct));
     }
     
-    
-    
-    
-
     public async Task<OAuthTokenModel> GetUserGmailToken(string userEmail, CancellationToken ct)
     {
         var userToken = await gmailTokenRepository.GetTokenByUserEmail(userEmail, ct);

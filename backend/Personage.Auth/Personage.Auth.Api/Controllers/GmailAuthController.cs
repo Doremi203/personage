@@ -32,7 +32,7 @@ public class GmailAuthController(
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<AuthCallbackResponse>> HandleGmailCallback([FromBody] AuthCallbackRequest request, CancellationToken ct)
     {
-        var gmailEmail = await authService.HandleGmailCallbackAsync(
+        var gmailEmail = await authService.HandleGmailCallback(
             new HandleOAuthCallbackRequestModel
             {
                 UserEmail = request.UserEmail,
