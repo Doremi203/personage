@@ -90,13 +90,11 @@ func TestSchedule_SingleFixedTask(t *testing.T) {
 func TestSchedule_FlexibleTaskAroundFixed(t *testing.T) {
 	start := time.Date(2026, 1, 22, 9, 0, 0, 0, time.UTC)
 	window := 2 * time.Hour
-	fixedStart := time.Date(2026, 1, 22, 9, 30, 0, 0, time.UTC)
-
 	tasks := []domain.Task{
 		{
 			ID:        "fixed1",
 			Duration:  30 * time.Minute,
-			StartTime: &fixedStart,
+			StartTime: new(time.Date(2026, 1, 22, 9, 30, 0, 0, time.UTC)),
 			Priority:  1,
 		},
 		{
@@ -543,7 +541,6 @@ func TestSchedule_SlotAlignedEndTime(t *testing.T) {
 		// 30 min → ceil(30/15) = 2 slots → end = 9:00 + 30 min
 		{"30min_task", 30 * time.Minute, start.Add(30 * time.Minute)},
 	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := CalculateSchedule([]domain.Task{

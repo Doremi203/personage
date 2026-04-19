@@ -27,7 +27,7 @@ database:
   options: sslmode=disable
 
 llm:
-  model: meta-llama/llama-3.1-8b-instruct
+  model: qwen/qwen-2.5-7b-instruct
   apiKey: "secret:e6qd2ljggdrvefjgg0gf:e6q72jfficuq9om25sab:open-router"
 
 embedding:

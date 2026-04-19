@@ -12,28 +12,22 @@ import (
 // It returns a Schedule containing both scheduled and unscheduled tasks.
 // Tasks with fixed StartTime are included in the output as-is but occupy space in the grid.
 func CalculateSchedule(tasks []domain.Task, planningStart time.Time, windowDuration time.Duration) domain.Schedule {
-	// Calculate total number of slots in the planning window
 	totalSlots := int(math.Ceil(float64(windowDuration) / float64(domain.TimeSlotSize)))
 
-	// Initialize the grid - false means available, true means occupied
 	grid := make([]bool, totalSlots)
 
-	// Result slices
 	var planned []domain.PlannedTask
 	var unscheduled []domain.Task
 
-	// Helper: Convert time to grid index
 	timeToIndex := func(t time.Time) int {
 		diff := t.Sub(planningStart)
 		return int(diff / domain.TimeSlotSize)
 	}
 
-	// Helper: Convert grid index to time
 	indexToTime := func(idx int) time.Time {
 		return planningStart.Add(time.Duration(idx) * domain.TimeSlotSize)
 	}
 
-	// Helper: Convert duration to slot count (always round up)
 	durationToSlots := func(d time.Duration) int {
 		return int(math.Ceil(float64(d) / float64(domain.TimeSlotSize)))
 	}
@@ -41,10 +35,9 @@ func CalculateSchedule(tasks []domain.Task, planningStart time.Time, windowDurat
 	// Phase 1: Process fixed tasks ("The Walls")
 	for _, task := range tasks {
 		if task.StartTime == nil {
-			continue // Skip flexible tasks for now
+			continue
 		}
 
-		// Calculate start and end indices
 		startIdx := timeToIndex(*task.StartTime)
 		endTime := task.StartTime.Add(task.Duration)
 		endIdx := timeToIndex(endTime)
