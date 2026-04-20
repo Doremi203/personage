@@ -1,5 +1,5 @@
 import {useState} from 'react';
-import {Bell, BellOff, Sparkles} from 'lucide-react';
+import {Bell, BellOff} from 'lucide-react';
 import {isPushSupported, type PushSetupResult, setupPushNotifications,} from '../utils/pushNotifications';
 
 interface WelcomeScreenProps {
@@ -53,8 +53,8 @@ const WelcomeScreen = ({onComplete}: WelcomeScreenProps) => {
             <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden animate-slide-up">
                 {/* Header with gradient */}
                 <div className="bg-gradient-to-br from-[#5C6BFF] to-[#7C8CFF] px-8 pt-10 pb-8 text-center">
-                    <div className="w-20 h-20 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-5">
-                        <Sparkles size={40} className="text-white"/>
+                    <div className="w-20 h-20 rounded-2xl overflow-hidden flex items-center justify-center mx-auto mb-5">
+                        <img src="/icon-192x192.png" alt="Personage" className="w-full h-full object-contain"/>
                     </div>
                     <h1 className="text-2xl font-bold text-white mb-2">
                         Добро пожаловать в Personage!

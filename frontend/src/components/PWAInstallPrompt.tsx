@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Download, X, Share, PlusSquare } from 'lucide-react';
+import { X, Share, PlusSquare } from 'lucide-react';
 import { isIos, isStandalonePWA } from '../utils/pushNotifications';
 
 const DISMISSED_KEY = 'personage_pwa_prompt_dismissed';
@@ -64,8 +64,8 @@ const PWAInstallPrompt = () => {
         </button>
 
         <div className="flex items-start gap-4">
-          <div className="w-12 h-12 bg-gradient-to-br from-[#5C6BFF] to-[#7C8CFF] rounded-xl flex items-center justify-center flex-shrink-0">
-            <Download size={24} className="text-white" />
+          <div className="w-12 h-12 rounded-xl overflow-hidden flex items-center justify-center flex-shrink-0">
+            <img src="/icon-192x192.png" alt="Personage" className="w-full h-full object-contain" />
           </div>
           <div className="flex-1">
             <h3 className="font-semibold text-[#2D2F31] mb-1">
@@ -97,8 +97,8 @@ const PWAInstallPrompt = () => {
         </button>
 
         <div className="flex items-start gap-4">
-          <div className="w-12 h-12 bg-gradient-to-br from-[#5C6BFF] to-[#7C8CFF] rounded-xl flex items-center justify-center flex-shrink-0">
-            <Download size={24} className="text-white" />
+          <div className="w-12 h-12 rounded-xl overflow-hidden flex items-center justify-center flex-shrink-0">
+            <img src="/icon-192x192.png" alt="Personage" className="w-full h-full object-contain" />
           </div>
           <div className="flex-1">
             <h3 className="font-semibold text-[#2D2F31] mb-2">

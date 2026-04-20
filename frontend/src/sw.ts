@@ -22,7 +22,7 @@ self.addEventListener('push', (event: PushEvent) => {
         payload = event.data.json() as PushPayload;
     } catch {
         payload = {
-            title: 'Persomanage',
+            title: 'Personage',
             body: event.data.text(),
             url: '/',
             icon: '/icon-192x192.png',

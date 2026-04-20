@@ -30,9 +30,9 @@ const tokens = {
   now:    'oklch(0.60 0.18 30)',
 } as const;
 
-const HOUR_PX    = 62;
-const GRID_START = 7;
-const GRID_END   = 22;
+const HOUR_PX            = 62;
+const DEFAULT_GRID_START = 7;
+const DEFAULT_GRID_END   = 22;
 
 const SERIF = '"Instrument Serif", "Iowan Old Style", Georgia, "Times New Roman", serif';
 const SANS  = '"Inter", -apple-system, system-ui, "Segoe UI", sans-serif';
@@ -79,6 +79,27 @@ function mapCategory(category: string): string {
 function addMinutesToHHMM(hhmm: string, mins: number): string {
   const total = toMinutes(hhmm) + mins;
   return `${Math.floor(total / 60).toString().padStart(2, '0')}:${(total % 60).toString().padStart(2, '0')}`;
+}
+
+function getGridBounds(events: Pick<ScheduleEvent, 'startTime' | 'endTime'>[], nowMins?: number) {
+  let startHour = DEFAULT_GRID_START;
+  let endHour = DEFAULT_GRID_END;
+
+  if (events.length > 0) {
+    const mins = events.flatMap((event) => [toMinutes(event.startTime), toMinutes(event.endTime)]);
+    startHour = Math.min(startHour, Math.floor(Math.min(...mins) / 60));
+    endHour = Math.max(endHour, Math.ceil(Math.max(...mins) / 60));
+  }
+
+  if (nowMins !== undefined) {
+    startHour = Math.min(startHour, Math.floor(nowMins / 60));
+    endHour = Math.max(endHour, Math.ceil((nowMins + 1) / 60));
+  }
+
+  startHour = Math.max(0, startHour);
+  endHour = Math.min(24, Math.max(startHour + 1, endHour));
+
+  return { startHour, endHour };
 }
 
 function mapApiTaskToEvent(task: ApiTaskItem): ScheduleEvent | null {
@@ -204,8 +225,6 @@ function WeekStrip({ weekStart, selectedDate, events, onSelect }: WeekStripProps
 }
 
 // ─── HourGrid ─────────────────────────────────────────────────
-const HOURS = Array.from({ length: GRID_END - GRID_START }, (_, i) => i + GRID_START);
-
 interface HourGridProps {
   date: Date;
   events: ScheduleEvent[];
@@ -220,6 +239,11 @@ function HourGrid({ date, events, isToday, onEventClick, scrollRef }: HourGridPr
     return n.getHours() * 60 + n.getMinutes();
   });
 
+  const dayEvents = events.filter(e => e.date === toYYYYMMDD(date));
+  const { startHour: gridStart, endHour: gridEnd } = getGridBounds(dayEvents, isToday ? nowMins : undefined);
+  const hours = Array.from({ length: gridEnd - gridStart }, (_, i) => i + gridStart);
+  const gridHeight = hours.length * HOUR_PX;
+
   useEffect(() => {
     const id = setInterval(() => {
       const n = new Date();
@@ -231,16 +255,15 @@ function HourGrid({ date, events, isToday, onEventClick, scrollRef }: HourGridPr
   // Scroll so 08:00 is near the top on first render of this grid
   useEffect(() => {
     if (scrollRef.current) {
-      scrollRef.current.scrollTop = (8 - GRID_START) * HOUR_PX - 10;
+      scrollRef.current.scrollTop = Math.max(0, (Math.max(8, gridStart) - gridStart) * HOUR_PX - 10);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [date, gridStart]);
 
-  const dayEvents = events.filter(e => e.date === toYYYYMMDD(date));
   const layouts = layoutEvents(dayEvents);
 
-  const showNow = isToday && nowMins >= GRID_START * 60 && nowMins <= GRID_END * 60;
-  const nowTop = (nowMins - GRID_START * 60) * (HOUR_PX / 60);
+  const showNow = isToday && nowMins >= gridStart * 60 && nowMins <= gridEnd * 60;
+  const nowTop = (nowMins - gridStart * 60) * (HOUR_PX / 60);
   const nowLabel = `${Math.floor(nowMins / 60).toString().padStart(2, '0')}:${(nowMins % 60).toString().padStart(2, '0')}`;
 
   return (
@@ -257,7 +280,7 @@ function HourGrid({ date, events, isToday, onEventClick, scrollRef }: HourGridPr
       <div style={{ display: 'flex', padding: '8px 0 40px' }}>
         {/* Hour labels */}
         <div style={{ width: 52, flexShrink: 0, paddingTop: 6 }}>
-          {HOURS.map(h => (
+          {hours.map(h => (
             <div key={h} style={{
               height: HOUR_PX,
               paddingRight: 8,
@@ -275,22 +298,22 @@ function HourGrid({ date, events, isToday, onEventClick, scrollRef }: HourGridPr
         </div>
 
         {/* Event column */}
-        <div style={{ flex: 1, position: 'relative', marginRight: 12, paddingTop: 6 }}>
+        <div style={{ flex: 1, position: 'relative', marginRight: 12 }}>
           {/* Hour lines */}
-          {HOURS.map((_, i) => (
-            <div key={i} style={{
-              position: 'absolute',
-              top: i * HOUR_PX,
+           {hours.map((_, i) => (
+             <div key={i} style={{
+               position: 'absolute',
+               top: i * HOUR_PX,
               left: 0, right: 0,
               height: 1,
               background: tokens.divider,
             }} />
           ))}
           {/* Half-hour ticks */}
-          {HOURS.slice(0, -1).map((_, i) => (
-            <div key={`h-${i}`} style={{
-              position: 'absolute',
-              top: i * HOUR_PX + HOUR_PX / 2,
+           {hours.slice(0, -1).map((_, i) => (
+             <div key={`h-${i}`} style={{
+               position: 'absolute',
+               top: i * HOUR_PX + HOUR_PX / 2,
               left: 0,
               width: 6,
               height: 1,
@@ -299,76 +322,100 @@ function HourGrid({ date, events, isToday, onEventClick, scrollRef }: HourGridPr
           ))}
 
           {/* Spacer */}
-          <div style={{ height: HOURS.length * HOUR_PX }} />
+           <div style={{ height: gridHeight }} />
 
-          {/* Events */}
-          {layouts.map(({ id, col, totalCols }) => {
-            const ev = dayEvents.find(e => e.id === id);
-            if (!ev) return null;
-            const startMins = toMinutes(ev.startTime);
-            const endMins   = toMinutes(ev.endTime);
-            const rawTop    = (startMins - GRID_START * 60) * (HOUR_PX / 60);
-            const rawBottom = (endMins   - GRID_START * 60) * (HOUR_PX / 60);
-            const clampedTop    = Math.max(0, rawTop);
-            const clampedBottom = Math.min(HOURS.length * HOUR_PX, rawBottom);
-            const height = Math.max(0, clampedBottom - clampedTop - 2);
-            if (height === 0) return null;
+           {/* Events */}
+           {layouts.map(({ id, col, totalCols }) => {
+             const ev = dayEvents.find(e => e.id === id);
+             if (!ev) return null;
+             const startMins = toMinutes(ev.startTime);
+             const endMins   = toMinutes(ev.endTime);
+             const rawTop    = (startMins - gridStart * 60) * (HOUR_PX / 60);
+             const rawBottom = (endMins   - gridStart * 60) * (HOUR_PX / 60);
+             const clampedTop    = Math.max(0, rawTop);
+             const clampedBottom = Math.min(gridHeight, rawBottom);
+             const height = Math.max(0, clampedBottom - clampedTop - 2);
+             if (height === 0) return null;
+             const visualHeight = Math.max(height, 20);
+             const top = Math.min(clampedTop, gridHeight - visualHeight);
+             const isCompact = visualHeight < 44;
 
-            const pct = 100 / totalCols;
-            const pal = tokens[ev.priority];
+             const pct = 100 / totalCols;
+             const pal = tokens[ev.priority];
 
             return (
               <div
                 key={ev.id}
                 onClick={() => onEventClick(ev)}
-                title={`${ev.title} · ${ev.startTime}–${ev.endTime}`}
-                style={{
-                  position: 'absolute',
-                  top: clampedTop + 6,
-                  height,
-                  left: `calc(${col * pct}% + 2px)`,
-                  width: `calc(${pct}% - 4px)`,
-                  background: pal.fill,
+                 title={`${ev.title} · ${ev.startTime}–${ev.endTime}`}
+                 style={{
+                   position: 'absolute',
+                   top,
+                   height: visualHeight,
+                   left: `calc(${col * pct}% + 2px)`,
+                   width: `calc(${pct}% - 4px)`,
+                   background: pal.fill,
                   borderLeft: `3px solid ${pal.rail}`,
-                  color: pal.ink,
-                  borderRadius: 6,
-                  padding: '3px 6px',
-                  overflow: 'hidden',
-                  cursor: 'pointer',
-                  boxSizing: 'border-box',
-                  fontFamily: SANS,
-                }}
-              >
-                <div style={{
-                  fontSize: 11.5,
-                  fontWeight: 500,
-                  fontVariantNumeric: 'tabular-nums',
-                  opacity: 0.85,
-                  marginBottom: 1,
-                }}>
-                  {ev.startTime}
-                </div>
-                <div style={{
-                  fontSize: 12.5,
-                  fontWeight: 600,
-                  lineHeight: 1.25,
-                  display: '-webkit-box',
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: 'vertical',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                } as React.CSSProperties}>
-                  {ev.title}
-                </div>
-              </div>
-            );
-          })}
+                   color: pal.ink,
+                   borderRadius: 6,
+                   padding: isCompact ? '2px 5px' : '3px 6px',
+                   overflow: 'hidden',
+                   cursor: 'pointer',
+                   boxSizing: 'border-box',
+                   fontFamily: SANS,
+                   display: 'flex',
+                   alignItems: isCompact ? 'center' : undefined,
+                 }}
+               >
+                 {isCompact ? (
+                   <div style={{
+                     minWidth: 0,
+                     fontSize: 10.5,
+                     fontWeight: 600,
+                     lineHeight: 1.1,
+                     whiteSpace: 'nowrap',
+                     overflow: 'hidden',
+                     textOverflow: 'ellipsis',
+                   }}>
+                     <span style={{ fontVariantNumeric: 'tabular-nums', opacity: 0.85, marginRight: 4 }}>
+                       {ev.startTime}
+                     </span>
+                     {ev.title}
+                   </div>
+                 ) : (
+                   <>
+                     <div style={{
+                       fontSize: 11.5,
+                       fontWeight: 500,
+                       fontVariantNumeric: 'tabular-nums',
+                       opacity: 0.85,
+                       marginBottom: 1,
+                     }}>
+                       {ev.startTime}
+                     </div>
+                     <div style={{
+                       fontSize: 12.5,
+                       fontWeight: 600,
+                       lineHeight: 1.25,
+                       display: '-webkit-box',
+                       WebkitLineClamp: 2,
+                       WebkitBoxOrient: 'vertical',
+                       overflow: 'hidden',
+                       textOverflow: 'ellipsis',
+                     } as React.CSSProperties}>
+                       {ev.title}
+                     </div>
+                   </>
+                 )}
+               </div>
+             );
+           })}
 
           {/* Now indicator */}
           {showNow && (
             <div style={{
-              position: 'absolute',
-              top: nowTop + 6,
+               position: 'absolute',
+               top: nowTop,
               left: -56, right: 0,
               zIndex: 10,
               pointerEvents: 'none',
@@ -561,21 +608,36 @@ const ScheduleScreen = () => {
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   const fetchEvents = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const till = new Date(weekStart);
-      till.setDate(weekStart.getDate() + 6);
-      const response = await listTasks({
-        from: toApiDateParam(weekStart),
-        till: toApiDateParam(till),
-        pageSize: 100,
-        page: 1,
-      });
-      const mapped = (response.tasks ?? [])
-        .map(mapApiTaskToEvent)
-        .filter((e): e is ScheduleEvent => e !== null);
-      setEvents(mapped);
+      setLoading(true);
+      setError(null);
+      try {
+        const till = new Date(weekStart);
+        till.setDate(weekStart.getDate() + 6);
+       const pageSize = 100;
+       const allTasks: ApiTaskItem[] = [];
+       let page = 1;
+
+       while (true) {
+         const response = await listTasks({
+           from: toApiDateParam(weekStart),
+           till: toApiDateParam(till),
+           pageSize,
+           page,
+         });
+         const tasks = response.tasks ?? [];
+         allTasks.push(...tasks);
+
+         if (tasks.length < pageSize || allTasks.length >= response.total) {
+           break;
+         }
+
+         page += 1;
+       }
+
+       const mapped = allTasks
+         .map(mapApiTaskToEvent)
+         .filter((e): e is ScheduleEvent => e !== null);
+       setEvents(mapped);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Не удалось загрузить расписание');
     } finally {
