@@ -27,7 +27,7 @@ database:
   options: sslmode=disable
 
 llm:
-  model: google/gemma-3-12b-it
+  model: openai/gpt-oss-20b
   apiKey: "secret:e6qd2ljggdrvefjgg0gf:e6q72jfficuq9om25sab:open-router"
 
 embedding:
