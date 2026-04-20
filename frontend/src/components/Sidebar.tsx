@@ -1,4 +1,4 @@
-import { CheckSquare, Calendar, Bell, Settings, Sparkles, Menu, X, LogOut } from 'lucide-react';
+import { CheckSquare, Calendar, Bell, Settings, Menu, X, LogOut } from 'lucide-react';
 import { useState } from 'react';
 import { getUserInfo } from '../utils/authService';
 
@@ -35,8 +35,8 @@ const Sidebar = ({ currentScreen, onScreenChange, onLogout }: SidebarProps) => {
       <aside className="hidden md:flex md:w-64 bg-[#2D2F31] text-white flex-col">
         <div className="p-6 border-b border-white/10">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-[#5C6BFF] to-[#7C8CFF] rounded-xl flex items-center justify-center">
-              <Sparkles size={20} className="text-white" />
+            <div className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center">
+              <img src="/icon-192x192.png" alt="Personage" className="w-full h-full object-contain" />
             </div>
             <div>
               <h1 className="font-semibold text-lg">Personage</h1>
@@ -92,8 +92,8 @@ const Sidebar = ({ currentScreen, onScreenChange, onLogout }: SidebarProps) => {
 
       <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-[#2D2F31] text-white z-50 flex items-center justify-between px-4">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-gradient-to-br from-[#5C6BFF] to-[#7C8CFF] rounded-lg flex items-center justify-center">
-            <Sparkles size={16} className="text-white" />
+          <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center">
+            <img src="/icon-192x192.png" alt="Personage" className="w-full h-full object-contain" />
           </div>
           <h1 className="font-semibold text-base">Personage</h1>
         </div>

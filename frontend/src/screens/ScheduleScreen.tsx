@@ -298,7 +298,7 @@ function HourGrid({ date, events, isToday, onEventClick, scrollRef }: HourGridPr
         </div>
 
         {/* Event column */}
-        <div style={{ flex: 1, position: 'relative', marginRight: 12, paddingTop: 6 }}>
+        <div style={{ flex: 1, position: 'relative', marginRight: 12 }}>
           {/* Hour lines */}
            {hours.map((_, i) => (
              <div key={i} style={{
@@ -337,7 +337,7 @@ function HourGrid({ date, events, isToday, onEventClick, scrollRef }: HourGridPr
              const height = Math.max(0, clampedBottom - clampedTop - 2);
              if (height === 0) return null;
              const visualHeight = Math.max(height, 20);
-             const top = Math.min(clampedTop + 6, gridHeight - visualHeight + 6);
+             const top = Math.min(clampedTop, gridHeight - visualHeight);
              const isCompact = visualHeight < 44;
 
              const pct = 100 / totalCols;
@@ -414,8 +414,8 @@ function HourGrid({ date, events, isToday, onEventClick, scrollRef }: HourGridPr
           {/* Now indicator */}
           {showNow && (
             <div style={{
-              position: 'absolute',
-              top: nowTop + 6,
+               position: 'absolute',
+               top: nowTop,
               left: -56, right: 0,
               zIndex: 10,
               pointerEvents: 'none',
