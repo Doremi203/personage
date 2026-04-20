@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Workflow
 
 ### Git Worktrees
-- **Always use a git worktree for any code change if user not explicitly said overwise.** Create and enter one before touching any file.
+- **Never use a git worktree for any code change if user not explicitly said overwise.** Create and enter one before touching any file if user said **use worktree**.
 - **Create worktrees under `.claude/worktrees/`.** Do not create worktrees outside this directory.
 - After creating and entering a worktree, run `cd backend && make generate` to generate all protobuf/gRPC gen files before making changes.
 - After finishing work in a worktree, always create a pull request before removing the worktree.
@@ -18,7 +18,7 @@ Always use `make` targets instead of invoking tools directly. Never run `go test
 Before reading files in the main session, use the Explore agent whenever you are not yet sure which files or line ranges to read. Only read directly when you already know the exact file and relevant lines.
 
 ### Implementing plans
-When executing a multi-task plan, spawn a separate agent per task whenever you have enough context to write detailed instructions for it. This keeps the main session context lean and allows parallel execution.
+When executing a multi-task plan create a todo list and spawn a separate agent per task whenever you have enough context to write detailed instructions for it. This keeps the main session context lean and allows parallel execution.
 
 
 ## Project Overview
