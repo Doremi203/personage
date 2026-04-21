@@ -1,6 +1,6 @@
 -- +goose Up
 -- +goose StatementBegin
-CREATE TABLE password_reset_token
+CREATE TABLE IF NOT EXISTS password_reset_token
 (
     id         UUID PRIMARY KEY,
     user_id    UUID      NOT NULL REFERENCES "user" (id) ON DELETE CASCADE,
@@ -10,8 +10,8 @@ CREATE TABLE password_reset_token
     used_at    TIMESTAMP
 );
 
-CREATE INDEX idx_password_reset_tokens_token ON password_reset_token (token);
-CREATE INDEX idx_password_reset_tokens_user_id ON password_reset_token (user_id);
+CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_token ON password_reset_token (token);
+CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_user_id ON password_reset_token (user_id);
 -- +goose StatementEnd
 
 -- +goose Down
