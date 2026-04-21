@@ -98,7 +98,8 @@ public class AuthService(
             AccessToken = tokenExchangeResult.AccessToken,
             RefreshToken = tokenExchangeResult.RefreshToken ?? throw new ArgumentException("Invalid refresh token"),
             ExpiresAt = tokenExchangeResult.ExpiresAt,
-            Status = OAuthTokenStatus.Active
+            Status = OAuthTokenStatus.Active,
+            GmailEmail = tokenExchangeResult.GmailEmail
         };
         await googleCalendarTokenRepository.SaveToken(oauthToken, ct);
 
