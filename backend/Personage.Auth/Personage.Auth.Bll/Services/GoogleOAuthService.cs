@@ -129,7 +129,7 @@ public class GoogleOAuthService(
         {
             GoogleServiceKind.Unknown => throw new ArgumentException("Invalid Google Service Kind"),
             GoogleServiceKind.Gmail => settings.Value.Scopes,
-            GoogleServiceKind.Calendar => settings.Value.Scopes,
+            GoogleServiceKind.Calendar => settings.Value.GoogleCalendarScopes,
             _ => throw new ArgumentOutOfRangeException(nameof(serviceKind), serviceKind, null)
         };
     }

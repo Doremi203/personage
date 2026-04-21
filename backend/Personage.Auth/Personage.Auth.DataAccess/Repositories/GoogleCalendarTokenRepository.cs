@@ -11,8 +11,6 @@ public class GoogleCalendarTokenRepository(IDbConnectionFactory connectionFactor
     {
         using var connection = await connectionFactory.CreateConnection(ct);
         
-        //TODO: gmail not saved?
-        
         await connection.ExecuteAsync(
             """
             --GmailTokenRepository.SaveToken
@@ -32,5 +30,27 @@ public class GoogleCalendarTokenRepository(IDbConnectionFactory connectionFactor
                 gmail_email = EXCLUDED.gmail_email;
             """,
             token);
+    }
+    
+    public async Task MarkUsersAsProcessed((Guid UserId, DateTime ProcessedAt)[] users, CancellationToken ct)
+    {
+        using var connection = await connectionFactory.CreateConnection(ct);
+        
+        await connection.ExecuteAsync(
+            """
+            --GmailTokenRepository.MarkUsersAsProcessed
+            UPDATE calendar_token ct
+            SET last_processed_at = batch.processed_at
+            FROM (select
+                unnest(@userIds) AS user_id,
+                unnest(@processedAtMoments) AS processed_at
+            ) AS batch
+            WHERE ct.user_id = batch.user_id;
+            """,
+            new
+            {
+                userIds = users.Select(u => u.UserId).ToArray(),
+                processedAtMoments = users.Select(u => u.ProcessedAt).ToArray()
+            });
     }
 }
