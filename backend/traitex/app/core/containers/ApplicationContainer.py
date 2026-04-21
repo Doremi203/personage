@@ -73,6 +73,10 @@ def create_application_container(config: Configuration) -> ApplicationContainer:
             "api_id": config.get("Telegram.ApiId"),
             "api_hash": config.get("Telegram.ApiHash"),
         },
+        "calendar": {
+            "max_events_per_user": config.get("Calendar.MaxEventsPerUser", 100),
+            "max_time_window_days": config.get("Calendar.MaxTimeWindowDays", 30)
+        },
         "application": {
             "batch_size": config.get("Application.BatchSize", 10),
             "seconds_since_last_process": config.get("Application.SecondsSinceLastProcess", 60)

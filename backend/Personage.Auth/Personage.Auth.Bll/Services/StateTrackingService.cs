@@ -14,6 +14,7 @@ namespace Personage.Auth.Bll.Services;
 public class StateTrackingService(
     IGmailTokenRepository gmailTokenRepository,
     ITelegramSessionRepository telegramSessionRepository,
+    IGoogleCalendarTokenRepository googleCalendarTokenRepository,
     IGoogleOAuthService googleOAuthService,
     IUserRepository userRepository,
     ILogger<StateTrackingService> logger
@@ -155,6 +156,10 @@ public class StateTrackingService(
 
             case ServiceTypeModel.Telegram:
                 await telegramSessionRepository.MarkUsersAsProcessed(usersToMark, ct);
+                break;
+            
+            case ServiceTypeModel.GoogleCalendar:
+                await googleCalendarTokenRepository.MarkUsersAsProcessed(usersToMark, ct);
                 break;
 
             case ServiceTypeModel.Unknown:

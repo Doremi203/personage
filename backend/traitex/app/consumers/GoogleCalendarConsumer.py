@@ -3,14 +3,14 @@ import logging
 import traceback
 
 from app.consumers.BaseConsumer import BaseConsumer
-from app.domain.interfaces.business_logic.IGmailProcessingService import IGmailProcessingService
+from app.domain.interfaces.business_logic.ICalendarProcessingService import ICalendarProcessingService
 
 logger = logging.getLogger(__name__)
 
 
 class GoogleCalendarConsumer(BaseConsumer):
-    def __init__(self, gmail_processing_service: IGoogleCalendarProcessingService):
-        self.google_calendar_processing_service = google_calendar_processing_service
+    def __init__(self, calendar_processing_service: ICalendarProcessingService):
+        self.calendar_processing_service = calendar_processing_service
         self.is_running = False
         self.task = None
 
@@ -47,11 +47,11 @@ class GoogleCalendarConsumer(BaseConsumer):
                 await asyncio.sleep(10)
 
     async def run_iteration(self) -> None:
-        users_for_processing = await self.google_calendar_processing_service.get_users_for_processing()
+        users_for_processing = await self.calendar_processing_service.get_users_for_processing()
 
         if len(users_for_processing) == 0:
             logger.info("No users found for processing")
             return
 
         logger.info(f"Start processing events for {len(users_for_processing)} users")
-        await self.google_calendar_processing_service.process_users_events(users_for_processing)
+        await self.calendar_processing_service.process_users_events(users_for_processing)

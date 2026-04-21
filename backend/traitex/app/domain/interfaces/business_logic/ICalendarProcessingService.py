@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from app.domain.models.users.UserForProcessingModel import UserForProcessingModel
 
 
-class IGoogleCalendarProcessingService(ABC):
+class ICalendarProcessingService(ABC):
     @abstractmethod
     async def get_users_for_processing(self) -> list[UserForProcessingModel]:
         pass

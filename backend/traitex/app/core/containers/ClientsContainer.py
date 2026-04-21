@@ -1,4 +1,6 @@
 from dependency_injector import providers, containers
+
+from externalClients.calendar_api.CalendarApiClient import CalendarApiClient
 from externalClients.gmail_api.GmailApiClient import GmailApiClient
 from externalClients.personage_auth.StateTrackingClient import StateTrackingClient
 from externalClients.telegram.TelegramApiClient import TelegramApiClient
@@ -22,4 +24,10 @@ class ClientsContainer(containers.DeclarativeContainer):
         TelegramApiClient,
         api_id=config.telegram.api_id,
         api_hash=config.telegram.api_hash,
+    )
+
+    calendar_api_client = providers.Singleton(
+        CalendarApiClient,
+        max_events_per_user=config.calendar.max_events_per_user.as_int(),
+        max_time_window_days=config.calendar.max_time_window_days.as_int()
     )
