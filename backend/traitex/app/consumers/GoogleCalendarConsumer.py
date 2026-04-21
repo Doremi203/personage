@@ -8,15 +8,15 @@ from app.domain.interfaces.business_logic.IGmailProcessingService import IGmailP
 logger = logging.getLogger(__name__)
 
 
-class GmailConsumer(BaseConsumer):
-    def __init__(self, gmail_processing_service: IGmailProcessingService):
-        self.gmail_processing_service = gmail_processing_service
+class GoogleCalendarConsumer(BaseConsumer):
+    def __init__(self, gmail_processing_service: IGoogleCalendarProcessingService):
+        self.google_calendar_processing_service = google_calendar_processing_service
         self.is_running = False
         self.task = None
 
     @property
     def name(self):
-        return "GmailConsumer"
+        return "GoogleCalendarConsumer"
 
     async def start(self) -> None:
         self.is_running = True
@@ -47,11 +47,11 @@ class GmailConsumer(BaseConsumer):
                 await asyncio.sleep(10)
 
     async def run_iteration(self) -> None:
-        users_for_processing = await self.gmail_processing_service.get_users_for_processing()
+        users_for_processing = await self.google_calendar_processing_service.get_users_for_processing()
 
         if len(users_for_processing) == 0:
             logger.info("No users found for processing")
             return
 
         logger.info(f"Start processing events for {len(users_for_processing)} users")
-        await self.gmail_processing_service.process_users_events(users_for_processing)
+        await self.google_calendar_processing_service.process_users_events(users_for_processing)

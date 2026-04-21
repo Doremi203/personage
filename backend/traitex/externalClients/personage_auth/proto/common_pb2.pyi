@@ -27,12 +27,14 @@ class _ServiceTypeEnumTypeWrapper(google.protobuf.internal.enum_type_wrapper._En
     ServiceType_Unknown: _ServiceType.ValueType  # 0
     ServiceType_Gmail: _ServiceType.ValueType  # 1
     ServiceType_Telegram: _ServiceType.ValueType  # 2
+    ServiceType_GoogleCalendar: _ServiceType.ValueType  # 3
 
 class ServiceType(_ServiceType, metaclass=_ServiceTypeEnumTypeWrapper): ...
 
 ServiceType_Unknown: ServiceType.ValueType  # 0
 ServiceType_Gmail: ServiceType.ValueType  # 1
 ServiceType_Telegram: ServiceType.ValueType  # 2
+ServiceType_GoogleCalendar: ServiceType.ValueType  # 3
 Global___ServiceType: typing_extensions.TypeAlias = ServiceType
 
 @typing.final
@@ -60,6 +62,32 @@ class GmailTokens(google.protobuf.message.Message):
     def ClearField(self, field_name: typing.Literal["access_token", b"access_token", "expires_at", b"expires_at", "gmail_email", b"gmail_email", "refresh_token", b"refresh_token"]) -> None: ...
 
 Global___GmailTokens: typing_extensions.TypeAlias = GmailTokens
+
+@typing.final
+class GoogleCalendarTokens(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    ACCESS_TOKEN_FIELD_NUMBER: builtins.int
+    REFRESH_TOKEN_FIELD_NUMBER: builtins.int
+    EXPIRES_AT_FIELD_NUMBER: builtins.int
+    GMAIL_EMAIL_FIELD_NUMBER: builtins.int
+    access_token: builtins.str
+    refresh_token: builtins.str
+    gmail_email: builtins.str
+    @property
+    def expires_at(self) -> google.protobuf.timestamp_pb2.Timestamp: ...
+    def __init__(
+        self,
+        *,
+        access_token: builtins.str = ...,
+        refresh_token: builtins.str = ...,
+        expires_at: google.protobuf.timestamp_pb2.Timestamp | None = ...,
+        gmail_email: builtins.str = ...,
+    ) -> None: ...
+    def HasField(self, field_name: typing.Literal["expires_at", b"expires_at"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing.Literal["access_token", b"access_token", "expires_at", b"expires_at", "gmail_email", b"gmail_email", "refresh_token", b"refresh_token"]) -> None: ...
+
+Global___GoogleCalendarTokens: typing_extensions.TypeAlias = GoogleCalendarTokens
 
 @typing.final
 class TelegramSession(google.protobuf.message.Message):
