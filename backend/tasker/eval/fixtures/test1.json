@@ -1,0 +1,149 @@
+{
+  "version": 1,
+  "snapshot_id": "d0bb385f-ebff-46a8-a669-ce6cace9d4cc",
+  "user_id": "68db274f-c5ae-42e2-a74a-180758a24c72",
+  "llm_model": "meta-llama/llama-3.1-8b-instruct",
+  "expected_tasks": [
+    {
+      "id": "d48281c7-0758-44ed-9bdb-242a5d269592",
+      "user_id": "68db274f-c5ae-42e2-a74a-180758a24c72",
+      "title": "Review and apply to Golang/Backend job opportunities",
+      "description": "Multiple LinkedIn job alert emails arrived with openings at Microsoft, Wolt, GitHub, Grab, Kaiko, Prelude, Equativ, LemFi, Mercor, and others for Software Engineer and Golang Backend Engineer roles across Europe and remote. Review the listings and shortlist companies to apply to.",
+      "duration_minutes": 45,
+      "priority": 7,
+      "category": "work",
+      "start_time": "2026-04-19T10:00:00Z"
+    },
+    {
+      "id": "b9edd30c-d816-4545-811d-690e9214a946",
+      "user_id": "68db274f-c5ae-42e2-a74a-180758a24c72",
+      "title": "Update vulnerable dependencies in Doremi203 repositories",
+      "description": "Dependabot security advisories arrived for serialize-javascript, undici, and fast-xml-parser affecting repositories under Doremi203. Upgrade affected packages to patched versions to resolve high/critical vulnerabilities.",
+      "duration_minutes": 30,
+      "priority": 9,
+      "category": "work",
+      "start_time": "2026-04-19T09:00:00Z"
+    },
+    {
+      "id": "025f503f-353e-44c3-b75a-30d19316ac42",
+      "user_id": "68db274f-c5ae-42e2-a74a-180758a24c72",
+      "title": "Fix failed CI/CD release workflows",
+      "description": "Build failures reported in Traitex Service Release Flow (03a83f1), Tasker Service Release Flow (fc41230), and Auth Service Release Flow (237a67b). Each workflow shows 1 annotation on the build job. Investigate build logs and fix the root causes.",
+      "duration_minutes": 10,
+      "priority": 8,
+      "category": "work",
+      "start_time": "2026-04-19T09:30:00Z"
+    },
+    {
+      "id": "b514fb12-f31b-44d3-a12f-b187fb66f2d8",
+      "user_id": "68db274f-c5ae-42e2-a74a-180758a24c72",
+      "title": "Renew expired couply.ru and couply.online domains",
+      "description": "Both couply.ru and couply.online have expired and delegation has been suspended. Renew them via reg.ru immediately to prevent permanent deletion and loss of the domain names.",
+      "duration_minutes": 15,
+      "priority": 10,
+      "category": "personal",
+      "start_time": "2026-04-19T08:30:00Z",
+      "deadline": "2026-04-26T23:59:59Z"
+    },
+    {
+      "id": "fddcf35d-bf32-4fd0-9134-7bbf148dadda",
+      "user_id": "68db274f-c5ae-42e2-a74a-180758a24c72",
+      "title": "Review GitHub Copilot interaction data usage policy",
+      "description": "GitHub notified that the Copilot Interaction Data Usage Policy is being updated. Go to GitHub Account Settings → Copilot before April 24 to decide whether to allow your interaction data to be used for AI model training.",
+      "duration_minutes": 10,
+      "priority": 7,
+      "category": "work",
+      "start_time": "2026-04-19T11:00:00Z",
+      "deadline": "2026-04-24T00:00:00Z"
+    },
+    {
+      "id": "423b351c-e11a-47df-880e-acda3f5d97cd",
+      "user_id": "68db274f-c5ae-42e2-a74a-180758a24c72",
+      "title": "Access Claude Code in Action course",
+      "description": "Registration confirmed for the Claude Code in Action course. Log in to the course platform via the link in the confirmation email to begin the training.",
+      "duration_minutes": 60,
+      "priority": 3,
+      "category": "personal",
+      "start_time": "2026-04-19T14:00:00Z"
+    },
+    {
+      "id": "eb00095f-5b9b-4eb9-9814-51b3fdc9bbe5",
+      "user_id": "68db274f-c5ae-42e2-a74a-180758a24c72",
+      "title": "Review T-Bank credit card statement and pay minimum balance",
+      "description": "Statement for the period 28.02.2026–27.03.2026 has arrived. Review charges and ensure the minimum payment is made on time to avoid late fees.",
+      "duration_minutes": 15,
+      "priority": 8,
+      "category": "personal",
+      "deadline": "2026-04-21T23:59:59Z"
+    },
+    {
+      "id": "9660dba6-d1b0-4bfe-a465-8c282d06962a",
+      "user_id": "68db274f-c5ae-42e2-a74a-180758a24c72",
+      "title": "Respond to pending LinkedIn connection requests",
+      "description": "Multiple connection requests arrived from professionals including Prashant Nimbark, Alexey Fedoseev (Golang Developer), Emil Gainullin (Middle Software Developer), and others. Review each profile and accept or decline.",
+      "duration_minutes": 15,
+      "priority": 4,
+      "category": "personal",
+      "start_time": "2026-04-19T13:00:00Z"
+    },
+    {
+      "id": "d32ce4f6-7f79-4b92-a4e7-67d7b3f13eeb",
+      "user_id": "68db274f-c5ae-42e2-a74a-180758a24c72",
+      "title": "Explore Mermaid March updates",
+      "description": "Mermaid released a March update featuring highlight sync, custom styles, and improved AI accuracy. Read the digest to discover new diagramming capabilities and consider adopting them in project documentation.",
+      "duration_minutes": 20,
+      "priority": 1,
+      "category": "personal"
+    },
+    {
+      "id": "f277b6d3-5bee-4ddc-b269-ce39d46f2229",
+      "user_id": "68db274f-c5ae-42e2-a74a-180758a24c72",
+      "title": "Complete Gmail OAuth flow integration on frontend (PR #43)",
+      "description": "PR #43 implementing Gmail OAuth flow on the settings screen has been assigned and reviewed by Copilot. Address outstanding review comments and push the PR to a mergeable state.",
+      "duration_minutes": 15,
+      "priority": 7,
+      "category": "work",
+      "start_time": "2026-04-19T10:30:00Z"
+    },
+    {
+      "id": "b34d14a8-4405-43ba-9f3d-12ec24d34b94",
+      "user_id": "68db274f-c5ae-42e2-a74a-180758a24c72",
+      "title": "Review and activate T-Bank cashback offers",
+      "description": "T-Bank sent promotional cashback offers: an additional cashback category, 15% cashback on railway tickets, and other seasonal promotions. Log into T-Bank and activate the most relevant offers before they expire.",
+      "duration_minutes": 5,
+      "priority": 3,
+      "category": "personal",
+      "start_time": "2026-04-19T12:30:00Z"
+    },
+    {
+      "id": "67e0afaf-40f6-4427-b1cd-8e2ed253fbb3",
+      "user_id": "68db274f-c5ae-42e2-a74a-180758a24c72",
+      "title": "Review HSE homework feedback on PR #1",
+      "description": "Feedback has been posted on the hse-tcarzverey/hw2-Doremi203 pull request. Read the reviewer comments, implement requested changes, and push the updated solution.",
+      "duration_minutes": 45,
+      "priority": 6,
+      "category": "study",
+      "start_time": "2026-04-19T16:00:00Z"
+    },
+    {
+      "id": "13c08b08-37a1-455e-a489-e5795cee1813",
+      "user_id": "68db274f-c5ae-42e2-a74a-180758a24c72",
+      "title": "Merge frontend settings screen PR with Personage.Auth integration (PR #58)",
+      "description": "PR to remove obsolete settings sections and integrate the /user endpoint from Personage.Auth API (PR #58) is under active review. Review final comments and merge or request changes.",
+      "duration_minutes": 20,
+      "priority": 7,
+      "category": "work",
+      "start_time": "2026-04-19T11:30:00Z"
+    },
+    {
+      "id": "d509c8a7-2345-4def-b7d5-9136130cde6b",
+      "user_id": "68db274f-c5ae-42e2-a74a-180758a24c72",
+      "title": "Review auth user refresh handling PR #89",
+      "description": "PR #89 fixing auth user refresh handling has recent activity (2026-04-18). Review the changes, run tests, and ensure the fix is correct before merging.",
+      "duration_minutes": 30,
+      "priority": 8,
+      "category": "work",
+      "start_time": "2026-04-19T09:00:00Z"
+    }
+  ]
+}

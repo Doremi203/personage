@@ -33,3 +33,6 @@ database:
 
 x-api-key:
   secretKey: "secret:e6q4bgtl41b9apekm33f:e6q8s03ba7lp7ktt0q16:secret-key"
+
+auth:
+  address: grpc-auth.persomanage.ru:443

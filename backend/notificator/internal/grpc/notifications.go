@@ -7,6 +7,7 @@ import (
 	"github.com/Doremi203/personage/backend/libs/go/log"
 	"github.com/Doremi203/personage/backend/libs/go/token"
 	pushpb "github.com/Doremi203/personage/backend/notificator/gen/api/push"
+	"github.com/Doremi203/personage/backend/notificator/internal/domain/notification"
 	"github.com/Doremi203/personage/backend/notificator/internal/usecase"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc"
@@ -75,12 +76,39 @@ func (s *notificationsService) ListNotificationsV1(
 			Title:  n.Title,
 			Type:   n.Type,
 			Text:   n.Text,
-			SentAt: timestamppb.New(n.SentAt),
+			SentAt: timestamppb.New(*n.SentAt),
 		})
 	}
 
 	return &pushpb.ListNotificationsV1Response{
 		Notifications: protoNotifications,
+	}, nil
+}
+
+func (s *notificationsService) GetNotificationSettingsV1(
+	ctx context.Context,
+	_ *pushpb.GetNotificationSettingsV1Request,
+) (*pushpb.GetNotificationSettingsV1Response, error) {
+	t, ok := token.FromContext(ctx)
+	if !ok {
+		return nil, status.Error(codes.Unauthenticated, "missing token")
+	}
+
+	settings, err := s.notificationsUseCase.GetSettings(ctx, t.GetUserID())
+	if err != nil {
+		return nil, errors.WrapFail(err, "get notification settings")
+	}
+
+	protoSettings := make([]*pushpb.NotificationSetting, 0, len(settings))
+	for _, s := range settings {
+		protoSettings = append(protoSettings, &pushpb.NotificationSetting{
+			Type:    string(s.Type),
+			Enabled: s.Enabled,
+		})
+	}
+
+	return &pushpb.GetNotificationSettingsV1Response{
+		Settings: protoSettings,
 	}, nil
 }
 
@@ -99,6 +127,9 @@ func (s *notificationsService) ToggleNotificationV1(
 
 	setting, err := s.notificationsUseCase.Toggle(ctx, t.GetUserID(), req.GetType())
 	if err != nil {
+		if errors.Is(err, notification.ErrInvalidSettingType) {
+			return nil, status.Error(codes.InvalidArgument, "invalid notification type")
+		}
 		return nil, errors.WrapFailf(
 			err,
 			"toggle notification type %v",

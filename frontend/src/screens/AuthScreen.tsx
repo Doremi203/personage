@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Sparkles, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import {
   login,
   register,
@@ -101,8 +101,8 @@ const AuthScreen = ({ onAuthSuccess }: AuthScreenProps) => {
     <div className="min-h-screen bg-[#F7F8FA] flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="flex flex-col items-center mb-8">
-          <div className="w-16 h-16 bg-gradient-to-br from-[#5C6BFF] to-[#7C8CFF] rounded-2xl flex items-center justify-center mb-4">
-            <Sparkles size={32} className="text-white" />
+          <div className="w-16 h-16 rounded-2xl overflow-hidden flex items-center justify-center mb-4">
+            <img src="/icon-192x192.png" alt="Personage" className="w-full h-full object-contain" />
           </div>
           <h1 className="text-2xl font-bold text-[#1A1B1E]">Personage</h1>
           <p className="text-sm text-gray-500 mt-1">Персональный ассистент</p>

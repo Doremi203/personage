@@ -16,9 +16,11 @@ class YMQClient(IQueueClient):
             access_key: str,
             secret_key: str,
             endpoint_url: str,
+            default_queue_url: str,
             region: str = "ru-central1",
     ):
-        self.endpoint_url = endpoint_url
+        self.endpoint_url = self._normalize_service_endpoint(endpoint_url)
+        self.default_queue_url = default_queue_url.rstrip('/')
         self.session = aioboto3.Session(
             region_name=region,
             aws_access_key_id=access_key,
@@ -33,7 +35,8 @@ class YMQClient(IQueueClient):
             deduplication_id: str,
             message_group_id: str,
             message_body: str,
-            message_attributes: dict[str, Any] | None = None
+            message_attributes: dict[str, Any] | None = None,
+            target_queue_url: str | None = None
     ) -> dict[str, Any]:
         async with self.session.client(
                 service_name='sqs',
@@ -43,8 +46,9 @@ class YMQClient(IQueueClient):
                     retries={'max_attempts': 3}
                 )
         ) as client:
-            params = {
-                'QueueUrl': self.endpoint_url,
+            queue_url = target_queue_url.strip() if target_queue_url and target_queue_url.strip() else self.default_queue_url
+            params: dict[str, Any] = {
+                'QueueUrl': queue_url,
                 'MessageBody': message_body,
                 'MessageGroupId': message_group_id,
                 'MessageDeduplicationId': deduplication_id,
@@ -56,6 +60,13 @@ class YMQClient(IQueueClient):
             response = await client.send_message(**params)
             logger.debug(f"Sent message to queue: {response['MessageId']}")
             return response
+
+    @classmethod
+    def _normalize_service_endpoint(cls, endpoint_url: str) -> str:
+        normalized = endpoint_url.rstrip('/')
+        if normalized.startswith(f"{cls.QUEUE_URL_PREFIX}/"):
+            return cls.QUEUE_URL_PREFIX
+        return normalized
 
 
     @staticmethod

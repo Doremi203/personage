@@ -7,11 +7,11 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 	"time"
 
 	"github.com/Doremi203/personage/backend/libs/go/errors"
-	"github.com/docker/go-connections/nat"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/pressly/goose/v3"
@@ -57,10 +57,8 @@ func SetupTests(
 		Options:  "sslmode=disable",
 	}
 
-	dbPort := "5432/tcp"
-
 	sCfg := setupConfig{
-		image: "postgres",
+		image: "postgres:18-alpine",
 	}
 	for _, opt := range opts {
 		opt(&sCfg)
@@ -74,16 +72,9 @@ func SetupTests(
 			"POSTGRES_USER":     cfg.User,
 			"POSTGRES_DB":       cfg.Database,
 		},
-		WaitingFor: wait.ForSQL(nat.Port(dbPort), "postgres", func(host string, port nat.Port) string {
-			return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?%s",
-				cfg.User,
-				cfg.Password,
-				host,
-				port.Port(),
-				cfg.Database,
-				cfg.Options,
-			)
-		}).WithStartupTimeout(60 * time.Second).WithPollInterval(2 * time.Second),
+		WaitingFor: wait.ForLog("database system is ready to accept connections").
+			WithOccurrence(2).
+			WithStartupTimeout(120 * time.Second),
 	}
 
 	postgresC, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
@@ -91,6 +82,15 @@ func SetupTests(
 		Started:          true,
 	})
 	if err != nil {
+		if postgresC != nil {
+			logCtx := context.Background()
+			if logs, logsErr := postgresC.Logs(logCtx); logsErr == nil {
+				buf := make([]byte, 64*1024)
+				n, _ := logs.Read(buf)
+				_ = logs.Close()
+				log.Printf("container logs:\n%s", buf[:n])
+			}
+		}
 		log.Fatalf("coudn't start db container: %s", err)
 	}
 	defer func() {
@@ -108,7 +108,11 @@ func SetupTests(
 		log.Fatalf("couldn't get db port: %s", err)
 	}
 	cfg.Host = host
-	cfg.Port = port.Int()
+	portNum, err := strconv.Atoi(port.Port())
+	if err != nil {
+		log.Fatalf("couldn't parse db port: %s", err)
+	}
+	cfg.Port = portNum
 
 	sqlDB, err := sql.Open("postgres", cfg.ConnectionString())
 	if err != nil {

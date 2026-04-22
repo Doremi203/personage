@@ -6,6 +6,10 @@ on:
         required: true
         type: string
         description: "Service name (e.g. tasker, notificator)"
+      db_name:
+        required: false
+        type: string
+        description: "Database name for migrations"
 
 permissions:
   actions: read
@@ -34,6 +38,13 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: backend/go.mod
+          cache: true
+          cache-dependency-path: backend/go.sum
+
       - name: Download codegen results
         uses: actions/download-artifact@v6
         with:
@@ -57,6 +68,13 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: backend/go.mod
+          cache: true
+          cache-dependency-path: backend/go.sum
+
       - name: Download codegen results
         uses: actions/download-artifact@v6
         with:
@@ -79,6 +97,13 @@ jobs:
         working-directory: backend/${{ inputs.service_name }}
     steps:
       - uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: backend/go.mod
+          cache: true
+          cache-dependency-path: backend/go.sum
 
       - name: Download codegen results
         uses: actions/download-artifact@v6
@@ -107,3 +132,59 @@ jobs:
 
       - name: Build Docker image
         run: docker build --build-arg service=${{ inputs.service_name }} -t ${{ inputs.service_name }}_service:${{ github.sha }} . -f go.Dockerfile
+
+  test-functional:
+    needs: codegen
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download codegen results
+        uses: actions/download-artifact@v6
+        with:
+          name: codegen-output
+          path: backend
+
+      - name: Build Docker image
+        working-directory: backend
+        run: docker build --build-arg service=${{ inputs.service_name }} -t ${{ inputs.service_name }}_service:${{ github.sha }} . -f go.Dockerfile
+
+      - name: Start database
+        working-directory: tests
+        run: docker compose up -d --wait db
+
+      - name: Run migrations
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/pressly/goose/master/install.sh | sh
+          export GOOSE_DRIVER=postgres
+          export GOOSE_DBSTRING="postgres://user:pass@localhost:5432/${{ inputs.db_name }}?sslmode=disable"
+          goose -v -dir backend/${{ inputs.service_name }}/migrations up
+
+      - name: Start service
+        working-directory: tests
+        env:
+          SERVICE_IMAGE: ${{ inputs.service_name }}_service:${{ github.sha }}
+        run: docker compose up -d service
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: tests/package-lock.json
+
+      - name: Install test dependencies
+        working-directory: tests
+        run: npm ci
+
+      - name: Run functional tests
+        working-directory: tests
+        env:
+          TASKER_URL: http://localhost:9090
+        run: npx jest --testPathPattern=${{ inputs.service_name }} --passWithNoTests
+
+      - name: Show service logs on failure
+        if: failure()
+        working-directory: tests
+        run: docker compose logs service

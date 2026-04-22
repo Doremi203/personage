@@ -55,7 +55,10 @@ define CLONE_PROTO_REPO
 	@rm -rf tmp
 endef
 
-generate: tasker/generate notificator/generate
+generate: tasker/generate notificator/generate auth/proto/generate
+
+auth/proto/generate:
+	cd libs/go/auth && go generate ./...
 
 services/deploy:
 	docker compose up
@@ -137,6 +140,17 @@ traitex/migrate/down-one:
 
 traitex/migrate/create:
 	cd $(TRAITEX_MIGRATIONS) && $(MIGRATE_CREATE)
+
+tasker-eval/migrate/up:
+	goose -v -dir "$(TASKER_MIGRATIONS)" "$(DB)tasker_eval$(DB_PARAMS)" up
+
+tasker-eval/migrate/down:
+	goose -v -dir "$(TASKER_MIGRATIONS)" "$(DB)tasker_eval$(DB_PARAMS)" reset
+
+tasker-eval/migrate/reset: tasker-eval/migrate/down tasker-eval/migrate/up
+
+tasker-eval/run:
+	docker compose -f docker-compose.yml -f docker-compose.eval.yml up tasker-eval -d --build
 
 tests:
 	go test ./... -race

@@ -49,8 +49,24 @@ func (u Notifications) List(ctx context.Context, params ListNotificationsParams)
 	return notifications, nil
 }
 
-// Toggle flips the enabled state for the given notification type and user.
+// GetSettings returns all notification settings for the given user.
+func (u Notifications) GetSettings(ctx context.Context, userID uuid.UUID) ([]notification.Setting, error) {
+	settings, err := u.repo.GetSettings(ctx, userID)
+	if err != nil {
+		return nil, errors.WrapFailf(
+			err,
+			"get notification settings for user %v",
+			errors.Token("user_id", userID),
+		)
+	}
+
+	return settings, nil
+}
 func (u Notifications) Toggle(ctx context.Context, userID uuid.UUID, notificationType string) (notification.Setting, error) {
+	if !notification.IsValidSettingType(notificationType) {
+		return notification.Setting{}, notification.ErrInvalidSettingType
+	}
+
 	setting, err := u.repo.ToggleSetting(ctx, userID, notificationType)
 	if err != nil {
 		return notification.Setting{}, errors.WrapFailf(

@@ -9,6 +9,24 @@ import {
   setConnectedGmailEmail,
   type UserApiResponse,
 } from '../utils/authService';
+import { toggleNotification, getNotificationSettings } from '../utils/notificatorService';
+
+const TYPE_LABELS: Record<string, { title: string; description: string }> = {
+  upcoming_event: {
+    title: 'Напоминания о задачах',
+    description: 'Уведомления о приближающихся дедлайнах',
+  },
+  schedule_change: {
+    title: 'Изменения в расписании',
+    description: 'Уведомления об изменениях в расписании',
+  },
+};
+
+interface NotificationSettingState {
+  type: string;
+  enabled: boolean;
+  toggling: boolean;
+}
 
 const SettingsScreen = () => {
   const [connectedGmailEmail, setConnectedGmailEmailState] = useState<string | null>(
@@ -18,8 +36,27 @@ const SettingsScreen = () => {
   const [gmailLoading, setGmailLoading] = useState(false);
   const [gmailError, setGmailError] = useState<string | null>(null);
 
+  const [notificationSettings, setNotificationSettings] = useState<NotificationSettingState[]>([]);
+
   const [userData, setUserData] = useState<UserApiResponse | null>(null);
   const [userLoading, setUserLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const { settings } = await getNotificationSettings();
+        if (!cancelled) {
+          setNotificationSettings(settings.map((s) => ({ ...s, toggling: false })));
+        }
+      } catch (err) {
+        console.error('Failed to fetch notification settings:', err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -76,6 +113,24 @@ const SettingsScreen = () => {
     void handleConnectGmail();
   };
 
+  const handleToggle = (type: string) => {
+    setNotificationSettings((prev) =>
+      prev.map((s) => (s.type === type ? { ...s, toggling: true } : s)),
+    );
+    toggleNotification(type)
+      .then((enabled) => {
+        setNotificationSettings((prev) =>
+          prev.map((s) => (s.type === type ? { ...s, enabled, toggling: false } : s)),
+        );
+      })
+      .catch((err: unknown) => {
+        console.error('Failed to toggle notification setting:', err);
+        setNotificationSettings((prev) =>
+          prev.map((s) => (s.type === type ? { ...s, toggling: false } : s)),
+        );
+      });
+  };
+
   const cachedUserInfo = getUserInfo();
   const displayName = userLoading ? '' : (userData?.name ?? cachedUserInfo?.name ?? '');
   const displayEmail = userLoading ? '' : (userData?.email ?? cachedUserInfo?.email ?? '');
@@ -128,16 +183,29 @@ const SettingsScreen = () => {
             </div>
 
             <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-[#F7F8FA] rounded-xl">
-                <div>
-                  <p className="font-medium text-[#2D2F31]">Напоминания о задачах</p>
-                  <p className="text-sm text-gray-500">Уведомления о приближающихся дедлайнах</p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" defaultChecked className="sr-only peer" />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[#5C6BFF]/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#5C6BFF]"></div>
-                </label>
-              </div>
+              {notificationSettings.map(({ type, enabled, toggling }) => {
+                const label = TYPE_LABELS[type];
+                return (
+                  <div key={type} className="flex items-center justify-between p-4 bg-[#F7F8FA] rounded-xl">
+                    <div>
+                      <p className="font-medium text-[#2D2F31]">{label?.title ?? type}</p>
+                      {label?.description && (
+                        <p className="text-sm text-gray-500">{label.description}</p>
+                      )}
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={enabled}
+                        onChange={() => handleToggle(type)}
+                        disabled={toggling}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[#5C6BFF]/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#5C6BFF]"></div>
+                    </label>
+                  </div>
+                );
+              })}
             </div>
           </div>
 

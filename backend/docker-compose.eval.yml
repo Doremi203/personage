@@ -1,0 +1,17 @@
+services:
+  tasker-eval:
+    depends_on:
+      - db
+    build:
+      context: .
+      dockerfile: go.Dockerfile
+      args:
+        service: tasker
+    environment:
+      APP_ENV: eval
+      CONFIGS_PATH: /app/configs
+    env_file:
+      - ../secrets.env
+    ports:
+      - "8091:8080"
+      - "9091:9090"

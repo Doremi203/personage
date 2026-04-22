@@ -75,7 +75,7 @@ func PriorityFromInt(p int) TaskPriority {
 type Task struct {
 	ID          TaskID
 	UserID      UserID
-	ClusterID   ClusterID
+	ClusterID   *ClusterID // nil for tasks not created from the AI pipeline
 	Title       string
 	Description string
 	Duration    time.Duration

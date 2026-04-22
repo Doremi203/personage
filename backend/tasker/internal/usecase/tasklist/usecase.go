@@ -125,19 +125,23 @@ func (uc *UseCase) DeleteTask(ctx context.Context, taskID string, userID string)
 	}
 
 	return uc.txProvider.RunWithTx(ctx, tx.IsolationReadCommitted, func(txCtx context.Context) error {
-		// 1. Delete events referencing the cluster.
-		if err := uc.eventRepo.DeleteEventsByClusterID(txCtx, task.ClusterID); err != nil {
-			return errors.WrapFail(err, "delete events for task")
+		if task.ClusterID != nil {
+			// 1. Delete events referencing the cluster.
+			if err := uc.eventRepo.DeleteEventsByClusterID(txCtx, *task.ClusterID); err != nil {
+				return errors.WrapFail(err, "delete events for task")
+			}
 		}
 
-		// 2. Delete the task (references the cluster).
+		// 2. Delete the task.
 		if err := uc.taskRepo.DeleteTask(txCtx, task.ID); err != nil {
 			return errors.WrapFail(err, "delete task record")
 		}
 
-		// 3. Delete the cluster.
-		if err := uc.clusterRepo.DeleteCluster(txCtx, task.ClusterID); err != nil {
-			return errors.WrapFail(err, "delete cluster for task")
+		if task.ClusterID != nil {
+			// 3. Delete the cluster.
+			if err := uc.clusterRepo.DeleteCluster(txCtx, *task.ClusterID); err != nil {
+				return errors.WrapFail(err, "delete cluster for task")
+			}
 		}
 
 		return nil

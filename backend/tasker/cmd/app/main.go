@@ -33,6 +33,8 @@ import (
 	pgxvec "github.com/pgvector/pgvector-go/pgx"
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
 func main() {
@@ -115,7 +117,7 @@ func main() {
 			embeddingService,
 			postgresEventRepo,
 			postgresClusterRepo,
-			0.6,
+			0.65,
 			5,
 		)
 
@@ -246,6 +248,7 @@ func main() {
 		type SchedulingConfig struct {
 			WindowHours int
 			Interval    time.Duration
+			Disabled    bool
 		}
 
 		schedulingConfig := SchedulingConfig{
@@ -257,21 +260,23 @@ func main() {
 			app.Log.Infof("scheduling config not found, using defaults: %+v", schedulingConfig)
 		}
 
-		schedulingUseCase := scheduling.NewUseCase(
-			app.Log,
-			postgresTaskRepo,
-			notificationSender,
-			time.Duration(schedulingConfig.WindowHours)*time.Hour,
-		)
+		if !schedulingConfig.Disabled {
+			schedulingUseCase := scheduling.NewUseCase(
+				app.Log,
+				postgresTaskRepo,
+				notificationSender,
+				time.Duration(schedulingConfig.WindowHours)*time.Hour,
+			)
 
-		schedulingWorker := schedulingworker.NewWorker(schedulingUseCase, app.Log)
+			schedulingWorker := schedulingworker.NewWorker(schedulingUseCase, app.Log)
 
-		app.AddBackgroundJob(
-			webapp.NewBackgroundJob(
-				"scheduling-worker",
-				schedulingWorker.Process,
-			).WithInterval(schedulingConfig.Interval),
-		)
+			app.AddBackgroundJob(
+				webapp.NewBackgroundJob(
+					"scheduling-worker",
+					schedulingWorker.Process,
+				).WithInterval(schedulingConfig.Interval),
+			)
+		}
 
 		taskListUseCase := tasklist.NewUseCase(
 			postgresTaskRepo,
@@ -283,13 +288,47 @@ func main() {
 
 		app.RegisterGRPCServices(tasksService)
 		app.AddGatewayHandlers(tasksService)
-		app.AddGRPCUnaryInterceptor(
-			token.NewUnaryTokenInterceptor(
-				token.NewVerifierStub(),
-				app.Log,
-				token.InterceptAllMethodsOption,
-			),
-		)
+
+		if app.Env == webapp.DevEnvironment || app.Env == webapp.TestsEnvironment || app.Env == webapp.EvalEnvironment {
+			app.AddHTTPHandler("/v1/test/tasks", taskergrpc.NewTestCreateTaskHandler(postgresTaskRepo))
+			app.AddHTTPHandler("/v1/test/tasks/list", taskergrpc.NewTestListTasksHandler(postgresTaskRepo))
+		}
+
+		if app.Env == webapp.TestsEnvironment || app.Env == webapp.EvalEnvironment {
+			app.AddGRPCUnaryInterceptor(
+				token.NewUnaryTokenInterceptor(
+					token.NewVerifierStub(),
+					app.Log,
+					token.InterceptAllMethodsOption,
+				),
+			)
+		} else {
+			type AuthConfig struct {
+				Address string
+			}
+			authConfig := AuthConfig{}
+			err = app.Config.ReadSection(ctx, "auth", &authConfig)
+			if err != nil {
+				return err
+			}
+
+			authConn, err := grpc.NewClient(
+				authConfig.Address,
+				grpc.WithTransportCredentials(credentials.NewClientTLSFromCert(nil, "")),
+			)
+			if err != nil {
+				return errors.WrapFail(err, "create auth grpc client")
+			}
+			app.AddCloser(authConn.Close)
+
+			app.AddGRPCUnaryInterceptor(
+				token.NewUnaryTokenInterceptor(
+					token.NewGRPCVerifier(authConn),
+					app.Log,
+					token.InterceptAllMethodsOption,
+				),
+			)
+		}
 
 		return nil
 	})

@@ -21,6 +21,7 @@ jobs:
     uses: ./.github/workflows/go-service-ci.yml
     with:
       service_name: notificator
+      db_name: notificator
     secrets: inherit
 
   success:

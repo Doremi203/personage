@@ -1,4 +1,4 @@
-import { getTokens, refreshAccessToken } from './authService';
+import { fetchWithTokenRefresh } from './authService';
 
 const TASKER_API_URL =
   (import.meta.env.VITE_TASKER_API_URL as string | undefined) ??
@@ -76,29 +76,15 @@ async function fetchWithAuth<T>(
   url: string,
   options: RequestInit = {},
 ): Promise<T> {
-  const tokens = getTokens();
-  if (!tokens) {
-    throw new Error('Не авторизован');
-  }
-
-  const doFetch = (accessToken: string) =>
+  const response = await fetchWithTokenRefresh((accessToken) =>
     fetch(url, {
       ...options,
       headers: {
         ...options.headers,
         'User-Token': accessToken,
       },
-    });
-
-  let response = await doFetch(tokens.accessToken);
-
-  if (response.status === 401) {
-    const newTokens = await refreshAccessToken();
-    if (!newTokens) {
-      throw new Error('Сессия истекла');
-    }
-    response = await doFetch(newTokens.accessToken);
-  }
+    }),
+  );
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));

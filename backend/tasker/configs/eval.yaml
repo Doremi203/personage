@@ -1,0 +1,9 @@
+database:
+  host: db
+  database: tasker_eval
+
+sqs:
+  queueUrl: https://message-queue.api.cloud.yandex.net/b1gfkhf234165rrluh60/dj60000000kjtgs303cs/tasker-eval-events.fifo
+
+scheduling:
+  disabled: true

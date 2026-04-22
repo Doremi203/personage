@@ -21,12 +21,12 @@ var taskGenerationTemplate = prompt.FromMessages(schema.GoTemplate,
 Analyze the provided events and create ONE actionable task that captures the main action needed.
 
 Guidelines:
-- Title: Short, clear action (e.g., "Review Q4 budget proposal", "Book dentist appointment")
+- Title: Short, clear action verb + specific object. Include specific identifiers when present: PR numbers (e.g. "Review PR #47"), domain names, service names, repository names, course names. Examples: "Review PR #47 tasker API integration", "Renew couply.ru and couply.online domains", "Fix CI/CD release workflows"
 - Description: Brief 1-2 sentence summary of what needs to be done and why (NOT detailed context)
-- Duration: Realistic time estimate in minutes
-- Priority: 1-10 scale (1=low, 10=urgent/critical)
+- Duration: Realistic time estimate in minutes based on task complexity
+- Priority: Base on urgency signals — deadlines, security vulnerabilities, production impact → 8-10; active work items and PR reviews → 6-8; routine tasks → 3-6; nice-to-haves → 1-2
 - Deadline/StartTime: Extract from events if explicitly mentioned, otherwise null
-- Category: Сhoose the most suitable one: work, study, personal
+- Category: "work" for professional/coding/career tasks; "study" for coursework, homework, educational content, online courses; "personal" for everything else (banking, personal accounts, subscriptions, personal errands)
 
 Keep it concise - this is for quick task tracking, not project management.
 
@@ -64,7 +64,7 @@ func (s *taskGenerationService) GenerateTask(ctx context.Context, events []domai
 		return domain.GeneratedTask{}, errors.WrapFail(err, "format messages for llm")
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
 	response, err := s.model.Generate(ctx, messages)

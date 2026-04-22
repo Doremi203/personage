@@ -1,18 +1,14 @@
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
 using System.Security.Cryptography;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using Microsoft.IdentityModel.Tokens;
 using Personage.Auth.Bll.Helpers;
 using Personage.Auth.Bll.Helpers.Validation;
 using Personage.Auth.DataAccess.Interfaces.Repositories;
 using Personage.Auth.DataAccess.Models;
 using Personage.Auth.DataAccess.Models.Requests;
-using Personage.Auth.Domain.Configuration;
 using Personage.Auth.Domain.Exceptions;
 using Personage.Auth.Domain.Exceptions.Base;
 using Personage.Auth.Domain.Interfaces;
+using Personage.Auth.Domain.Models.Auth.Requests;
 using Personage.Auth.Domain.Models.Auth;
 using Personage.Auth.Domain.Models.Auth.Gmail.Requests;
 using Personage.Auth.Domain.Models.Auth.Gmail.Responses;
@@ -26,22 +22,14 @@ public class AuthService(
     IGmailTokenRepository gmailTokenRepository,
     IGoogleCalendarTokenRepository googleCalendarTokenRepository,
     IOAuthStateRepository oauthStateRepository,
-    IRefreshTokenRepository refreshTokenRepository,
     IPasswordResetTokenRepository passwordResetTokenRepository,
     IGoogleOAuthService googleOAuthService,
     IPostboxService postboxService,
-    IOptionsMonitor<JwtSettings> jwtSettings,
-    IClaimValues claimValues,
+    ITokenService tokenService,
     ILogger<AuthService> logger
 ) : IAuthService
 {
-    private SigningCredentials? _signingCredentials;
-
-    private const int TokenExpirationThresholdMinutes = 5;
-    private JwtSecurityTokenHandler JwtHandler { get; } = new();
-
-
-    public async Task<StartOAuthResponseModel> StartGmailAuth(string userEmail, string redirectUri,
+    public async Task<StartGmailAuthResponseModel> StartGmailAuth(string userEmail, string redirectUri,
         CancellationToken ct)
     {
         UserValidator.ValidateEmail(userEmail);
@@ -192,11 +180,11 @@ public class AuthService(
             PasswordHash = hashedPassword,
             Name = request.Name,
         }, ct);
-        var refreshToken = await GenerateAndStoreRefreshToken(user.Id, ct);
+        var refreshToken = await tokenService.GenerateAndStoreRefreshToken(user.Id, ct);
 
         return new PersonageTokenModel
         {
-            AccessToken = GenerateAccessToken(user),
+            AccessToken = tokenService.GenerateAccessToken(user.Id),
             RefreshToken = refreshToken.Token
         };
     }
@@ -213,35 +201,13 @@ public class AuthService(
         if (!PasswordHasher.VerifyPassword(password, user.PasswordHash))
             throw new AuthenticationException(ErrorCode.InvalidCredentials, "Invalid user credentials");
 
-        var accessToken = GenerateAccessToken(user);
-        var refreshToken = await GenerateAndStoreRefreshToken(user.Id, ct);
+        var accessToken = tokenService.GenerateAccessToken(user.Id);
+        var refreshToken = await tokenService.GenerateAndStoreRefreshToken(user.Id, ct);
 
         return new PersonageTokenModel
         {
             AccessToken = accessToken,
             RefreshToken = refreshToken.Token,
-        };
-    }
-
-    public async Task<PersonageTokenModel> RefreshAccessToken(string refreshToken, CancellationToken ct)
-    {
-        var storedToken = await refreshTokenRepository.GetRefreshToken(refreshToken, ct);
-
-        if (storedToken == null ||
-            storedToken.ExpiresAt <= DateTime.UtcNow
-           )
-            throw new AuthenticationException(ErrorCode.InvalidRefreshToken, "Invalid refresh token");
-
-        var user = await userRepository.GetUserById(storedToken.UserId, ct);
-        if (user is null)
-            throw new AuthenticationException(ErrorCode.InvalidRefreshToken, "Invalid refresh token");
-
-        var newAccessToken = GenerateAccessToken(user);
-
-        return new PersonageTokenModel
-        {
-            AccessToken = newAccessToken,
-            RefreshToken = refreshToken
         };
     }
 
@@ -297,8 +263,8 @@ public class AuthService(
         await userRepository.UpdatePassword(user.Id, hashedPassword, ct);
 
         await passwordResetTokenRepository.InvalidateToken(token, ct);
-        var accessToken = GenerateAccessToken(user);
-        var refreshToken = await GenerateAndStoreRefreshToken(user.Id, ct);
+        var accessToken = tokenService.GenerateAccessToken(user.Id);
+        var refreshToken = await tokenService.GenerateAndStoreRefreshToken(user.Id, ct);
 
         logger.LogInformation("Password reset completed for {Email}", user.Email);
 
@@ -409,12 +375,5 @@ public class AuthService(
             .Replace('+', '-')
             .Replace('/', '_')
             .Replace("=", "");
-    }
-
-    private static RsaSecurityKey CreateRsaSecurityKeyFromPem(string pem)
-    {
-        var rsa = RSA.Create();
-        rsa.ImportFromPem(pem);
-        return new RsaSecurityKey(rsa);
     }
 }

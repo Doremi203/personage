@@ -1,6 +1,7 @@
 import { getTokens } from './authService';
 
 const SUBSCRIBE_ENDPOINT = 'https://notificator.persomanage.ru/v1/push/subscribe';
+const UNSUBSCRIBE_ENDPOINT = 'https://notificator.persomanage.ru/v1/push/unsubscribe';
 const VAPID_PUBLIC_KEY = 'BKu7S4HSkG6p8oPbjTB8p1H5PyUCyc4qPzY1FmtOL1eKyV6hXvcGJ99kIfHW88Atd7n2Co4RMOFtR70fD8CLFHI'
 
 export function isIos(): boolean {
@@ -102,6 +103,32 @@ export async function sendSubscriptionToBackend(
       `Failed to register push subscription: ${response.status} ${response.statusText}`,
     );
   }
+}
+
+export async function unsubscribeFromPush(): Promise<void> {
+  const registration = await navigator.serviceWorker.ready;
+  const subscription = await registration.pushManager.getSubscription();
+  if (!subscription) return;
+
+  const tokens = getTokens();
+  const response = await fetch(UNSUBSCRIBE_ENDPOINT, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(tokens?.accessToken
+        ? { 'User-Token': tokens.accessToken }
+        : {}),
+    },
+    body: JSON.stringify({ endpoint: subscription.endpoint }),
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      `Failed to unregister push subscription: ${response.status} ${response.statusText}`,
+    );
+  }
+
+  await subscription.unsubscribe();
 }
 
 export type PushSetupResult =

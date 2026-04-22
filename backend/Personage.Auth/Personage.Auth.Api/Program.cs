@@ -124,6 +124,8 @@ public class Program
         });
         
         app.UseCors();
+        app.UseAuthentication();
+        app.UseAuthorization();
         
         app.UseGrpcWeb();
         app.MapGrpcReflectionService();
@@ -223,6 +225,7 @@ public class Program
     private static void AddBllServices(IServiceCollection services)
     {
         services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<IStateTrackingService, StateTrackingService>();
         services.AddScoped<IGoogleOAuthService, GoogleOAuthService>();
         services.AddScoped<IPostboxService, PostboxService>();

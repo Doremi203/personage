@@ -84,6 +84,7 @@ def create_application_container(config: Configuration) -> ApplicationContainer:
         "ymq":
             {
                 "endpoint_url": config.get("YMQ.EndpointUrl"),
+                "queue_url": config.get("YMQ.QueueUrl", config.get("YMQ.EndpointUrl")),
                 "access_key": config.get("YMQ.AccessKeyId"),
                 "secret_key": config.get("YMQ.SecretAccessKey"),
                 "region": config.get("YMQ.Region")

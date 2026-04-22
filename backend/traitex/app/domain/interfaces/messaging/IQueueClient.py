@@ -9,6 +9,7 @@ class IQueueClient(ABC):
             deduplication_id: str,
             message_group_id: str,
             message_body: str,
-            message_attributes: dict[str, Any] | None = None
+            message_attributes: dict[str, Any] | None = None,
+            target_queue_url: str | None = None
     ) -> dict[str, Any]:
         pass
