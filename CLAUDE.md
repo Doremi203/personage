@@ -1,8 +1,7 @@
-# CLAUDE.md
+## Important Rules
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
-## Workflow
+### Searching code symbols
+ALWAYS PREFER LSP TOOLS INSTEAD OF GREP IF SEARCHING FOR CODE SYMBOLS DEFINITIONS. USE GREP ONLY AS FALLBACK.
 
 ### Git Worktrees
 - **Never use a git worktree for any code change if user not explicitly said overwise.** Create and enter one before touching any file if user said **use worktree**.
@@ -217,3 +216,6 @@ Traitex snapshot recording is time-window based. Creating a snapshot only insert
 
 ### Traitex YMQ client config
 `backend/traitex` must keep the YMQ service endpoint and default queue URL as separate settings. `YMQ.EndpointUrl` is the base API endpoint (`https://message-queue.api.cloud.yandex.net`), while `YMQ.QueueUrl` is the default queue; `traitex/messaging/YMQClient.py` normalizes old queue-in-endpoint configs, but custom replay targets in `SendProcessingSnapshot` rely on the client endpoint staying at the base service URL.
+
+### Tasker cluster generation outcomes
+`backend/tasker` task generation now uses a two-step LLM flow: cluster-level actionability classification first, then single-task extraction only for actionable clusters. Final cluster decisions are persisted on `clusters` via `generation_outcome` (`task_generated`, `non_actionable`, `empty`) and optional `generation_reason`; generated tasks persist supporting source event IDs in `tasks.evidence_event_ids`. Eval/debug cluster metrics read from the non-prod `/v1/test/clusters/list` endpoint backed by `ClusterRepo.ListGenerationDiagnosticsByUserID`.

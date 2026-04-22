@@ -16,14 +16,24 @@ const (
 	ClusterStatusClosed     ClusterStatus = "closed"
 )
 
+type ClusterGenerationOutcome string
+
+const (
+	ClusterGenerationOutcomeTaskGenerated ClusterGenerationOutcome = "task_generated"
+	ClusterGenerationOutcomeNonActionable ClusterGenerationOutcome = "non_actionable"
+	ClusterGenerationOutcomeEmpty         ClusterGenerationOutcome = "empty"
+)
+
 type Cluster struct {
-	ID         ClusterID
-	UserID     UserID
-	Centroid   []float32
-	EventCount int
-	Status     ClusterStatus
-	CreatedAt  time.Time
-	UpdatedAt  time.Time
+	ID                ClusterID
+	UserID            UserID
+	Centroid          []float32
+	EventCount        int
+	Status            ClusterStatus
+	GenerationOutcome *ClusterGenerationOutcome
+	GenerationReason  *string
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
 }
 
 func (c *Cluster) AddEvent(e EventWithEmbedding) {
@@ -40,4 +50,16 @@ func (c *Cluster) AddEvent(e EventWithEmbedding) {
 type ClusterWithSimilarity struct {
 	Cluster
 	Similarity float64
+}
+
+type ClusterGenerationDiagnostic struct {
+	ClusterID          ClusterID
+	UserID             UserID
+	Status             ClusterStatus
+	EventCount         int
+	GenerationOutcome  *ClusterGenerationOutcome
+	GenerationReason   *string
+	GeneratedTaskCount int
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
 }

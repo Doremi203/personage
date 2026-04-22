@@ -186,20 +186,33 @@ type taskerClient struct {
 }
 
 type testListItem struct {
-	ID              string     `json:"id"`
-	UserID          string     `json:"user_id"`
-	ClusterID       *string    `json:"cluster_id,omitempty"`
-	Title           string     `json:"title"`
-	Description     string     `json:"description"`
-	DurationMinutes int        `json:"duration_minutes"`
-	Priority        int        `json:"priority"`
-	Deadline        *time.Time `json:"deadline,omitempty"`
-	StartTime       *time.Time `json:"start_time,omitempty"`
-	EndTime         *time.Time `json:"end_time,omitempty"`
-	Status          string     `json:"status"`
-	Category        string     `json:"category"`
-	CreatedAt       time.Time  `json:"created_at"`
-	UpdatedAt       time.Time  `json:"updated_at"`
+	ID               string     `json:"id"`
+	UserID           string     `json:"user_id"`
+	ClusterID        *string    `json:"cluster_id,omitempty"`
+	Title            string     `json:"title"`
+	Description      string     `json:"description"`
+	DurationMinutes  int        `json:"duration_minutes"`
+	Priority         int        `json:"priority"`
+	Deadline         *time.Time `json:"deadline,omitempty"`
+	StartTime        *time.Time `json:"start_time,omitempty"`
+	EndTime          *time.Time `json:"end_time,omitempty"`
+	Status           string     `json:"status"`
+	Category         string     `json:"category"`
+	EvidenceEventIDs []string   `json:"evidence_event_ids,omitempty"`
+	CreatedAt        time.Time  `json:"created_at"`
+	UpdatedAt        time.Time  `json:"updated_at"`
+}
+
+type testClusterDiagnosticItem struct {
+	ClusterID          string    `json:"cluster_id"`
+	UserID             string    `json:"user_id"`
+	Status             string    `json:"status"`
+	EventCount         int       `json:"event_count"`
+	GenerationOutcome  *string   `json:"generation_outcome,omitempty"`
+	GenerationReason   *string   `json:"generation_reason,omitempty"`
+	GeneratedTaskCount int       `json:"generated_task_count"`
+	CreatedAt          time.Time `json:"created_at"`
+	UpdatedAt          time.Time `json:"updated_at"`
 }
 
 func parseClusterID(s *string) *domain.ClusterID {
@@ -208,6 +221,24 @@ func parseClusterID(s *string) *domain.ClusterID {
 	}
 	c := domain.ClusterID(*s)
 	return &c
+}
+
+func parseClusterOutcome(s *string) *domain.ClusterGenerationOutcome {
+	if s == nil {
+		return nil
+	}
+
+	value := domain.ClusterGenerationOutcome(*s)
+	return &value
+}
+
+func parseEvidenceEventIDs(ids []string) []domain.EventID {
+	parsed := make([]domain.EventID, len(ids))
+	for i, id := range ids {
+		parsed[i] = domain.EventID(id)
+	}
+
+	return parsed
 }
 
 func (c *taskerClient) ListTasks(ctx context.Context, userID string) ([]domain.Task, error) {
@@ -241,23 +272,73 @@ func (c *taskerClient) ListTasks(ctx context.Context, userID string) ([]domain.T
 	tasks := make([]domain.Task, len(items))
 	for i, it := range items {
 		tasks[i] = domain.Task{
-			ID:          domain.TaskID(it.ID),
-			UserID:      domain.UserID(it.UserID),
-			ClusterID:   parseClusterID(it.ClusterID),
-			Title:       it.Title,
-			Description: it.Description,
-			Duration:    time.Duration(it.DurationMinutes) * time.Minute,
-			Priority:    it.Priority,
-			Deadline:    it.Deadline,
-			StartTime:   it.StartTime,
-			EndTime:     it.EndTime,
-			Status:      domain.TaskStatus(it.Status),
-			Category:    domain.TaskCategory(it.Category),
-			CreatedAt:   it.CreatedAt,
-			UpdatedAt:   it.UpdatedAt,
+			ID:               domain.TaskID(it.ID),
+			UserID:           domain.UserID(it.UserID),
+			ClusterID:        parseClusterID(it.ClusterID),
+			Title:            it.Title,
+			Description:      it.Description,
+			Duration:         time.Duration(it.DurationMinutes) * time.Minute,
+			Priority:         it.Priority,
+			Deadline:         it.Deadline,
+			StartTime:        it.StartTime,
+			EndTime:          it.EndTime,
+			Status:           domain.TaskStatus(it.Status),
+			Category:         domain.TaskCategory(it.Category),
+			EvidenceEventIDs: parseEvidenceEventIDs(it.EvidenceEventIDs),
+			CreatedAt:        it.CreatedAt,
+			UpdatedAt:        it.UpdatedAt,
 		}
 	}
 	return tasks, nil
+}
+
+func (c *taskerClient) ListClusterDiagnostics(
+	ctx context.Context,
+	userID string,
+) ([]domain.ClusterGenerationDiagnostic, error) {
+	url := c.baseURL + "/v1/test/clusters/list?user_id=" + userID
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+
+	resp, err := http.DefaultClient.Do(req) //nolint:gosec // eval tool, operator-controlled URL
+	if err != nil {
+		return nil, fmt.Errorf("GET %s: %w", url, err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read response: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("list clusters HTTP %d: %s", resp.StatusCode, body)
+	}
+
+	var items []testClusterDiagnosticItem
+	if err := json.Unmarshal(body, &items); err != nil {
+		return nil, fmt.Errorf("decode clusters: %w", err)
+	}
+
+	diagnostics := make([]domain.ClusterGenerationDiagnostic, len(items))
+	for i, item := range items {
+		diagnostics[i] = domain.ClusterGenerationDiagnostic{
+			ClusterID:          domain.ClusterID(item.ClusterID),
+			UserID:             domain.UserID(item.UserID),
+			Status:             domain.ClusterStatus(item.Status),
+			EventCount:         item.EventCount,
+			GenerationOutcome:  parseClusterOutcome(item.GenerationOutcome),
+			GenerationReason:   item.GenerationReason,
+			GeneratedTaskCount: item.GeneratedTaskCount,
+			CreatedAt:          item.CreatedAt,
+			UpdatedAt:          item.UpdatedAt,
+		}
+	}
+
+	return diagnostics, nil
 }
 
 // dbResetter resets the eval DB by shelling out to make.

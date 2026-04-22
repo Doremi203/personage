@@ -11,12 +11,11 @@ import (
 	"github.com/google/uuid"
 )
 
-const rollbackTimeout = 5 * time.Second
-
 func NewUseCase(
 	clusterRepo domain.ClusterRepo,
 	eventRepo domain.EventRepo,
 	taskRepo domain.TaskRepo,
+	actionabilityService domain.ClusterClassificatorService,
 	taskGenService domain.TaskGenerationService,
 	txProvider tx.Provider,
 	logger log.Logger,
@@ -24,26 +23,28 @@ func NewUseCase(
 	inactivityTimeout time.Duration,
 ) *UseCase {
 	return &UseCase{
-		clusterRepo:       clusterRepo,
-		eventRepo:         eventRepo,
-		taskRepo:          taskRepo,
-		taskGenService:    taskGenService,
-		txProvider:        txProvider,
-		logger:            logger,
-		maxEventCount:     maxEventCount,
-		inactivityTimeout: inactivityTimeout,
+		clusterRepo:                 clusterRepo,
+		eventRepo:                   eventRepo,
+		taskRepo:                    taskRepo,
+		clusterClassificatorService: actionabilityService,
+		taskGenService:              taskGenService,
+		txProvider:                  txProvider,
+		logger:                      logger,
+		maxEventCount:               maxEventCount,
+		inactivityTimeout:           inactivityTimeout,
 	}
 }
 
 type UseCase struct {
-	clusterRepo       domain.ClusterRepo
-	eventRepo         domain.EventRepo
-	taskRepo          domain.TaskRepo
-	taskGenService    domain.TaskGenerationService
-	txProvider        tx.Provider
-	logger            log.Logger
-	maxEventCount     int
-	inactivityTimeout time.Duration
+	clusterRepo                 domain.ClusterRepo
+	eventRepo                   domain.EventRepo
+	taskRepo                    domain.TaskRepo
+	clusterClassificatorService domain.ClusterClassificatorService
+	taskGenService              domain.TaskGenerationService
+	txProvider                  tx.Provider
+	logger                      log.Logger
+	maxEventCount               int
+	inactivityTimeout           time.Duration
 }
 
 func (uc *UseCase) ProcessClosableClusters(ctx context.Context, batchSize int) error {
@@ -101,44 +102,54 @@ func (uc *UseCase) ProcessClosableClusters(ctx context.Context, batchSize int) e
 func (uc *UseCase) processCluster(ctx context.Context, cluster domain.Cluster) error {
 	events, err := uc.eventRepo.GetEventsByClusterID(ctx, cluster.ID)
 	if err != nil {
-
-		return errors.Join(
-			uc.rollbackClusterStatus(ctx, cluster.ID),
-			errors.WrapFail(err, "get events for cluster"),
-		)
+		return errors.WrapFail(err, "get events for cluster")
 	}
 
 	if len(events) == 0 {
-		if err := uc.clusterRepo.UpdateClusterStatus(ctx, cluster.ID, domain.ClusterStatusClosed); err != nil {
-			return errors.WrapFail(err, "update empty cluster status to closed")
+		if err := uc.clusterRepo.FinalizeCluster(ctx, cluster.ID, domain.ClusterGenerationOutcomeEmpty, nil); err != nil {
+			return errors.WrapFail(err, "finalize empty cluster")
+		}
+		return nil
+	}
+
+	generationDecision, err := uc.clusterClassificatorService.GetTaskGenerationDecision(ctx, events)
+	if err != nil {
+		return errors.WrapFail(err, "classify cluster actionability")
+	}
+
+	if !generationDecision.ShouldGenerate {
+		if err := uc.clusterRepo.FinalizeCluster(
+			ctx,
+			cluster.ID,
+			domain.ClusterGenerationOutcomeNonActionable,
+			generationDecision.Reason,
+		); err != nil {
+			return errors.WrapFail(err, "finalize non-actionable cluster")
 		}
 		return nil
 	}
 
 	generatedTask, err := uc.taskGenService.GenerateTask(ctx, events)
 	if err != nil {
-		return errors.Join(
-			uc.rollbackClusterStatus(ctx, cluster.ID),
-			errors.WrapFail(err, "generate task"),
-		)
+		return errors.WrapFail(err, "generate task")
 	}
 
 	now := time.Now()
-	clusterID := cluster.ID
 	task := domain.Task{
-		ID:          domain.TaskID(uuid.New().String()),
-		UserID:      cluster.UserID,
-		ClusterID:   &clusterID,
-		Title:       generatedTask.Title,
-		Description: generatedTask.Description,
-		Duration:    time.Duration(generatedTask.DurationMinutes) * time.Minute,
-		Priority:    generatedTask.Priority,
-		Deadline:    generatedTask.Deadline,
-		StartTime:   generatedTask.StartTime,
-		Status:      domain.TaskStatusUnplanned,
-		Category:    domain.NewTaskCategory(generatedTask.Category),
-		CreatedAt:   now,
-		UpdatedAt:   now,
+		ID:               domain.TaskID(uuid.New().String()),
+		UserID:           cluster.UserID,
+		ClusterID:        new(cluster.ID),
+		Title:            generatedTask.Title,
+		Description:      generatedTask.Description,
+		Duration:         time.Duration(generatedTask.DurationMinutes) * time.Minute,
+		Priority:         generatedTask.Priority,
+		Deadline:         generatedTask.Deadline,
+		StartTime:        generatedTask.StartTime,
+		Status:           domain.TaskStatusUnplanned,
+		Category:         domain.NewTaskCategory(generatedTask.Category),
+		EvidenceEventIDs: generatedTask.EvidenceEventIDs,
+		CreatedAt:        now,
+		UpdatedAt:        now,
 	}
 
 	err = uc.txProvider.RunWithTx(ctx, tx.IsolationReadCommitted, func(txCtx context.Context) error {
@@ -146,26 +157,21 @@ func (uc *UseCase) processCluster(ctx context.Context, cluster domain.Cluster) e
 			return errors.WrapFail(err, "create task for cluster")
 		}
 
-		if err = uc.clusterRepo.UpdateClusterStatus(txCtx, cluster.ID, domain.ClusterStatusClosed); err != nil {
-			return errors.WrapFailf(err, "update cluster status to closed")
+		if err = uc.clusterRepo.FinalizeCluster(txCtx, cluster.ID, domain.ClusterGenerationOutcomeTaskGenerated, nil); err != nil {
+			return errors.WrapFail(err, "finalize cluster with generated task")
 		}
 
 		return nil
 	})
 	if err != nil {
-		return errors.Join(uc.rollbackClusterStatus(ctx, cluster.ID), err)
+		return err
 	}
 
-	return nil
-}
-
-func (uc *UseCase) rollbackClusterStatus(ctx context.Context, clusterID domain.ClusterID) error {
-	rollbackCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), rollbackTimeout)
-	defer cancel()
-
-	if err := uc.clusterRepo.UpdateClusterStatus(rollbackCtx, clusterID, domain.ClusterStatusOpen); err != nil {
-		return errors.WrapFailf(err, "rollback cluster status to open")
-	}
+	uc.logger.Infof(
+		"successfully processed cluster %s %s",
+		errors.Token("cluster_id", cluster.ID.String()),
+		errors.Token("task_id", task.ID.String()),
+	)
 
 	return nil
 }

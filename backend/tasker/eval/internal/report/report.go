@@ -12,17 +12,38 @@ import (
 
 // TaskSnapshot holds a complete task record for human-readable report output.
 type TaskSnapshot struct {
-	ID              string     `json:"id,omitempty"`
-	UserID          string     `json:"user_id,omitempty"`
-	ClusterID       *string    `json:"cluster_id,omitempty"`
-	Title           string     `json:"title"`
-	Description     string     `json:"description"`
-	DurationMinutes int        `json:"duration_minutes"`
-	Priority        int        `json:"priority"`
-	Deadline        *time.Time `json:"deadline,omitempty"`
-	StartTime       *time.Time `json:"start_time,omitempty"`
-	EndTime         *time.Time `json:"end_time,omitempty"`
-	Category        string     `json:"category"`
+	ID               string     `json:"id,omitempty"`
+	UserID           string     `json:"user_id,omitempty"`
+	ClusterID        *string    `json:"cluster_id,omitempty"`
+	Title            string     `json:"title"`
+	Description      string     `json:"description"`
+	DurationMinutes  int        `json:"duration_minutes"`
+	Priority         int        `json:"priority"`
+	Deadline         *time.Time `json:"deadline,omitempty"`
+	StartTime        *time.Time `json:"start_time,omitempty"`
+	EndTime          *time.Time `json:"end_time,omitempty"`
+	Category         string     `json:"category"`
+	EvidenceEventIDs []string   `json:"evidence_event_ids,omitempty"`
+}
+
+type ClusterSnapshot struct {
+	ID                 string    `json:"id"`
+	UserID             string    `json:"user_id"`
+	Status             string    `json:"status"`
+	EventCount         int       `json:"event_count"`
+	GenerationOutcome  *string   `json:"generation_outcome,omitempty"`
+	GenerationReason   *string   `json:"generation_reason,omitempty"`
+	GeneratedTaskCount int       `json:"generated_task_count"`
+	CreatedAt          time.Time `json:"created_at"`
+	UpdatedAt          time.Time `json:"updated_at"`
+}
+
+type ClusterDiagnostics struct {
+	Total                int               `json:"total"`
+	Closed               int               `json:"closed"`
+	SkippedNonActionable int               `json:"skipped_non_actionable"`
+	TasklessClusterRate  float64           `json:"taskless_cluster_rate"`
+	Clusters             []ClusterSnapshot `json:"clusters"`
 }
 
 // MatchDetail describes one matched pair in the report.
@@ -77,6 +98,7 @@ type Report struct {
 	Recall             float64              `json:"recall"`
 	F1                 float64              `json:"f1"`
 	FieldQuality       score.FieldQuality   `json:"field_quality"`
+	ClusterDiagnostics ClusterDiagnostics   `json:"cluster_diagnostics"`
 	Matches            []MatchDetail        `json:"matches"`
 	UnmatchedGenerated []UnmatchedGenerated `json:"unmatched_generated"`
 	UnmatchedExpected  []UnmatchedExpected  `json:"unmatched_expected"`
@@ -125,6 +147,13 @@ func Summarize(w io.Writer, r Report) {
 	p("Tasks    : expected=%d generated=%d TP=%d FP=%d FN=%d\n",
 		r.Counts.Expected, r.Counts.Generated, r.Counts.TP, r.Counts.FP, r.Counts.FN)
 	p("Precision: %.3f  Recall: %.3f  F1: %.3f\n", r.Precision, r.Recall, r.F1)
+	p(
+		"Clusters : total=%d closed=%d skipped_non_actionable=%d taskless_rate=%.3f\n",
+		r.ClusterDiagnostics.Total,
+		r.ClusterDiagnostics.Closed,
+		r.ClusterDiagnostics.SkippedNonActionable,
+		r.ClusterDiagnostics.TasklessClusterRate,
+	)
 
 	fq := r.FieldQuality
 	if r.Counts.TP > 0 {

@@ -73,20 +73,21 @@ func PriorityFromInt(p int) TaskPriority {
 }
 
 type Task struct {
-	ID          TaskID
-	UserID      UserID
-	ClusterID   *ClusterID // nil for tasks not created from the AI pipeline
-	Title       string
-	Description string
-	Duration    time.Duration
-	Priority    int
-	Deadline    *time.Time
-	StartTime   *time.Time
-	EndTime     *time.Time
-	Status      TaskStatus
-	Category    TaskCategory
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	ID               TaskID
+	UserID           UserID
+	ClusterID        *ClusterID // nil for tasks not created from the AI pipeline
+	Title            string
+	Description      string
+	Duration         time.Duration
+	Priority         int
+	Deadline         *time.Time
+	StartTime        *time.Time
+	EndTime          *time.Time
+	Status           TaskStatus
+	Category         TaskCategory
+	EvidenceEventIDs []EventID
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
 }
 
 const TimeSlotSize = 15 * time.Minute
