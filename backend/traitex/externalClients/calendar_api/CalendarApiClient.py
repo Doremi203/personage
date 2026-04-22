@@ -54,12 +54,11 @@ class CalendarApiClient:
         service = self._create_calendar_service(tokens.access_token)
         try:
             if last_sync_token:
-                return await self._fetch_events_incremental(service, user, last_sync_token)
+                return await self._fetch_events_incremental_sync(service, user, last_sync_token)
             else:
                 return await self._fetch_events_full_sync(service, user)
 
         except HttpError as e:
-            # Handle 410 GONE - sync token expired
             if e.resp.status == 410:
                 logger.warning(f"Sync token expired for user {user.user_id}, falling back to full sync")
                 return await self._fetch_events_full_sync(service, user)
@@ -98,7 +97,6 @@ class CalendarApiClient:
 
         events = []
         page_token = None
-        new_sync_token = None
 
         try:
             while True:
@@ -108,27 +106,23 @@ class CalendarApiClient:
                     timeMin=time_min_str,
                     timeMax=time_max_str,
                     maxResults=self.max_events_per_user,
-                    pageToken=page_token,
-                    singleEvents=True,
-                    orderBy='startTime'
+                    pageToken=page_token
                 )
 
                 response = await loop.run_in_executor(
                     self._thread_pool,
                     request.execute
-                ) # type: ignore[arg-type]
-
-                if 'nextSyncToken' in response:
-                    new_sync_token = response['nextSyncToken']
-                elif 'syncToken' in response:
-                    new_sync_token = response['syncToken']
+                )  # type: ignore[arg-type]
 
                 for event in response.get('items', []):
                     raw_event = self._to_raw_calendar_event(event)
                     events.append(raw_event)
 
+                # Check for more pages
                 page_token = response.get('nextPageToken')
                 if not page_token:
+                    # This is the last page - get the sync token
+                    new_sync_token = response.get('nextSyncToken')
                     break
 
             logger.info(f"Full sync fetched {len(events)} events for user {user.user_id}")
@@ -150,7 +144,7 @@ class CalendarApiClient:
                 error_message=str(e)
             )
 
-    async def _fetch_events_incremental(
+    async def _fetch_events_incremental_sync(
             self,
             service: googleapiclient.discovery.Resource,
             user: UserForProcessingModel,
@@ -158,7 +152,7 @@ class CalendarApiClient:
     ) -> UserCalendarFetchResult:
         events = []
         page_token = None
-        new_sync_token = sync_token
+        new_sync_token = None
 
         try:
             while True:
@@ -173,25 +167,20 @@ class CalendarApiClient:
                 response = await loop.run_in_executor(
                     self._thread_pool,
                     request.execute
-                )
-
-                if 'nextSyncToken' in response:
-                    new_sync_token = response['nextSyncToken']
+                )  # type: ignore[arg-type]
 
                 for event in response.get('items', []):
                     raw_event = self._to_raw_calendar_event(event)
                     events.append(raw_event)
 
-                if 'nextPageToken' not in response:
-                    break
-
                 page_token = response.get('nextPageToken')
+                if page_token:
+                    continue
 
-            logger.info(f"Incremental sync fetched {len(events)} changes for user {user.user_id}")
+                new_sync_token = response.get('nextSyncToken')
+                break
 
-            deleted_count = sum(1 for e in events if e.status == 'cancelled')
-            if deleted_count > 0:
-                logger.info(f"  {deleted_count} deleted/cancelled events for user {user.user_id}")
+            logger.info(f"Incremental sync fetched {len(events)} event changes for user {user.user_id}")
 
             return UserCalendarFetchResult(
                 user_id=user.user_id,
@@ -200,16 +189,34 @@ class CalendarApiClient:
                 success=True
             )
 
+        except HttpError as e:
+            if e.resp.status == 410:
+                logger.warning(f"Sync token expired for user {user.user_id}, need full sync")
+                return UserCalendarFetchResult(
+                    user_id=user.user_id,
+                    events=[],
+                    new_sync_token=None,
+                    success=False,
+                    error_message="Sync token expired, need full sync"
+                )
+            else:
+                logger.error(f"HTTP error during incremental sync for user {user.user_id}: {e}")
+                return UserCalendarFetchResult(
+                    user_id=user.user_id,
+                    events=events,
+                    new_sync_token=sync_token,
+                    success=False,
+                    error_message=str(e)
+                )
         except Exception as e:
             logger.error(f"Error during incremental sync for user {user.user_id}: {e}")
             return UserCalendarFetchResult(
                 user_id=user.user_id,
                 events=events,
-                new_sync_token=sync_token,
+                new_sync_token=sync_token,  # Keep old token
                 success=False,
                 error_message=str(e)
             )
-
     @staticmethod
     def _to_raw_calendar_event(event: dict) -> RawCalendarEvent:
         organizer = None

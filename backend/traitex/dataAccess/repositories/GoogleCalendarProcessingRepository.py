@@ -52,13 +52,14 @@ class CalendarProcessingRepository(ICalendarProcessingRepository):
                 --CalendarProcessingRepository.save_users_processing_info
                 INSERT INTO calendar_processing(user_id, last_sync_token, last_event_updated_time)
                 SELECT
-                    unnest(?user_ids?),
-                    unnest(?sync_tokens?),
-                    unnest(?updated_times?)
+                    unnest(?user_ids?::UUID[]),
+                    unnest(?sync_tokens?::TEXT[]),
+                    unnest(?updated_times?::TIMESTAMPTZ[])
                 ON CONFLICT (user_id) 
                 DO UPDATE SET
                     last_sync_token = excluded.last_sync_token,
-                    last_event_updated_time = excluded.last_event_updated_time;
+                    last_event_updated_time = excluded.last_event_updated_time,
+                    updated_at = NOW();
                 ''',
                 param={
                     "user_ids": [u.user_id for u in users_processing_info],
