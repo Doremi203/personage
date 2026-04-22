@@ -17,7 +17,7 @@ func TestProcessClusterFinalizesNonActionableCluster(t *testing.T) {
 		clusterRepo,
 		stubEventRepo{events: []domain.Event{{ID: "event-1", ClusterID: "cluster-1"}}},
 		taskRepo,
-		stubActionabilityService{result: domain.TaskGenerationDecision{ShouldGenerate: false, Reason: "promo email"}},
+		stubActionabilityService{result: domain.TaskGenerationDecision{ShouldGenerate: false, Reason: new("promo email")}},
 		stubTaskGenerationService{},
 		stubTxProvider{},
 		log.Stub{},

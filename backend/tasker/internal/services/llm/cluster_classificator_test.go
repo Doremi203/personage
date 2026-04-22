@@ -3,6 +3,7 @@ package llm
 import (
 	"testing"
 
+	"github.com/Doremi203/personage/backend/libs/go/log"
 	"github.com/Doremi203/personage/backend/tasker/internal/domain"
 	"github.com/cloudwego/eino/schema"
 )
@@ -30,7 +31,7 @@ func TestGetTaskGenerationDecisionRetriesInvalidModelOutput(t *testing.T) {
 		{message: &schema.Message{Content: `{"actionable": true, "reason": "work item"}`}},
 	}}
 
-	service := NewClusterActionabilityService(chatModel)
+	service := NewClusterActionabilityService(chatModel, log.Stub{})
 	decision, err := service.GetTaskGenerationDecision(t.Context(), []domain.Event{{ID: "event-1", Context: "Please review PR #47."}})
 	if err != nil {
 		t.Fatalf("GetTaskGenerationDecision returned error: %v", err)

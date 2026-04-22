@@ -3,6 +3,7 @@ package llm
 import (
 	"testing"
 
+	"github.com/Doremi203/personage/backend/libs/go/log"
 	"github.com/Doremi203/personage/backend/tasker/internal/domain"
 	"github.com/cloudwego/eino/schema"
 )
@@ -107,7 +108,7 @@ func TestGenerateTaskRetriesInvalidModelOutput(t *testing.T) {
 		}`}},
 	}}
 
-	service := NewTaskGenerationService(chatModel)
+	service := NewTaskGenerationService(chatModel, log.Stub{})
 	task, err := service.GenerateTask(t.Context(), []domain.Event{{ID: "event-1", Context: "Please review PR #47."}})
 	if err != nil {
 		t.Fatalf("GenerateTask returned error: %v", err)
