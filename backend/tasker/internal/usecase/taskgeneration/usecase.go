@@ -11,8 +11,6 @@ import (
 	"github.com/google/uuid"
 )
 
-const rollbackTimeout = 5 * time.Second
-
 func NewUseCase(
 	clusterRepo domain.ClusterRepo,
 	eventRepo domain.EventRepo,
