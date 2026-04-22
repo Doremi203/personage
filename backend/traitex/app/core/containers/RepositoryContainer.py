@@ -1,5 +1,6 @@
 from dependency_injector import providers, containers
 from dataAccess.repositories.GmailProcessingRepository import GmailProcessingRepository
+from dataAccess.repositories.GoogleCalendarProcessingRepository import CalendarProcessingRepository
 from dataAccess.repositories.ProcessingResultsRepository import ProcessingResultsRepository
 from dataAccess.repositories.ProcessingSnapshotRepository import ProcessingSnapshotRepository
 from dataAccess.repositories.TelegramProcessingRepository import TelegramProcessingRepository
@@ -17,6 +18,11 @@ class RepositoryContainer(containers.DeclarativeContainer):
 
     telegram_processing_repository = providers.Singleton(
         TelegramProcessingRepository,
+        connection_provider=pg_connection_provider
+    )
+
+    calendar_processing_repository = providers.Singleton(
+        CalendarProcessingRepository,
         connection_provider=pg_connection_provider
     )
 

@@ -50,14 +50,14 @@ public class TokenService(
         };
     }
     
-    public async Task<GmailTokenModel> GetUserGmailToken(string userEmail, CancellationToken ct)
+    public async Task<OAuthTokenModel> GetUserGmailToken(string userEmail, CancellationToken ct)
     {
         var userToken = await gmailTokenRepository.GetTokenByUserEmail(userEmail, ct);
         if (userToken is null)
             throw new TokenNotFoundException($"Token for user with email {userEmail} not found");
 
         if (userToken.ExpiresAt >= DateTime.UtcNow.AddMinutes(TokenExpirationThresholdMinutes))
-            return new GmailTokenModel
+            return new OAuthTokenModel
             {
                 AccessToken = userToken.AccessToken,
                 RefreshToken = userToken.RefreshToken,
@@ -82,7 +82,7 @@ public class TokenService(
             throw new OAuthException($"Token refresh failed: {ex.Message}");
         }
 
-        return new GmailTokenModel
+        return new OAuthTokenModel
         {
             AccessToken = userToken.AccessToken,
             RefreshToken = userToken.RefreshToken,

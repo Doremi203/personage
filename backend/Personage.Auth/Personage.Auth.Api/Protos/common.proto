@@ -10,9 +10,17 @@ enum ServiceType {
   ServiceType_Unknown = 0;
   ServiceType_Gmail = 1;
   ServiceType_Telegram = 2;
+  ServiceType_GoogleCalendar = 3;
 }
 
 message GmailTokens {
+  string access_token = 1;
+  string refresh_token = 2;
+  google.protobuf.Timestamp expires_at = 3;
+  string gmail_email = 4;
+}
+
+message GoogleCalendarTokens {
   string access_token = 1;
   string refresh_token = 2;
   google.protobuf.Timestamp expires_at = 3;

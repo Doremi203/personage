@@ -80,6 +80,10 @@ public class StateTrackingGrpcService(
                     SessionString = telegramCredentials.SessionString
                 }
             },
+            GoogleCalendarProcessingCredentials googleCalendarCredentials => new ProcessingCredentials
+            {
+               GoogleCalendarTokens = CommonMapper.ToGrpcGoogleCalendarTokens(googleCalendarCredentials.Tokens)
+            },
             _ => throw new ArgumentOutOfRangeException(nameof(model), model, null)
         };
     }

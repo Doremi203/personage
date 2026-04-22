@@ -1,6 +1,6 @@
-namespace Personage.Auth.Domain.Models.Auth.Requests;
+namespace Personage.Auth.Domain.Models.Auth.Gmail.Requests;
 
-public class HandleGmailCallbackRequestModel
+public class HandleOAuthCallbackRequestModel
 {
     public string UserEmail { get; init; } = null!;
     public string Code { get; init; } = null!;

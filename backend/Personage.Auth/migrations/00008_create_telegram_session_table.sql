@@ -1,6 +1,6 @@
 -- +goose Up
 -- +goose StatementBegin
-CREATE TABLE telegram_session
+CREATE TABLE IF NOT EXISTS telegram_session
 (
     id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id    UUID UNIQUE NOT NULL REFERENCES "user" (id) ON DELETE CASCADE,
@@ -9,7 +9,7 @@ CREATE TABLE telegram_session
     last_processed_at timestamptz NULL
 );
 
-CREATE INDEX idx_telegram_session_user_id ON telegram_session (user_id);
+CREATE INDEX IF NOT EXISTS idx_telegram_session_user_id ON telegram_session (user_id);
 -- +goose StatementEnd
 
 -- +goose Down

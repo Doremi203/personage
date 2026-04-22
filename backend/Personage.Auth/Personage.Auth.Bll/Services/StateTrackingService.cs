@@ -14,6 +14,7 @@ namespace Personage.Auth.Bll.Services;
 public class StateTrackingService(
     IGmailTokenRepository gmailTokenRepository,
     ITelegramSessionRepository telegramSessionRepository,
+    IGoogleCalendarTokenRepository googleCalendarTokenRepository,
     IGoogleOAuthService googleOAuthService,
     IUserRepository userRepository,
     ILogger<StateTrackingService> logger
@@ -31,6 +32,8 @@ public class StateTrackingService(
             ServiceTypeModel.Gmail => await GetUsersForGmailProcessing(request.BatchSize,
                 processedUntilMoment, ct),
             ServiceTypeModel.Telegram => await GetUsersForTelegramProcessing(request.BatchSize,
+                processedUntilMoment, ct),
+            ServiceTypeModel.GoogleCalendar => await GetUsersForGoogleCalendarProcessing(request.BatchSize,
                 processedUntilMoment, ct),
             _ =>
                 throw new ServiceTypeNotSupportedException(
@@ -74,7 +77,7 @@ public class StateTrackingService(
         {
             Users = users
                 .Except(refreshFailed)
-                .Select(MapGmailUser)
+                .Select(user => MapOAuthUser(user, ServiceTypeModel.Gmail))
                 .ToArray()
         };
     }
@@ -91,6 +94,22 @@ public class StateTrackingService(
         {
             Users = users
                 .Select(MapTelegramUser)
+                .ToArray()
+        };
+    }
+
+    private async Task<GetUsersForProcessingResponseModel> GetUsersForGoogleCalendarProcessing(
+        int batchSize,
+        DateTime processedUntilMoment,
+        CancellationToken ct
+    )
+    {
+        var users = await userRepository.GetUsersGoogleCalendarProcessedBeforeMoment(
+            processedUntilMoment, batchSize, ct);
+        return new GetUsersForProcessingResponseModel
+        {
+            Users = users
+                .Select(user => MapOAuthUser(user, serviceType: ServiceTypeModel.GoogleCalendar))
                 .ToArray()
         };
     }
@@ -138,6 +157,10 @@ public class StateTrackingService(
             case ServiceTypeModel.Telegram:
                 await telegramSessionRepository.MarkUsersAsProcessed(usersToMark, ct);
                 break;
+            
+            case ServiceTypeModel.GoogleCalendar:
+                await googleCalendarTokenRepository.MarkUsersAsProcessed(usersToMark, ct);
+                break;
 
             case ServiceTypeModel.Unknown:
             default:
@@ -165,22 +188,30 @@ public class StateTrackingService(
         await gmailTokenRepository.MarkUsersAsProcessed(users, ct);
     }
 
-    private static UserForProcessingModel MapGmailUser(UserWithToken model)
+    private static UserForProcessingModel MapOAuthUser(UserWithToken model, ServiceTypeModel serviceType)
     {
-        return new UserForProcessingModel
+        var tokens = new OAuthTokenModel
         {
-            UserId = model.UserId,
-            LastProcessedAt = model.Token.LastProcessedAt,
-            Credentials = new GmailProcessingCredentials
+            AccessToken = model.Token.AccessToken,
+            RefreshToken = model.Token.RefreshToken,
+            ExpiresAt = model.Token.ExpiresAt,
+            GmailEmail = model.Token.GmailEmail,
+        };
+        return serviceType switch
+        {
+            ServiceTypeModel.GoogleCalendar => new UserForProcessingModel
             {
-                Tokens = new GmailTokenModel
-                {
-                    AccessToken = model.Token.AccessToken,
-                    RefreshToken = model.Token.RefreshToken,
-                    ExpiresAt = model.Token.ExpiresAt,
-                    GmailEmail = model.Token.GmailEmail,
-                },
-            }
+                UserId = model.UserId,
+                LastProcessedAt = model.Token.LastProcessedAt,
+                Credentials = new GoogleCalendarProcessingCredentials { Tokens = tokens }
+            },
+            ServiceTypeModel.Gmail => new UserForProcessingModel
+            {
+                UserId = model.UserId,
+                LastProcessedAt = model.Token.LastProcessedAt,
+                Credentials = new GmailProcessingCredentials { Tokens = tokens }
+            },
+            _ => throw new ArgumentOutOfRangeException(nameof(serviceType), serviceType, null)
         };
     }
 

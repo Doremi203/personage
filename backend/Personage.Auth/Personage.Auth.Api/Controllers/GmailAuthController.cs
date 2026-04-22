@@ -1,9 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
-using Personage.Auth.Api.Contracts.Auth.Gmail.Requests;
-using Personage.Auth.Api.Contracts.Auth.Gmail.Responses;
+using Personage.Auth.Api.Contracts.Auth.OAuth.Requests;
+using Personage.Auth.Api.Contracts.Auth.OAuth.Responses;
 using Personage.Auth.Api.Contracts.Common;
 using Personage.Auth.Domain.Interfaces;
-using Personage.Auth.Domain.Models.Auth.Requests;
+using Personage.Auth.Domain.Models.Auth.Gmail.Requests;
 
 namespace Personage.Auth.Api.Controllers;
 
@@ -32,8 +32,8 @@ public class GmailAuthController(
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<AuthCallbackResponse>> HandleGmailCallback([FromBody] AuthCallbackRequest request, CancellationToken ct)
     {
-        var gmailEmail = await authService.HandleGmailCallbackAsync(
-            new HandleGmailCallbackRequestModel
+        var gmailEmail = await authService.HandleGmailCallback(
+            new HandleOAuthCallbackRequestModel
             {
                 UserEmail = request.UserEmail,
                 Code = request.Code,

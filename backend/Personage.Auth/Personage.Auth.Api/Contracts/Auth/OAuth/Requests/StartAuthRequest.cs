@@ -1,4 +1,4 @@
-namespace Personage.Auth.Api.Contracts.Auth.Gmail.Requests;
+namespace Personage.Auth.Api.Contracts.Auth.OAuth.Requests;
 
 public class StartAuthRequest
 {

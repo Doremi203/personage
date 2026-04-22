@@ -101,7 +101,7 @@ public class StateTrackingGrpcServiceTests : TestClassBase
         const int batchSize = matchingUsersCount - 2;
         const int notProcessedForMinutesThreshold = 15;
 
-        var users = new List<(Guid UserId, GmailToken Token)>();
+        var users = new List<(Guid UserId, OAuthToken Token)>();
         for (var i = 0; i < matchingUsersCount; ++i)
         {
             var matchingTimestamp = DateTime.UtcNow

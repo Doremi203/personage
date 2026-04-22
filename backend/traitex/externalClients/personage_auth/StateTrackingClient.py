@@ -4,17 +4,19 @@ from uuid import UUID
 from google.protobuf.timestamp_pb2 import Timestamp
 
 from app.domain.models.ConnectorTypeModel import ConnectorTypeModel
-from app.domain.models.users.GmailTokensModel import GmailTokensModel
+from app.domain.models.users.OAuthTokensModel import OAuthTokensModel
 from app.domain.models.users.ProcessedUserModel import ProcessedUserModel
 from app.domain.models.users.UserForProcessingModel import UserForProcessingModel
 from app.domain.models.users.processingCredentials import ProcessingCredentialsModel
+from app.domain.models.users.processingCredentials.CalendarProcessingCredentialsModel import \
+    CalendarProcessingCredentialsModel
 from app.domain.models.users.processingCredentials.GmailProcessingCredentialsModel import \
     GmailProcessingCredentialsModel
 from app.domain.models.users.processingCredentials.TelegramProcessingCredentialsModel import \
     TelegramProcessingCredentialsModel
 from externalClients.BaseGrpcClient import BaseGrpcClient
 from externalClients.personage_auth.proto import state_tracking_pb2_grpc
-from externalClients.personage_auth.proto.common_pb2 import (GmailTokens)
+from externalClients.personage_auth.proto.common_pb2 import (GmailTokens, GoogleCalendarTokens)
 from externalClients.personage_auth.proto.common_pb2 import (ServiceType)
 from externalClients.personage_auth.proto.state_tracking_pb2 import (
     GetUsersForProcessingRequest,
@@ -68,6 +70,8 @@ class StateTrackingClient(BaseGrpcClient):
                 return ServiceType.ServiceType_Gmail
             case ConnectorTypeModel.Telegram:
                 return ServiceType.ServiceType_Telegram
+            case ConnectorTypeModel.GoogleCalendar:
+                return ServiceType.ServiceType_GoogleCalendar
         raise Exception(f"Unknown service type: {service_type}")
 
     @staticmethod
@@ -83,14 +87,26 @@ class StateTrackingClient(BaseGrpcClient):
         match credentials.WhichOneof("credentials"):
             case "gmail_tokens":
                 return GmailProcessingCredentialsModel(
-                    tokens=StateTrackingClient.__to_domain_tokens(credentials.gmail_tokens))
+                    tokens=StateTrackingClient.__to_domain_gmail_tokens(credentials.gmail_tokens))
             case "telegram_session":
                 return TelegramProcessingCredentialsModel(session_string=credentials.telegram_session.session_string)
+            case "google_calendar_tokens":
+                return CalendarProcessingCredentialsModel(
+                    tokens=StateTrackingClient.__to_domain_calendar_tokens(credentials.google_calendar_tokens))
         raise Exception(f"Unknown credentials type: {type(credentials)}")
 
     @staticmethod
-    def __to_domain_tokens(tokens: GmailTokens) -> GmailTokensModel:
-        return GmailTokensModel(
+    def __to_domain_gmail_tokens(tokens: GmailTokens) -> OAuthTokensModel:
+        return OAuthTokensModel(
+            access_token=tokens.access_token,
+            refresh_token=tokens.refresh_token,
+            expires_at=tokens.expires_at.ToDatetime() if tokens.HasField('expires_at') else None,
+            gmail_email=tokens.gmail_email,
+        )
+
+    @staticmethod
+    def __to_domain_calendar_tokens(tokens: GoogleCalendarTokens) -> OAuthTokensModel:
+        return OAuthTokensModel(
             access_token=tokens.access_token,
             refresh_token=tokens.refresh_token,
             expires_at=tokens.expires_at.ToDatetime() if tokens.HasField('expires_at') else None,

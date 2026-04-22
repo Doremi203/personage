@@ -215,6 +215,7 @@ public class Program
     {
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IGmailTokenRepository, GmailTokenRepository>();
+        services.AddScoped<IGoogleCalendarTokenRepository, GoogleCalendarTokenRepository>();
         services.AddScoped<IOAuthStateRepository, OAuthStateRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         services.AddScoped<IPasswordResetTokenRepository, PasswordResetTokenRepository>();

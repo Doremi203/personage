@@ -7,6 +7,7 @@ using Personage.Auth.Domain.Configuration;
 using Personage.Auth.Domain.Exceptions;
 using Personage.Auth.Domain.Interfaces;
 using Personage.Auth.Domain.Models.Common;
+using Personage.Auth.Domain.Models.GoogleAuth;
 
 namespace Personage.Auth.Bll.Services;
 
@@ -18,15 +19,20 @@ public class GoogleOAuthService(
 {
     private const string OAuthAuthorizationUrlPrefix = "https://accounts.google.com/o/oauth2/auth";
     private const string OAuthTokenUrlPrefix = "https://oauth2.googleapis.com/token";
-    
-    public string GetAuthorizationUrl(string redirectUri, string state)
+
+    public string GetAuthorizationUrl(
+        string redirectUri,
+        string state,
+        GoogleServiceKind serviceKind
+    )
     {
+        var scopes = GetOAuthScopes(serviceKind);
         var queryParams = new Dictionary<string, string>
         {
             ["client_id"] = settings.Value.ClientId,
             ["redirect_uri"] = redirectUri,
             ["response_type"] = "code",
-            ["scope"] = string.Join(" ", settings.Value.Scopes),
+            ["scope"] = string.Join(" ", scopes),
             ["access_type"] = "offline",
             ["state"] = state,
             ["prompt"] = "consent"
@@ -38,7 +44,7 @@ public class GoogleOAuthService(
         return $"{OAuthAuthorizationUrlPrefix}?{queryString}";
     }
     
-    public async Task<GmailTokenModel> ExchangeCode(string code, string redirectUri, CancellationToken ct)
+    public async Task<OAuthTokenModel> ExchangeCode(string code, string redirectUri, CancellationToken ct)
     {
         var requestBody = new Dictionary<string, string>
         {
@@ -68,7 +74,7 @@ public class GoogleOAuthService(
         
         var email = await GetUserEmailAsync(tokenResponse.AccessToken);
         
-        return new GmailTokenModel{
+        return new OAuthTokenModel{
             AccessToken = tokenResponse.AccessToken,
             RefreshToken = tokenResponse.RefreshToken,
             ExpiresAt = DateTime.UtcNow.AddSeconds(tokenResponse.ExpiresIn),
@@ -76,7 +82,7 @@ public class GoogleOAuthService(
         };
     }
 
-    public async Task<GmailTokenModel> RefreshToken(string refreshToken, CancellationToken ct)
+    public async Task<OAuthTokenModel> RefreshToken(string refreshToken, CancellationToken ct)
     {
         var refreshRequest = new Dictionary<string, string>
         {
@@ -108,7 +114,7 @@ public class GoogleOAuthService(
         if (tokenResponse == null)
             throw new OAuthException("Invalid token response from Google");
 
-        return new GmailTokenModel
+        return new OAuthTokenModel
         {
             AccessToken = tokenResponse.AccessToken,
             RefreshToken = tokenResponse.RefreshToken ?? refreshToken,
@@ -117,6 +123,17 @@ public class GoogleOAuthService(
         };
     }
 
+    private string[] GetOAuthScopes(GoogleServiceKind serviceKind)
+    {
+        return serviceKind switch
+        {
+            GoogleServiceKind.Unknown => throw new ArgumentException("Invalid Google Service Kind"),
+            GoogleServiceKind.Gmail => settings.Value.Scopes,
+            GoogleServiceKind.Calendar => settings.Value.GoogleCalendarScopes,
+            _ => throw new ArgumentOutOfRangeException(nameof(serviceKind), serviceKind, null)
+        };
+    }
+    
     private async Task<string> GetUserEmailAsync(string accessToken)
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "https://www.googleapis.com/oauth2/v2/userinfo");

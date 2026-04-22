@@ -32,6 +32,7 @@ message ProcessingCredentials {
   oneof credentials {
     GmailTokens gmail_tokens = 1;
     TelegramSession  telegram_session = 2;
+    GoogleCalendarTokens google_calendar_tokens = 3;
   }
 }
 

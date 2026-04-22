@@ -6,12 +6,26 @@ namespace Personage.Auth.Api.Mappers;
 
 public static class CommonMapper
 {
-    public static GmailTokens? ToGrpcGmailTokens(GmailTokenModel? value)
+    public static GmailTokens? ToGrpcGmailTokens(OAuthTokenModel? value)
     {
         if (value is null)
             return null;
         
         return new GmailTokens
+        {
+            AccessToken = value.AccessToken,
+            RefreshToken = value.RefreshToken,
+            ExpiresAt = Timestamp.FromDateTime(value.ExpiresAt),
+            GmailEmail = value.GmailEmail
+        };
+    }   
+    
+    public static GoogleCalendarTokens? ToGrpcGoogleCalendarTokens(OAuthTokenModel? value)
+    {
+        if (value is null)
+            return null;
+        
+        return new GoogleCalendarTokens
         {
             AccessToken = value.AccessToken,
             RefreshToken = value.RefreshToken,
@@ -27,6 +41,7 @@ public static class CommonMapper
             ServiceType.Unknown => ServiceTypeModel.Unknown,
             ServiceType.Gmail => ServiceTypeModel.Gmail,
             ServiceType.Telegram => ServiceTypeModel.Telegram,
+            ServiceType.GoogleCalendar => ServiceTypeModel.GoogleCalendar,
             _ => ServiceTypeModel.Unknown
         };
     }

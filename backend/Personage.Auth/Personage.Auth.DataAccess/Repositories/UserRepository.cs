@@ -117,7 +117,7 @@ public class UserRepository(IDbConnectionFactory connectionFactory) : IUserRepos
             LIMIT @limit;
             """;
 
-        var results = await connection.QueryAsync<UserWithToken, ShortGmailToken, UserWithToken>(
+        var results = await connection.QueryAsync<UserWithToken, ShortOAuthToken, UserWithToken>(
             query,
             (user, token) =>
             {
@@ -129,7 +129,7 @@ public class UserRepository(IDbConnectionFactory connectionFactory) : IUserRepos
                 processedBeforeMoment,
                 limit
             },
-            splitOn: nameof(ShortGmailToken.TokenId)
+            splitOn: nameof(ShortOAuthToken.TokenId)
         );
 
         return results.ToArray();
@@ -164,7 +164,49 @@ public class UserRepository(IDbConnectionFactory connectionFactory) : IUserRepos
         return results.ToArray();
     }
 
+    public async Task<UserWithToken[]> GetUsersGoogleCalendarProcessedBeforeMoment(DateTime processedBeforeMoment, int limit, CancellationToken ct)
+    {
+        using var connection = await connectionFactory.CreateConnection(ct);
+    
+        const string query = 
+            """
+            --UserRepository.GetUsersGoogleCalendarProcessedBeforeMoment   
+            SELECT u.id AS UserId,
+                u.email AS UserEmail,
+                ct.Id as TokenId,
+                ct.access_token AS AccessToken,
+                ct.refresh_token AS RefreshToken,
+                ct.expires_at AS ExpiresAt,
+                ct.gmail_email AS GmailEmail,
+                ct.last_processed_at AS LastProcessedAt
+            FROM public.user u
+            JOIN public.calendar_token ct ON u.id = ct.user_id
+            WHERE 
+                ct.last_processed_at IS NULL OR
+                ct.last_processed_at <= @processedBeforeMoment
+            ORDER BY 
+                ct.last_processed_at ASC NULLS FIRST
+            LIMIT @limit;
+            """;
 
+        var results = await connection.QueryAsync<UserWithToken, ShortOAuthToken, UserWithToken>(
+            query,
+            (user, token) =>
+            {
+                user.Token = token;
+                return user;
+            },
+            new
+            {
+                processedBeforeMoment,
+                limit
+            },
+            splitOn: nameof(ShortOAuthToken.TokenId)
+        );
+
+        return results.ToArray();
+    }
+    
     public async Task UpdatePassword(Guid userId, string passwordHash, CancellationToken ct)
     {
         using var connection = await connectionFactory.CreateConnection(ct);
