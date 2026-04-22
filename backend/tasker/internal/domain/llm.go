@@ -6,13 +6,23 @@ import (
 )
 
 type GeneratedTask struct {
-	Title           string
-	Description     string
-	DurationMinutes int
-	Priority        int
-	Deadline        *time.Time
-	StartTime       *time.Time
-	Category        string
+	Title            string
+	Description      string
+	DurationMinutes  int
+	Priority         int
+	Deadline         *time.Time
+	StartTime        *time.Time
+	Category         string
+	EvidenceEventIDs []EventID
+}
+
+type TaskGenerationDecision struct {
+	ShouldGenerate bool
+	Reason         *string
+}
+
+type ClusterClassificatorService interface {
+	GetTaskGenerationDecision(ctx context.Context, events []Event) (TaskGenerationDecision, error)
 }
 
 type TaskGenerationService interface {

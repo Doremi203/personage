@@ -20,6 +20,13 @@ type ClusterRepo interface {
 	UpsertCluster(ctx context.Context, cluster Cluster) error
 	FindClosableClusters(ctx context.Context, maxEventCount int, inactivityDuration time.Duration, limit int) ([]Cluster, error)
 	UpdateClusterStatus(ctx context.Context, clusterID ClusterID, status ClusterStatus) error
+	FinalizeCluster(
+		ctx context.Context,
+		clusterID ClusterID,
+		outcome ClusterGenerationOutcome,
+		reason *string,
+	) error
+	ListGenerationDiagnosticsByUserID(ctx context.Context, userID UserID) ([]ClusterGenerationDiagnostic, error)
 	DeleteCluster(ctx context.Context, clusterID ClusterID) error
 	// RecoverStaleClusters resets clusters stuck in 'processing' for longer than
 	// the given staleThreshold back to 'open' so they can be retried.

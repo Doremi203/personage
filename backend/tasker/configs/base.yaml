@@ -28,11 +28,11 @@ database:
 
 llm:
   model: nvidia/nemotron-3-super-120b-a12b:free
-  apiKey: "secret:e6qd2ljggdrvefjgg0gf:e6q72jfficuq9om25sab:open-router"
+  apiKey: "secret:e6qd2ljggdrvefjgg0gf:e6qiflr6buvueiikcs8t:open-router"
 
 embedding:
   model: openai/text-embedding-3-small
-  apiKey: "secret:e6qd2ljggdrvefjgg0gf:e6q72jfficuq9om25sab:open-router"
+  apiKey: "secret:e6qd2ljggdrvefjgg0gf:e6qiflr6buvueiikcs8t:open-router"
 
 cluster-closure:
   maxEventCount: 25

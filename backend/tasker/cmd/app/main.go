@@ -141,7 +141,8 @@ func main() {
 			).WithInterval(time.Second),
 		)
 
-		taskGenerationService := llm.NewTaskGenerationService(llmModel)
+		actionabilityService := llm.NewClusterActionabilityService(llmModel, app.Log)
+		taskGenerationService := llm.NewTaskGenerationService(llmModel, app.Log)
 
 		type ClusterClosureConfig struct {
 			MaxEventCount     int
@@ -165,6 +166,7 @@ func main() {
 			postgresClusterRepo,
 			postgresEventRepo,
 			postgresTaskRepo,
+			actionabilityService,
 			taskGenerationService,
 			postgresTxProvider,
 			app.Log,
@@ -292,6 +294,7 @@ func main() {
 		if app.Env == webapp.DevEnvironment || app.Env == webapp.TestsEnvironment || app.Env == webapp.EvalEnvironment {
 			app.AddHTTPHandler("/v1/test/tasks", taskergrpc.NewTestCreateTaskHandler(postgresTaskRepo))
 			app.AddHTTPHandler("/v1/test/tasks/list", taskergrpc.NewTestListTasksHandler(postgresTaskRepo))
+			app.AddHTTPHandler("/v1/test/clusters/list", taskergrpc.NewTestListClusterGenerationDiagnosticsHandler(postgresClusterRepo))
 		}
 
 		if app.Env == webapp.TestsEnvironment || app.Env == webapp.EvalEnvironment {

@@ -15,20 +15,37 @@ type testTaskLister interface {
 }
 
 type testListTaskItem struct {
-	ID              string     `json:"id"`
-	UserID          string     `json:"user_id"`
-	ClusterID       *string    `json:"cluster_id,omitempty"`
-	Title           string     `json:"title"`
-	Description     string     `json:"description"`
-	DurationMinutes int        `json:"duration_minutes"`
-	Priority        int        `json:"priority"`
-	Deadline        *time.Time `json:"deadline,omitempty"`
-	StartTime       *time.Time `json:"start_time,omitempty"`
-	EndTime         *time.Time `json:"end_time,omitempty"`
-	Status          string     `json:"status"`
-	Category        string     `json:"category"`
-	CreatedAt       time.Time  `json:"created_at"`
-	UpdatedAt       time.Time  `json:"updated_at"`
+	ID               string     `json:"id"`
+	UserID           string     `json:"user_id"`
+	ClusterID        *string    `json:"cluster_id,omitempty"`
+	Title            string     `json:"title"`
+	Description      string     `json:"description"`
+	DurationMinutes  int        `json:"duration_minutes"`
+	Priority         int        `json:"priority"`
+	Deadline         *time.Time `json:"deadline,omitempty"`
+	StartTime        *time.Time `json:"start_time,omitempty"`
+	EndTime          *time.Time `json:"end_time,omitempty"`
+	Status           string     `json:"status"`
+	Category         string     `json:"category"`
+	EvidenceEventIDs []string   `json:"evidence_event_ids,omitempty"`
+	CreatedAt        time.Time  `json:"created_at"`
+	UpdatedAt        time.Time  `json:"updated_at"`
+}
+
+type testClusterGenerationDiagnosticsLister interface {
+	ListGenerationDiagnosticsByUserID(ctx context.Context, userID domain.UserID) ([]domain.ClusterGenerationDiagnostic, error)
+}
+
+type testClusterGenerationDiagnosticItem struct {
+	ClusterID          string    `json:"cluster_id"`
+	UserID             string    `json:"user_id"`
+	Status             string    `json:"status"`
+	EventCount         int       `json:"event_count"`
+	GenerationOutcome  *string   `json:"generation_outcome,omitempty"`
+	GenerationReason   *string   `json:"generation_reason,omitempty"`
+	GeneratedTaskCount int       `json:"generated_task_count"`
+	CreatedAt          time.Time `json:"created_at"`
+	UpdatedAt          time.Time `json:"updated_at"`
 }
 
 func clusterIDStr(c *domain.ClusterID) *string {
@@ -37,6 +54,24 @@ func clusterIDStr(c *domain.ClusterID) *string {
 	}
 	s := c.String()
 	return &s
+}
+
+func generationOutcomeStr(outcome *domain.ClusterGenerationOutcome) *string {
+	if outcome == nil {
+		return nil
+	}
+
+	s := string(*outcome)
+	return &s
+}
+
+func evidenceEventIDs(ids []domain.EventID) []string {
+	values := make([]string, len(ids))
+	for i, id := range ids {
+		values[i] = id.String()
+	}
+
+	return values
 }
 
 // NewTestListTasksHandler returns an HTTP handler for GET /v1/test/tasks/list.
@@ -64,20 +99,64 @@ func NewTestListTasksHandler(repo testTaskLister) http.HandlerFunc {
 		items := make([]testListTaskItem, 0, len(tasks))
 		for _, t := range tasks {
 			items = append(items, testListTaskItem{
-				ID:              t.ID.String(),
-				UserID:          t.UserID.String(),
-				ClusterID:       clusterIDStr(t.ClusterID),
-				Title:           t.Title,
-				Description:     t.Description,
-				DurationMinutes: int(t.Duration.Minutes()),
-				Priority:        t.Priority,
-				Deadline:        t.Deadline,
-				StartTime:       t.StartTime,
-				EndTime:         t.EndTime,
-				Status:          string(t.Status),
-				Category:        string(t.Category),
-				CreatedAt:       t.CreatedAt,
-				UpdatedAt:       t.UpdatedAt,
+				ID:               t.ID.String(),
+				UserID:           t.UserID.String(),
+				ClusterID:        clusterIDStr(t.ClusterID),
+				Title:            t.Title,
+				Description:      t.Description,
+				DurationMinutes:  int(t.Duration.Minutes()),
+				Priority:         t.Priority,
+				Deadline:         t.Deadline,
+				StartTime:        t.StartTime,
+				EndTime:          t.EndTime,
+				Status:           string(t.Status),
+				Category:         string(t.Category),
+				EvidenceEventIDs: evidenceEventIDs(t.EvidenceEventIDs),
+				CreatedAt:        t.CreatedAt,
+				UpdatedAt:        t.UpdatedAt,
+			})
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(items)
+	}
+}
+
+// NewTestListClusterGenerationDiagnosticsHandler returns an HTTP handler for
+// GET /v1/test/clusters/list. It lists cluster generation outcomes for a given
+// user_id directly from the repo, bypassing auth. Must only be registered in
+// non-production environments.
+func NewTestListClusterGenerationDiagnosticsHandler(repo testClusterGenerationDiagnosticsLister) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		userIDStr := r.URL.Query().Get("user_id")
+		if userIDStr == "" {
+			http.Error(w, "user_id is required", http.StatusBadRequest)
+			return
+		}
+
+		diagnostics, err := repo.ListGenerationDiagnosticsByUserID(r.Context(), domain.UserID(userIDStr))
+		if err != nil {
+			http.Error(w, "failed to list cluster diagnostics", http.StatusInternalServerError)
+			return
+		}
+
+		items := make([]testClusterGenerationDiagnosticItem, 0, len(diagnostics))
+		for _, diagnostic := range diagnostics {
+			items = append(items, testClusterGenerationDiagnosticItem{
+				ClusterID:          diagnostic.ClusterID.String(),
+				UserID:             diagnostic.UserID.String(),
+				Status:             string(diagnostic.Status),
+				EventCount:         diagnostic.EventCount,
+				GenerationOutcome:  generationOutcomeStr(diagnostic.GenerationOutcome),
+				GenerationReason:   diagnostic.GenerationReason,
+				GeneratedTaskCount: diagnostic.GeneratedTaskCount,
+				CreatedAt:          diagnostic.CreatedAt,
+				UpdatedAt:          diagnostic.UpdatedAt,
 			})
 		}
 

@@ -23,6 +23,7 @@ type TraitexClient interface {
 // TaskerClient lists generated tasks for a user.
 type TaskerClient interface {
 	ListTasks(ctx context.Context, userID string) ([]domain.Task, error)
+	ListClusterDiagnostics(ctx context.Context, userID string) ([]domain.ClusterGenerationDiagnostic, error)
 }
 
 // DBResetter wipes and re-applies migrations on the eval database.
@@ -95,7 +96,12 @@ func (r *Runner) Run(ctx context.Context, fix fixture.Fixture, fixtureName strin
 		return report.Report{}, err
 	}
 
-	return r.buildReport(ctx, fix, fixtureName, generated), nil
+	clusterDiagnostics, err := r.Tasker.ListClusterDiagnostics(ctx, fix.UserID)
+	if err != nil {
+		return report.Report{}, fmt.Errorf("list cluster diagnostics: %w", err)
+	}
+
+	return r.buildReport(ctx, fix, fixtureName, generated, clusterDiagnostics), nil
 }
 
 func (r *Runner) poll(ctx context.Context, userID string) ([]domain.Task, error) {
@@ -172,16 +178,17 @@ loop:
 
 func taskSnapshot(t domain.Task) report.TaskSnapshot {
 	snap := report.TaskSnapshot{
-		ID:              t.ID.String(),
-		UserID:          t.UserID.String(),
-		Title:           t.Title,
-		Description:     t.Description,
-		DurationMinutes: int(t.Duration.Minutes()),
-		Priority:        t.Priority,
-		Deadline:        t.Deadline,
-		StartTime:       t.StartTime,
-		EndTime:         t.EndTime,
-		Category:        string(t.Category),
+		ID:               t.ID.String(),
+		UserID:           t.UserID.String(),
+		Title:            t.Title,
+		Description:      t.Description,
+		DurationMinutes:  int(t.Duration.Minutes()),
+		Priority:         t.Priority,
+		Deadline:         t.Deadline,
+		StartTime:        t.StartTime,
+		EndTime:          t.EndTime,
+		Category:         string(t.Category),
+		EvidenceEventIDs: eventIDsToStrings(t.EvidenceEventIDs),
 	}
 	if t.ClusterID != nil {
 		snap.ClusterID = new(t.ClusterID.String())
@@ -201,7 +208,13 @@ func expectedSnapshot(et fixture.ExpectedTask) report.TaskSnapshot {
 	}
 }
 
-func (r *Runner) buildReport(ctx context.Context, fix fixture.Fixture, fixtureName string, generated []domain.Task) report.Report {
+func (r *Runner) buildReport(
+	ctx context.Context,
+	fix fixture.Fixture,
+	fixtureName string,
+	generated []domain.Task,
+	clusterDiagnostics []domain.ClusterGenerationDiagnostic,
+) report.Report {
 	expected := make([]score.Task, len(fix.ExpectedTasks))
 	for i, et := range fix.ExpectedTasks {
 		expected[i] = et.ToScoreTask()
@@ -365,10 +378,76 @@ func (r *Runner) buildReport(ctx context.Context, fix fixture.Fixture, fixtureNa
 			FN:        len(matchResult.UnmatchedExpected),
 		},
 		FieldQuality:       fieldQuality,
+		ClusterDiagnostics: buildClusterDiagnostics(clusterDiagnostics),
 		Matches:            matchDetails,
 		UnmatchedGenerated: unmatchedGen,
 		UnmatchedExpected:  unmatchedExp,
 	}
 	rep.Compute()
 	return rep
+}
+
+func buildClusterDiagnostics(diagnostics []domain.ClusterGenerationDiagnostic) report.ClusterDiagnostics {
+	clusterSnapshots := make([]report.ClusterSnapshot, len(diagnostics))
+	closedClusters := 0
+	tasklessClosedClusters := 0
+	skippedNonActionable := 0
+
+	for i, diagnostic := range diagnostics {
+		clusterSnapshots[i] = report.ClusterSnapshot{
+			ID:                 diagnostic.ClusterID.String(),
+			UserID:             diagnostic.UserID.String(),
+			Status:             string(diagnostic.Status),
+			EventCount:         diagnostic.EventCount,
+			GenerationOutcome:  clusterOutcomeToString(diagnostic.GenerationOutcome),
+			GenerationReason:   diagnostic.GenerationReason,
+			GeneratedTaskCount: diagnostic.GeneratedTaskCount,
+			CreatedAt:          diagnostic.CreatedAt,
+			UpdatedAt:          diagnostic.UpdatedAt,
+		}
+
+		if diagnostic.GenerationOutcome != nil && *diagnostic.GenerationOutcome == domain.ClusterGenerationOutcomeNonActionable {
+			skippedNonActionable++
+		}
+
+		if diagnostic.Status != domain.ClusterStatusClosed {
+			continue
+		}
+
+		closedClusters++
+		if diagnostic.GeneratedTaskCount == 0 {
+			tasklessClosedClusters++
+		}
+	}
+
+	tasklessClusterRate := 0.0
+	if closedClusters > 0 {
+		tasklessClusterRate = float64(tasklessClosedClusters) / float64(closedClusters)
+	}
+
+	return report.ClusterDiagnostics{
+		Total:                len(diagnostics),
+		Closed:               closedClusters,
+		SkippedNonActionable: skippedNonActionable,
+		TasklessClusterRate:  tasklessClusterRate,
+		Clusters:             clusterSnapshots,
+	}
+}
+
+func clusterOutcomeToString(outcome *domain.ClusterGenerationOutcome) *string {
+	if outcome == nil {
+		return nil
+	}
+
+	value := string(*outcome)
+	return &value
+}
+
+func eventIDsToStrings(ids []domain.EventID) []string {
+	values := make([]string, len(ids))
+	for i, id := range ids {
+		values[i] = id.String()
+	}
+
+	return values
 }

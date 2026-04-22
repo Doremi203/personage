@@ -37,6 +37,8 @@ func (r *repo) FindSimilarClusters(
 			centroid,
 			event_count,
 			status,
+			generation_outcome,
+			generation_reason,
 			created_at,
 			updated_at,
 			1 - (centroid <=> $1) as similarity
@@ -115,6 +117,8 @@ func (r *repo) FindClosableClusters(
 			centroid,
 			event_count,
 			status,
+			generation_outcome,
+			generation_reason,
 			created_at,
 			updated_at
 		FROM clusters
@@ -161,6 +165,73 @@ func (r *repo) UpdateClusterStatus(ctx context.Context, clusterID domain.Cluster
 	return nil
 }
 
+func (r *repo) FinalizeCluster(
+	ctx context.Context,
+	clusterID domain.ClusterID,
+	outcome domain.ClusterGenerationOutcome,
+	reason *string,
+) error {
+	query := `
+		UPDATE clusters
+		SET status = $1,
+			generation_outcome = $2,
+			generation_reason = $3,
+			updated_at = $4
+		WHERE cluster_id = $5
+	`
+
+	_, err := r.client.Exec(ctx, query, domain.ClusterStatusClosed, outcome, reason, time.Now(), clusterID)
+	if err != nil {
+		return fmt.Errorf("finalize cluster: %w", err)
+	}
+
+	return nil
+}
+
+func (r *repo) ListGenerationDiagnosticsByUserID(
+	ctx context.Context,
+	userID domain.UserID,
+) ([]domain.ClusterGenerationDiagnostic, error) {
+	query := `
+		SELECT
+			c.cluster_id,
+			c.user_id,
+			c.status,
+			c.event_count,
+			c.generation_outcome,
+			c.generation_reason,
+			COUNT(t.task_id) AS generated_task_count,
+			c.created_at,
+			c.updated_at
+		FROM clusters c
+		LEFT JOIN tasks t ON t.cluster_id = c.cluster_id
+		WHERE c.user_id = $1
+		GROUP BY
+			c.cluster_id,
+			c.user_id,
+			c.status,
+			c.event_count,
+			c.generation_outcome,
+			c.generation_reason,
+			c.created_at,
+			c.updated_at
+		ORDER BY c.created_at ASC
+	`
+
+	rows, err := r.client.Query(ctx, query, userID)
+	if err != nil {
+		return nil, errors.WrapFail(err, "list cluster generation diagnostics")
+	}
+	defer rows.Close()
+
+	entities, err := pgx.CollectRows(rows, pgx.RowToStructByName[clusterGenerationDiagnosticEntity])
+	if err != nil {
+		return nil, errors.WrapFail(err, "collect cluster generation diagnostics")
+	}
+
+	return slices.Map(entities, clusterGenerationDiagnosticEntity.ToDomain), nil
+}
+
 func (r *repo) DeleteCluster(ctx context.Context, clusterID domain.ClusterID) error {
 	query := `DELETE FROM clusters WHERE cluster_id = $1`
 
@@ -201,13 +272,15 @@ func (r *repo) RecoverStaleClusters(ctx context.Context, staleThreshold time.Dur
 }
 
 type clusterEntity struct {
-	ClusterID  uuid.UUID       `db:"cluster_id"`
-	UserID     uuid.UUID       `db:"user_id"`
-	Centroid   pgvector.Vector `db:"centroid"`
-	EventCount int             `db:"event_count"`
-	Status     string          `db:"status"`
-	CreatedAt  time.Time       `db:"created_at"`
-	UpdatedAt  time.Time       `db:"updated_at"`
+	ClusterID         uuid.UUID       `db:"cluster_id"`
+	UserID            uuid.UUID       `db:"user_id"`
+	Centroid          pgvector.Vector `db:"centroid"`
+	EventCount        int             `db:"event_count"`
+	Status            string          `db:"status"`
+	GenerationOutcome *string         `db:"generation_outcome"`
+	GenerationReason  *string         `db:"generation_reason"`
+	CreatedAt         time.Time       `db:"created_at"`
+	UpdatedAt         time.Time       `db:"updated_at"`
 }
 
 type clusterEntityWithSimilarity struct {
@@ -216,14 +289,22 @@ type clusterEntityWithSimilarity struct {
 }
 
 func (e clusterEntity) ToDomain() domain.Cluster {
+	var outcome *domain.ClusterGenerationOutcome
+	if e.GenerationOutcome != nil {
+		value := domain.ClusterGenerationOutcome(*e.GenerationOutcome)
+		outcome = &value
+	}
+
 	return domain.Cluster{
-		ID:         domain.ClusterID(e.ClusterID.String()),
-		UserID:     domain.UserID(e.UserID.String()),
-		Centroid:   e.Centroid.Slice(),
-		EventCount: e.EventCount,
-		Status:     domain.ClusterStatus(e.Status),
-		CreatedAt:  e.CreatedAt,
-		UpdatedAt:  e.UpdatedAt,
+		ID:                domain.ClusterID(e.ClusterID.String()),
+		UserID:            domain.UserID(e.UserID.String()),
+		Centroid:          e.Centroid.Slice(),
+		EventCount:        e.EventCount,
+		Status:            domain.ClusterStatus(e.Status),
+		GenerationOutcome: outcome,
+		GenerationReason:  e.GenerationReason,
+		CreatedAt:         e.CreatedAt,
+		UpdatedAt:         e.UpdatedAt,
 	}
 }
 
@@ -231,5 +312,37 @@ func (e clusterEntityWithSimilarity) ToDomain() domain.ClusterWithSimilarity {
 	return domain.ClusterWithSimilarity{
 		Cluster:    e.clusterEntity.ToDomain(),
 		Similarity: e.Similarity,
+	}
+}
+
+type clusterGenerationDiagnosticEntity struct {
+	ClusterID          uuid.UUID `db:"cluster_id"`
+	UserID             uuid.UUID `db:"user_id"`
+	Status             string    `db:"status"`
+	EventCount         int       `db:"event_count"`
+	GenerationOutcome  *string   `db:"generation_outcome"`
+	GenerationReason   *string   `db:"generation_reason"`
+	GeneratedTaskCount int       `db:"generated_task_count"`
+	CreatedAt          time.Time `db:"created_at"`
+	UpdatedAt          time.Time `db:"updated_at"`
+}
+
+func (e clusterGenerationDiagnosticEntity) ToDomain() domain.ClusterGenerationDiagnostic {
+	var outcome *domain.ClusterGenerationOutcome
+	if e.GenerationOutcome != nil {
+		value := domain.ClusterGenerationOutcome(*e.GenerationOutcome)
+		outcome = &value
+	}
+
+	return domain.ClusterGenerationDiagnostic{
+		ClusterID:          domain.ClusterID(e.ClusterID.String()),
+		UserID:             domain.UserID(e.UserID.String()),
+		Status:             domain.ClusterStatus(e.Status),
+		EventCount:         e.EventCount,
+		GenerationOutcome:  outcome,
+		GenerationReason:   e.GenerationReason,
+		GeneratedTaskCount: e.GeneratedTaskCount,
+		CreatedAt:          e.CreatedAt,
+		UpdatedAt:          e.UpdatedAt,
 	}
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/Doremi203/personage/backend/libs/go/postgres"
 	"github.com/Doremi203/personage/backend/libs/go/slices"
 	"github.com/Doremi203/personage/backend/tasker/internal/domain"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -39,10 +40,11 @@ func (r *repo) CreateTask(ctx context.Context, task domain.Task) error {
 			end_time,
 			status,
 			category,
+			evidence_event_ids,
 			created_at,
 			updated_at
 		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
 		)
 		ON CONFLICT (cluster_id) DO NOTHING
 	`
@@ -53,7 +55,12 @@ func (r *repo) CreateTask(ctx context.Context, task domain.Task) error {
 		clusterID = &s
 	}
 
-	_, err := r.client.Exec(ctx, query,
+	evidenceEventIDs, err := evidenceUUIDs(task.EvidenceEventIDs)
+	if err != nil {
+		return errors.WrapFail(err, "parse evidence event ids")
+	}
+
+	_, err = r.client.Exec(ctx, query,
 		task.ID,
 		task.UserID,
 		clusterID,
@@ -66,6 +73,7 @@ func (r *repo) CreateTask(ctx context.Context, task domain.Task) error {
 		task.EndTime,
 		task.Status,
 		task.Category,
+		evidenceEventIDs,
 		task.CreatedAt,
 		task.UpdatedAt,
 	)
@@ -92,6 +100,7 @@ func (r *repo) GetTaskByID(ctx context.Context, taskID domain.TaskID, userID dom
 			end_time,
 			status,
 			category,
+			evidence_event_ids,
 			created_at,
 			updated_at
 		FROM tasks
@@ -130,6 +139,7 @@ func (r *repo) GetTasksByUserID(ctx context.Context, userID domain.UserID) ([]do
 			end_time,
 			status,
 			category,
+			evidence_event_ids,
 			created_at,
 			updated_at
 		FROM tasks
@@ -166,6 +176,7 @@ func (r *repo) GetTasksByStatus(ctx context.Context, userID domain.UserID, statu
 			end_time,
 			status,
 			category,
+			evidence_event_ids,
 			created_at,
 			updated_at
 		FROM tasks
@@ -324,6 +335,7 @@ func (r *repo) UpdateTask(ctx context.Context, taskID domain.TaskID, userID doma
 			end_time,
 			status,
 			category,
+			evidence_event_ids,
 			created_at,
 			updated_at
 	`, strings.Join(setClauses, ", "), argIdx, argIdx+1)
@@ -410,6 +422,7 @@ func (r *repo) ListTasks(ctx context.Context, filter domain.TaskFilter, paginati
 			end_time,
 			status,
 			category,
+			evidence_event_ids,
 			created_at,
 			updated_at
 		FROM tasks
@@ -434,20 +447,21 @@ func (r *repo) ListTasks(ctx context.Context, filter domain.TaskFilter, paginati
 }
 
 type taskEntity struct {
-	TaskID          string     `db:"task_id"`
-	UserID          string     `db:"user_id"`
-	ClusterID       *string    `db:"cluster_id"`
-	Title           string     `db:"title"`
-	Description     string     `db:"description"`
-	DurationMinutes int        `db:"duration_minutes"`
-	Priority        int        `db:"priority"`
-	Deadline        *time.Time `db:"deadline"`
-	StartTime       *time.Time `db:"start_time"`
-	EndTime         *time.Time `db:"end_time"`
-	Status          string     `db:"status"`
-	Category        string     `db:"category"`
-	CreatedAt       time.Time  `db:"created_at"`
-	UpdatedAt       time.Time  `db:"updated_at"`
+	TaskID           string      `db:"task_id"`
+	UserID           string      `db:"user_id"`
+	ClusterID        *string     `db:"cluster_id"`
+	Title            string      `db:"title"`
+	Description      string      `db:"description"`
+	DurationMinutes  int         `db:"duration_minutes"`
+	Priority         int         `db:"priority"`
+	Deadline         *time.Time  `db:"deadline"`
+	StartTime        *time.Time  `db:"start_time"`
+	EndTime          *time.Time  `db:"end_time"`
+	Status           string      `db:"status"`
+	Category         string      `db:"category"`
+	EvidenceEventIDs []uuid.UUID `db:"evidence_event_ids"`
+	CreatedAt        time.Time   `db:"created_at"`
+	UpdatedAt        time.Time   `db:"updated_at"`
 }
 
 func (e taskEntity) ToDomain() domain.Task {
@@ -457,20 +471,39 @@ func (e taskEntity) ToDomain() domain.Task {
 		clusterID = &cid
 	}
 
-	return domain.Task{
-		ID:          domain.TaskID(e.TaskID),
-		UserID:      domain.UserID(e.UserID),
-		ClusterID:   clusterID,
-		Title:       e.Title,
-		Description: e.Description,
-		Duration:    time.Duration(e.DurationMinutes) * time.Minute,
-		Priority:    e.Priority,
-		Deadline:    e.Deadline,
-		StartTime:   e.StartTime,
-		EndTime:     e.EndTime,
-		Status:      domain.TaskStatus(e.Status),
-		Category:    domain.TaskCategory(e.Category),
-		CreatedAt:   e.CreatedAt,
-		UpdatedAt:   e.UpdatedAt,
+	evidenceEventIDs := make([]domain.EventID, len(e.EvidenceEventIDs))
+	for i, evidenceID := range e.EvidenceEventIDs {
+		evidenceEventIDs[i] = domain.EventID(evidenceID.String())
 	}
+
+	return domain.Task{
+		ID:               domain.TaskID(e.TaskID),
+		UserID:           domain.UserID(e.UserID),
+		ClusterID:        clusterID,
+		Title:            e.Title,
+		Description:      e.Description,
+		Duration:         time.Duration(e.DurationMinutes) * time.Minute,
+		Priority:         e.Priority,
+		Deadline:         e.Deadline,
+		StartTime:        e.StartTime,
+		EndTime:          e.EndTime,
+		Status:           domain.TaskStatus(e.Status),
+		Category:         domain.TaskCategory(e.Category),
+		EvidenceEventIDs: evidenceEventIDs,
+		CreatedAt:        e.CreatedAt,
+		UpdatedAt:        e.UpdatedAt,
+	}
+}
+
+func evidenceUUIDs(ids []domain.EventID) ([]uuid.UUID, error) {
+	parsed := make([]uuid.UUID, len(ids))
+	for i, id := range ids {
+		value, err := uuid.Parse(id.String())
+		if err != nil {
+			return nil, err
+		}
+		parsed[i] = value
+	}
+
+	return parsed, nil
 }

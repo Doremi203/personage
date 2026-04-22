@@ -44,6 +44,51 @@ func TestPollWaitsUntilTimeoutAndReturnsLatestTasks(t *testing.T) {
 	}
 }
 
+func TestBuildClusterDiagnostics(t *testing.T) {
+	reason := "promo email"
+	nonActionable := domain.ClusterGenerationOutcomeNonActionable
+	diagnostics := []domain.ClusterGenerationDiagnostic{
+		{
+			ClusterID:          "cluster-1",
+			UserID:             "user-1",
+			Status:             domain.ClusterStatusClosed,
+			GenerationOutcome:  &nonActionable,
+			GenerationReason:   &reason,
+			GeneratedTaskCount: 0,
+		},
+		{
+			ClusterID:          "cluster-2",
+			UserID:             "user-1",
+			Status:             domain.ClusterStatusClosed,
+			GeneratedTaskCount: 1,
+		},
+		{
+			ClusterID:          "cluster-3",
+			UserID:             "user-1",
+			Status:             domain.ClusterStatusOpen,
+			GeneratedTaskCount: 0,
+		},
+	}
+
+	got := buildClusterDiagnostics(diagnostics)
+
+	if got.Total != 3 {
+		t.Fatalf("unexpected total clusters: %d", got.Total)
+	}
+
+	if got.Closed != 2 {
+		t.Fatalf("unexpected closed clusters: %d", got.Closed)
+	}
+
+	if got.SkippedNonActionable != 1 {
+		t.Fatalf("unexpected skipped non-actionable count: %d", got.SkippedNonActionable)
+	}
+
+	if got.TasklessClusterRate != 0.5 {
+		t.Fatalf("unexpected taskless cluster rate: %f", got.TasklessClusterRate)
+	}
+}
+
 type stubTaskerClient struct {
 	mu    sync.Mutex
 	count int
@@ -59,6 +104,10 @@ func (s *stubTaskerClient) ListTasks(context.Context, string) ([]domain.Task, er
 	}
 
 	return []domain.Task{{Title: "generated task"}}, nil
+}
+
+func (s *stubTaskerClient) ListClusterDiagnostics(context.Context, string) ([]domain.ClusterGenerationDiagnostic, error) {
+	return nil, nil
 }
 
 func (s *stubTaskerClient) calls() int {
