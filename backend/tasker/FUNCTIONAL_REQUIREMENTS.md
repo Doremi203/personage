@@ -4,10 +4,10 @@
 
 **Tasker** — микросервис для автоматической генерации задач на основе событий из различных источников (Gmail, Telegram,
 Google Calendar). Система использует машинное обучение для кластеризации семантически связанных событий и LLM для
-генерации actionable задач.
+генерации actionable задач, а также реализует планирование задач в расписание и push-уведомления.
 
-**Версия документа:** 1.0  
-**Дата:** 24 января 2026 г.
+**Версия документа:** 2.0  
+**Дата:** 22 апреля 2026 г.
 
 ---
 
@@ -15,8 +15,9 @@ Google Calendar). Система использует машинное обуч�
 
 ### 1.1 Основная цель
 
-Автоматизация процесса создания задач путем анализа входящих событий от внешних коннекторов (почта, мессенджеры,
-календари) с применением семантической кластеризации и генерации задач с помощью LLM.
+Автоматизация процесса создания и планирования задач путём анализа входящих событий от внешних коннекторов (почта,
+мессенджеры, календари) с применением семантической кластеризации, двухшагового LLM-пайплайна генерации задач,
+автоматического планирования в расписание и отправки push-уведомлений.
 
 ### 1.2 Целевая аудитория
 
@@ -33,36 +34,41 @@ Google Calendar). Система использует машинное обуч�
 - **База данных:** PostgreSQL с расширением pgvector
 - **Очередь сообщений:** Yandex Message Queue (SQS-совместимый)
 - **ML модели:**
-    - Embedding: OpenAI text-embedding-3-small (через OpenRouter)
-    - LLM: Xiaomi mimo-v2-flash (через OpenRouter)
+    - Embedding: openai/text-embedding-3-small (через OpenRouter)
+    - LLM: nvidia/nemotron-3-super-120b-a12b:free (через OpenRouter)
 - **Библиотеки:**
-    - cloudwego/eino - для работы с LLM и embeddings
-    - jackc/pgx/v5 - PostgreSQL драйвер
-    - pgvector - векторный поиск
+    - cloudwego/eino — для работы с LLM и embeddings
+    - jackc/pgx/v5 — PostgreSQL драйвер
+    - pgvector — векторный поиск
 
 ### 2.2 Основные компоненты
 
 #### 2.2.1 Воркеры (Workers)
 
-- **SQS Worker** - обработка событий из очереди коннекторов
-- **Cluster Closure Worker** - периодическая проверка и закрытие кластеров
+- **SQS Worker** — обработка событий из очереди коннекторов (интервал: 1 с)
+- **Cluster Closure Worker** — периодическая проверка и закрытие кластеров (интервал: 5 с)
+- **Scheduling Worker** — планирование задач в расписание (интервал: 30 с)
+- **Notification Worker** — отправка напоминаний о предстоящих задачах (интервал: 1 мин)
 
 #### 2.2.2 Use Cases
 
-- **Clusterization** - кластеризация событий
-- **Task Generation** - генерация задач из закрытых кластеров
-- **Planning** - планирование задач (в разработке)
+- **Clusterization** — кластеризация событий
+- **Task Generation** — двухшаговая генерация задач из закрытых кластеров (классификация + извлечение)
+- **Scheduling** — планирование задач по временным слотам с отправкой уведомлений
 
 #### 2.2.3 Репозитории
 
-- **EventRepo** - управление событиями
-- **ClusterRepo** - управление кластерами
-- **TaskRepo** - управление задачами
+- **EventRepo** — управление событиями
+- **ClusterRepo** — управление кластерами
+- **TaskRepo** — управление задачами
 
 #### 2.2.4 Сервисы
 
-- **EmbeddingService** - генерация векторных представлений текста
-- **TaskGenerationService** - генерация задач через LLM
+- **EmbeddingService** — генерация векторных представлений текста
+- **ClusterClassificatorService** — LLM-классификация кластера на actionable/non-actionable
+- **TaskGenerationService** — генерация задач через LLM
+- **NotificationsService** — отправка push-уведомлений через SQS (в notificator)
+- **Scheduler** — расчёт временных слотов для задач
 
 ---
 
@@ -70,7 +76,7 @@ Google Calendar). Система использует машинное обуч�
 
 ### 3.1 Обработка событий
 
-#### FR-1.1 Прием событий из очереди
+#### FR-1.1 Приём событий из очереди
 
 **Приоритет:** Высокий
 
@@ -171,9 +177,9 @@ TEXT:
 1. Обновление центроида кластера по формуле инкрементального среднего:
    ```
    new_centroid[i] = (old_centroid[i] * n + event_embedding[i]) / (n + 1)
-   где n - текущее количество событий в кластере
+   где n — текущее количество событий в кластере
    ```
-2. Увеличение счетчика событий в кластере
+2. Увеличение счётчика событий в кластере
 3. Обновление timestamp последнего изменения (updated_at)
 4. Сохранение события с привязкой к cluster_id
 
@@ -227,7 +233,7 @@ TEXT:
 |------------|---------------------------------------------|
 | open       | Кластер открыт для добавления новых событий |
 | processing | Кластер в процессе генерации задачи         |
-| closed     | Задача создана, кластер закрыт              |
+| closed     | Кластер закрыт после завершения обработки   |
 
 **Переходы статусов:**
 
@@ -245,11 +251,11 @@ open → processing → closed
 Кластер должен быть закрыт при выполнении одного из условий:
 
 1. **По количеству событий:**
-    - event_count >= max_event_count (по умолчанию: 5)
+    - event_count >= max_event_count (по умолчанию: 25)
 
 2. **По неактивности:**
     - updated_at < (текущее время - inactivity_timeout)
-    - inactivity_timeout по умолчанию: 5 минут
+    - inactivity_timeout по умолчанию: 10 минут
 
 #### FR-3.3 Периодическая проверка закрываемых кластеров
 
@@ -266,6 +272,21 @@ open → processing → closed
 
 **Сортировка:** По updated_at ASC (сначала самые старые)
 
+#### FR-3.4 Результат обработки кластера
+
+**Приоритет:** Высокий
+
+**Описание:**  
+После завершения обработки кластер должен хранить финальный результат генерации:
+
+| Значение generation_outcome | Описание                                             |
+|-----------------------------|------------------------------------------------------|
+| task_generated              | Задача успешно создана из кластера                   |
+| non_actionable              | Кластер признан неactionable LLM-классификатором     |
+| empty                       | Кластер не содержал событий для обработки            |
+
+Поле `generation_reason` (опционально) хранит пояснение LLM при outcome = `non_actionable`.
+
 ---
 
 ### 3.4 Генерация задач
@@ -278,14 +299,41 @@ open → processing → closed
 При обработке кластера система должна извлечь все связанные события, отсортированные по времени возникновения (
 occurred_at ASC).
 
-#### FR-4.2 Генерация задачи через LLM
+#### FR-4.2 Двухшаговый LLM-пайплайн генерации
 
 **Приоритет:** Высокий
 
 **Описание:**  
-На основе событий кластера система должна сгенерировать одну действенную задачу (actionable task) с использованием LLM.
+Генерация задач реализована как двухшаговый процесс.
 
-**Промпт-шаблон:**
+**Шаг 1: Классификация actionability кластера**
+
+Система вызывает LLM для определения, стоит ли создавать задачу на основе данного кластера событий.
+
+Промпт-шаблон:
+
+```
+System: You are a cluster actionability classifier for a fast task tracking app.
+Decide whether the provided event cluster should create a user task.
+Mark actionable=false for clusters that are informational only, spam, receipts, promos,
+newsletters, passive notifications, or weak signals without a clear next action.
+Mark actionable=true only when the cluster implies a concrete user action.
+Respond with valid JSON only: { "actionable": true, "reason": "short explanation" }
+
+User: Events:
+<форматированные события>
+```
+
+Результат — объект `TaskGenerationDecision` с полями `ShouldGenerate` (bool) и `Reason` (string).
+
+- Если `ShouldGenerate = false` — кластер закрывается с `generation_outcome = "non_actionable"`, задача не создаётся.
+- Если `ShouldGenerate = true` — выполняется шаг 2.
+
+**Шаг 2: Извлечение задачи**
+
+Система вызывает LLM для генерации конкретной задачи.
+
+Промпт-шаблон:
 
 ```
 System: You are a task extraction assistant for a fast task tracking app.
@@ -293,11 +341,15 @@ System: You are a task extraction assistant for a fast task tracking app.
 Analyze the provided events and create ONE actionable task that captures the main action needed.
 
 Guidelines:
-- Title: Short, clear action (e.g., "Review Q4 budget proposal", "Book dentist appointment")
+- Title: Short, clear action verb + specific object (include PR#, domains, services, etc.)
 - Description: Brief 1-2 sentence summary of what needs to be done and why (NOT detailed context)
 - Duration: Realistic time estimate in minutes
-- Priority: 1-10 scale (1=low, 10=urgent/critical)
+- Priority: 1-10 scale
+  (deadlines/vulnerabilities/prod issues → 8-10; active work/waiting decisions → 6-8;
+   routine/maintenance → 3-6; nice-to-haves → 1-2)
 - Deadline/StartTime: Extract from events if explicitly mentioned, otherwise null
+- Category: classify as 'work', 'study', or 'personal'
+- Evidence: cite EVENT_ID values that justify the task
 
 Keep it concise - this is for quick task tracking, not project management.
 
@@ -308,18 +360,20 @@ Respond with valid JSON only:
   "duration_minutes": number,
   "priority": number,
   "deadline": "ISO8601 or null",
-  "start_time": "ISO8601 or null"
+  "start_time": "ISO8601 or null",
+  "category": "work|study|personal",
+  "evidence_event_ids": ["uuid", ...]
 }
 
 User: Events:
 <форматированные события>
 ```
 
-**Параметры:**
+**Параметры LLM:**
 
-- Модель: xiaomi/mimo-v2-flash:free
-- Таймаут: 30 секунд
-- Формат ответа: JSON
+- Модель: nvidia/nemotron-3-super-120b-a12b:free (через OpenRouter)
+- Таймаут на запрос: 60 секунд
+- Retry: 3 попытки с экспоненциальным backoff (500 мс → 1 с → 2 с)
 
 #### FR-4.3 Структура генерируемой задачи
 
@@ -328,14 +382,16 @@ User: Events:
 **Описание:**  
 Сгенерированная задача должна содержать следующие поля:
 
-| Поле             | Тип       | Обязательность | Описание                                |
-|------------------|-----------|----------------|-----------------------------------------|
-| title            | string    | Обязательно    | Краткое название действия               |
-| description      | string    | Обязательно    | Краткое описание (1-2 предложения)      |
-| duration_minutes | integer   | Обязательно    | Оценка времени выполнения в минутах     |
-| priority         | integer   | Обязательно    | Приоритет от 1 до 10                    |
-| deadline         | timestamp | Опционально    | Крайний срок (если упомянут в событиях) |
-| start_time       | timestamp | Опционально    | Предпочтительное время начала           |
+| Поле               | Тип        | Обязательность | Описание                                         |
+|--------------------|------------|----------------|--------------------------------------------------|
+| title              | string     | Обязательно    | Краткое название действия                        |
+| description        | string     | Обязательно    | Краткое описание (1-2 предложения)               |
+| duration_minutes   | integer    | Обязательно    | Оценка времени выполнения в минутах              |
+| priority           | integer    | Обязательно    | Приоритет от 1 до 10                             |
+| deadline           | timestamp  | Опционально    | Крайний срок (если упомянут в событиях)          |
+| start_time         | timestamp  | Опционально    | Предпочтительное время начала                    |
+| category           | string     | Обязательно    | Категория: work / study / personal               |
+| evidence_event_ids | UUID[]     | Опционально    | Идентификаторы событий, подтверждающих задачу    |
 
 #### FR-4.4 Парсинг ответа LLM
 
@@ -345,8 +401,8 @@ User: Events:
 Система должна корректно извлекать JSON из ответа LLM, учитывая возможные форматы:
 
 - Чистый JSON
-- JSON в markdown блоке: ````json ... ````
-- JSON в обычном блоке: ```` ... ````
+- JSON в markdown блоке: ` ```json ... ``` `
+- JSON в обычном блоке: ` ``` ... ``` `
 - JSON с дополнительным текстом до/после
 
 **Обработка дат:**
@@ -367,26 +423,28 @@ User: Events:
 - task_id: UUID v4
 - user_id: из кластера
 - cluster_id: ID обрабатываемого кластера
-- status: "pending"
+- status: "unplanned"
 - created_at, updated_at: текущее время
 
 **Ограничения:**
 
-- Один кластер может иметь только одну задачу (UNIQUE constraint на cluster_id)
+- Один кластер может иметь не более одной задачи (UNIQUE constraint на cluster_id, nullable)
 
 #### FR-4.6 Обработка ошибок при генерации
 
 **Приоритет:** Высокий
 
 **Описание:**  
-При возникновении ошибки на этапе генерации или сохранения задачи, статус кластера должен быть возвращен в "open" для
+При возникновении ошибки на этапе генерации или сохранения задачи статус кластера должен быть возвращён в "open" для
 повторной попытки.
 
 **Сценарии отката:**
 
-1. Ошибка генерации LLM → rollback to "open"
-2. Ошибка создания задачи в БД → rollback to "open"
-3. Успешное создание → статус "closed"
+1. Ошибка классификации LLM → rollback to "open"
+2. Ошибка генерации задачи LLM (после исчерпания retry) → rollback to "open"
+3. Ошибка создания задачи в БД → rollback to "open"
+4. Кластер не содержит событий → `generation_outcome = "empty"`, статус "closed"
+5. Успешное создание → `generation_outcome = "task_generated"`, статус "closed"
 
 ---
 
@@ -394,25 +452,155 @@ User: Events:
 
 #### FR-5.1 Статусы задачи
 
-**Приоритет:** Средний
+**Приоритет:** Высокий
 
 **Описание:**  
 Задача может находиться в одном из следующих состояний:
 
-| Статус    | Описание                             |
-|-----------|--------------------------------------|
-| pending   | Задача создана, ожидает планирования |
-| planned   | Задача запланирована в расписание    |
-| completed | Задача выполнена                     |
+| Статус    | Описание                                                          |
+|-----------|-------------------------------------------------------------------|
+| unplanned | Задача создана, ожидает планирования                              |
+| planned   | Задача запланирована в расписание (assigned start_time/end_time)  |
+| completed | Задача выполнена                                                  |
 
-**Примечание:** В текущей версии реализован только статус "pending". Планирование задач находится в стадии разработки.
+**Переходы:**
 
-#### FR-5.2 Временные слоты планирования
+```
+unplanned → planned → completed
+planned   → unplanned  (отложена пользователем)
+```
 
-**Приоритет:** Низкий (в разработке)
+#### FR-5.2 Ручное управление задачами через API
+
+**Приоритет:** Высокий
 
 **Описание:**  
-Для будущей функциональности планирования определен размер временного слота: 10 минут.
+Пользователь может управлять задачами через REST/gRPC API:
+
+- Получить список задач с фильтрацией по статусу, категории, тексту, временному диапазону
+- Получить задачу по ID
+- Обновить задачу (заголовок, описание, время, категория)
+- Отложить задачу (перевести в unplanned)
+- Завершить задачу (перевести в completed)
+- Удалить задачу (каскадно удаляет связанный кластер и события)
+
+---
+
+### 3.6 Планирование задач
+
+#### FR-6.1 Автоматическое планирование
+
+**Приоритет:** Высокий
+
+**Описание:**  
+Система должна периодически планировать неплановые задачи (статус unplanned) в доступные временные слоты.
+
+**Алгоритм:**
+
+1. Получить всех пользователей, у которых есть задачи со статусом unplanned
+2. Для каждого пользователя получить все unplanned задачи
+3. Вычислить расписание: распределить задачи по 15-минутным слотам в рамках окна (по умолчанию 24 часа от текущего момента)
+4. Обновить каждую задачу: `start_time`, `end_time`, статус → `planned`
+5. Отправить push-уведомление типа `schedule_change`
+
+**Параметры:**
+
+- Размер временного слота: 15 минут
+- Окно планирования: 24 часа (настраивается через `scheduling.windowHours`)
+- Интервал запуска воркера: 30 секунд (настраивается через `scheduling.interval`)
+- Может быть полностью отключено: `scheduling.disabled: true`
+
+#### FR-6.2 Уведомление об изменении расписания
+
+**Приоритет:** Высокий
+
+**Описание:**  
+После каждого успешного планирования система должна отправить пользователю push-уведомление.
+
+**Типы уведомлений при изменении расписания:**
+
+| Тип изменения | Заголовок уведомления                   | Тело сообщения                             |
+|---------------|-----------------------------------------|--------------------------------------------|
+| new           | 📅 Новая задача запланирована            | Название задачи + время + категория        |
+| rescheduled   | 📅 Задача перенесена                     | Название задачи + новое время + категория  |
+| deleted       | 📅 Задача удалена из расписания          | Название задачи                            |
+
+---
+
+### 3.7 Push-уведомления о предстоящих задачах
+
+#### FR-7.1 Напоминания о предстоящих задачах
+
+**Приоритет:** Высокий
+
+**Описание:**  
+Система должна отправлять push-уведомления пользователю за настраиваемые интервалы до начала запланированной задачи.
+
+**Условия отправки:**
+
+- Задача имеет статус `planned`
+- Приоритет задачи >= `notifications.upcomingEventMinPriority` (по умолчанию: 5)
+- Время отправки совпадает с одним из настроенных интервалов до `start_time`
+
+**Интервалы по умолчанию:** 60 мин, 15 мин, 5 мин до начала
+
+**Идемпотентность:** Каждое уведомление имеет ключ идемпотентности на основе (user_id, time, type, title),
+гарантируя однократную отправку.
+
+**Формат уведомления:**
+
+- Заголовок: `"⏰ [Название задачи] через X час/минуту"`
+- Тело: `"Начало в HH:MM • Длительность: X минут • Категория: Category"`
+
+**Параметры воркера:**
+
+- Интервал проверки: 1 минута (настраивается через `notifications-worker.interval`)
+
+#### FR-7.2 Транспорт уведомлений
+
+**Приоритет:** Высокий
+
+**Описание:**  
+Уведомления отправляются в SQS-очередь notificator в формате protobuf (`pushpb.Notification`). Сервис notificator
+доставляет их пользователю через Web Push (VAPID).
+
+- SQS group ID: `"tasker"`
+- Типы уведомлений: `upcoming_event`, `schedule_change`
+
+---
+
+### 3.8 API для клиентских приложений
+
+#### FR-8.1 gRPC / REST эндпоинты
+
+**Приоритет:** Высокий
+
+**Описание:**  
+Сервис предоставляет gRPC-методы с автогенерированными HTTP-обёртками через grpc-gateway.
+
+| gRPC метод          | HTTP                          | Описание                                                    |
+|---------------------|-------------------------------|-------------------------------------------------------------|
+| ListTasksV1         | GET /v1/tasks                 | Список задач с фильтрацией (статус, категория, текст, даты, пагинация) |
+| GetTaskV1           | GET /v1/tasks/{id}            | Получить задачу по ID                                       |
+| UpdateTaskV1        | PATCH /v1/tasks/{id}          | Частичное обновление (заголовок, описание, времена, категория) |
+| PostponeTaskV1      | POST /v1/tasks/{id}/postpone  | Перевести задачу в unplanned                                |
+| DeleteTaskV1        | DELETE /v1/tasks/{id}         | Удалить задачу (каскадное удаление кластера и событий)      |
+| CompleteTaskV1      | POST /v1/tasks/{id}/complete  | Отметить задачу выполненной                                 |
+
+**Аутентификация:** JWT через middleware (user_id извлекается из токена).
+
+#### FR-8.2 Тестовые эндпоинты
+
+**Приоритет:** Низкий
+
+**Описание:**  
+В dev/test/eval окружениях доступны дополнительные REST-эндпоинты для отладки и оценки качества:
+
+| HTTP                               | Описание                                               |
+|------------------------------------|--------------------------------------------------------|
+| GET /v1/test/tasks/list            | Список всех задач пользователя включая evidence_event_ids |
+| POST /v1/test/tasks                | Создать задачу напрямую, минуя AI-пайплайн             |
+| GET /v1/test/clusters/list         | Диагностика кластеров: generation_outcome, reason      |
 
 ---
 
@@ -429,14 +617,17 @@ User: Events:
 
 - Обработка одного события: таймаут 10 секунд
 - Генерация embedding: таймаут 30 секунд
-- Генерация задачи LLM: таймаут 30 секунд
+- LLM-классификация кластера: таймаут 60 секунд, до 3 попыток
+- Генерация задачи LLM: таймаут 60 секунд, до 3 попыток
 
 #### NFR-1.3 Интервалы обработки
 
 - Опрос SQS очереди: каждую секунду
 - Проверка закрываемых кластеров: каждые 5 секунд
+- Планирование задач: каждые 30 секунд
+- Проверка предстоящих задач: каждую минуту
 
-### 4.2 Надежность
+### 4.2 Надёжность
 
 #### NFR-2.1 Транзакционность
 
@@ -448,11 +639,13 @@ User: Events:
 
 - Использование FOR UPDATE SKIP LOCKED для предотвращения дублирования
 - Идемпотентность операций upsert событий и кластеров
+- Ключи идемпотентности для push-уведомлений
 
 #### NFR-2.3 Обработка ошибок
 
 - Логирование всех критических операций
 - Механизм retry через возврат статуса кластера в "open"
+- Экспоненциальный backoff при LLM-запросах: 500 мс → 1 с → 2 с
 
 ### 4.3 Масштабируемость
 
@@ -468,6 +661,7 @@ User: Events:
 - Индексы на occurred_at для временных запросов
 - Индекс на status для фильтрации кластеров
 - Индекс на cluster_id для связи событий с кластерами
+- tsvector индекс на search_vector для полнотекстового поиска задач
 
 ### 4.4 Безопасность
 
@@ -476,14 +670,15 @@ User: Events:
 - API ключи хранятся в Yandex Lockbox
 - Формат: `secret:<lockbox_id>:<secret_id>:<key>`
 - Секреты для:
-    - SQS (accessKey, secretKey)
+    - SQS коннектор (accessKey, secretKey)
+    - SQS notificator (accessKey, secretKey)
     - LLM API (apiKey)
     - Embedding API (apiKey)
 
 #### NFR-4.2 Изоляция данных
 
 - Фильтрация по user_id во всех запросах
-- Невозможность доступа к событиям/кластерам других пользователей
+- Невозможность доступа к событиям/кластерам/задачам других пользователей
 
 ### 4.5 Мониторинг и логирование
 
@@ -495,7 +690,10 @@ User: Events:
     - Обработка события (с ID)
     - Результаты поиска похожих кластеров (similarity)
     - Создание/обновление кластеров
+    - Решение классификатора (actionable/non_actionable + reason)
     - Генерация задач
+    - Результаты планирования
+    - Отправка уведомлений
 
 ---
 
@@ -505,15 +703,17 @@ User: Events:
 
 #### Таблица: clusters
 
-| Поле        | Тип          | Ограничения             | Описание                                    |
-|-------------|--------------|-------------------------|---------------------------------------------|
-| cluster_id  | UUID         | PRIMARY KEY             | Уникальный идентификатор кластера           |
-| user_id     | UUID         | NOT NULL                | ID пользователя                             |
-| centroid    | vector(1536) | NOT NULL                | Центроид кластера (векторное представление) |
-| event_count | INTEGER      | NOT NULL, DEFAULT 0     | Количество событий в кластере               |
-| status      | VARCHAR(20)  | NOT NULL                | Статус кластера (open/processing/closed)    |
-| created_at  | TIMESTAMPTZ  | NOT NULL, DEFAULT NOW() | Время создания                              |
-| updated_at  | TIMESTAMPTZ  | NOT NULL, DEFAULT NOW() | Время последнего обновления                 |
+| Поле                | Тип          | Ограничения             | Описание                                              |
+|---------------------|--------------|-------------------------|-------------------------------------------------------|
+| cluster_id          | UUID         | PRIMARY KEY             | Уникальный идентификатор кластера                     |
+| user_id             | UUID         | NOT NULL                | ID пользователя                                       |
+| centroid            | vector(1536) | NOT NULL                | Центроид кластера (векторное представление)           |
+| event_count         | INTEGER      | NOT NULL, DEFAULT 0     | Количество событий в кластере                         |
+| status              | VARCHAR(20)  | NOT NULL                | Статус кластера (open/processing/closed)              |
+| generation_outcome  | TEXT         |                         | Итог обработки: task_generated / non_actionable / empty |
+| generation_reason   | TEXT         |                         | Пояснение LLM (заполняется при non_actionable)        |
+| created_at          | TIMESTAMPTZ  | NOT NULL, DEFAULT NOW() | Время создания                                        |
+| updated_at          | TIMESTAMPTZ  | NOT NULL, DEFAULT NOW() | Время последнего обновления                           |
 
 **Индексы:**
 
@@ -523,16 +723,16 @@ User: Events:
 
 #### Таблица: events
 
-| Поле        | Тип          | Ограничения             | Описание                                          |
-|-------------|--------------|-------------------------|---------------------------------------------------|
-| event_id    | UUID         | PRIMARY KEY             | Уникальный идентификатор события                  |
-| user_id     | UUID         | NOT NULL                | ID пользователя                                   |
-| source      | VARCHAR(50)  | NOT NULL                | Источник события (gmail/telegram/google_calendar) |
-| occurred_at | TIMESTAMPTZ  | NOT NULL                | Время возникновения события                       |
-| context     | TEXT         | NOT NULL                | Нормализованный контекст события                  |
-| embedding   | vector(1536) | NOT NULL                | Векторное представление контекста                 |
-| cluster_id  | UUID         | NOT NULL, FK → clusters | ID кластера, к которому относится событие         |
-| created_at  | TIMESTAMPTZ  | NOT NULL, DEFAULT NOW() | Время создания записи                             |
+| Поле        | Тип          | Ограничения             | Описание                                                  |
+|-------------|--------------|-------------------------|-----------------------------------------------------------|
+| event_id    | UUID         | PRIMARY KEY             | Уникальный идентификатор события                          |
+| user_id     | UUID         | NOT NULL                | ID пользователя                                           |
+| source      | VARCHAR(50)  | NOT NULL                | Источник события (gmail/telegram/google_calendar)         |
+| occurred_at | TIMESTAMPTZ  | NOT NULL                | Время возникновения события                               |
+| context     | TEXT         | NOT NULL                | Нормализованный контекст события                          |
+| embedding   | vector(1536) | NOT NULL                | Векторное представление контекста                         |
+| cluster_id  | UUID         | NOT NULL, FK → clusters | ID кластера, к которому относится событие                 |
+| created_at  | TIMESTAMPTZ  | NOT NULL, DEFAULT NOW() | Время создания записи                                     |
 
 **Индексы:**
 
@@ -543,29 +743,34 @@ User: Events:
 
 #### Таблица: tasks
 
-| Поле             | Тип         | Ограничения                     | Описание                                  |
-|------------------|-------------|---------------------------------|-------------------------------------------|
-| task_id          | UUID        | PRIMARY KEY                     | Уникальный идентификатор задачи           |
-| user_id          | UUID        | NOT NULL                        | ID пользователя                           |
-| cluster_id       | UUID        | NOT NULL, UNIQUE, FK → clusters | ID кластера-источника                     |
-| title            | TEXT        | NOT NULL                        | Название задачи                           |
-| description      | TEXT        |                                 | Описание задачи                           |
-| duration_minutes | INTEGER     |                                 | Длительность в минутах                    |
-| priority         | INTEGER     |                                 | Приоритет (1-10)                          |
-| deadline         | TIMESTAMPTZ |                                 | Крайний срок                              |
-| start_time       | TIMESTAMPTZ |                                 | Предпочтительное время начала             |
-| status           | VARCHAR(20) | NOT NULL                        | Статус задачи (pending/planned/completed) |
-| created_at       | TIMESTAMPTZ | NOT NULL                        | Время создания                            |
-| updated_at       | TIMESTAMPTZ | NOT NULL                        | Время последнего обновления               |
+| Поле               | Тип          | Ограничения              | Описание                                   |
+|--------------------|--------------|--------------------------|---------------------------------------------|
+| task_id            | UUID         | PRIMARY KEY              | Уникальный идентификатор задачи             |
+| user_id            | UUID         | NOT NULL                 | ID пользователя                             |
+| cluster_id         | UUID         | UNIQUE, FK → clusters    | ID кластера-источника (nullable)            |
+| title              | TEXT         | NOT NULL                 | Название задачи                             |
+| description        | TEXT         |                          | Описание задачи                             |
+| duration_minutes   | INTEGER      |                          | Длительность в минутах                      |
+| priority           | INTEGER      |                          | Приоритет (1-10)                            |
+| deadline           | TIMESTAMPTZ  |                          | Крайний срок                                |
+| start_time         | TIMESTAMPTZ  |                          | Запланированное время начала                |
+| end_time           | TIMESTAMPTZ  |                          | Запланированное время окончания             |
+| category           | VARCHAR(20)  | DEFAULT 'personal'       | Категория: work / study / personal          |
+| status             | VARCHAR(20)  | NOT NULL                 | Статус задачи (unplanned/planned/completed) |
+| evidence_event_ids | UUID[]       | NOT NULL, DEFAULT '{}'   | Идентификаторы событий-источников           |
+| search_vector      | tsvector     |                          | Вектор полнотекстового поиска               |
+| created_at         | TIMESTAMPTZ  | NOT NULL                 | Время создания                              |
+| updated_at         | TIMESTAMPTZ  | NOT NULL                 | Время последнего обновления                 |
 
 **Индексы:**
 
 - `idx_tasks_user_id` на user_id
 - `idx_tasks_status` на status
+- GIN-индекс на search_vector (полнотекстовый поиск)
 
 **Ограничения целостности:**
 
-- Один кластер → одна задача (UNIQUE на cluster_id)
+- Один кластер → не более одной задачи (UNIQUE на cluster_id, nullable)
 - Внешние ключи на clusters с каскадными операциями
 
 ### 5.2 Миграции
@@ -578,14 +783,24 @@ User: Events:
     - Создание индексов, включая HNSW
 
 2. **00002_add_tasks_and_cluster_status.sql**
-    - Создание таблицы tasks
+    - Создание таблицы tasks (без полей category, end_time, evidence_event_ids)
     - Создание индексов на tasks
+
+3. **00003_add_task_api_fields.sql**
+    - Добавление в tasks: `end_time` TIMESTAMPTZ, `category` VARCHAR(20) DEFAULT 'personal', `search_vector` tsvector
+
+4. **00004_make_cluster_id_nullable.sql**
+    - tasks.cluster_id делается nullable (для ручного создания задач вне AI-пайплайна)
+
+5. **00005_add_generation_outcome_and_task_evidence.sql**
+    - Добавление в clusters: `generation_outcome` TEXT, `generation_reason` TEXT
+    - Добавление в tasks: `evidence_event_ids` UUID[] DEFAULT '{}'
 
 ---
 
 ## 6. Интеграции
 
-### 6.1 Yandex Message Queue (SQS)
+### 6.1 Yandex Message Queue (SQS) — коннекторы
 
 **Назначение:** Получение событий от коннекторов
 
@@ -593,23 +808,31 @@ User: Events:
 
 - Endpoint: https://message-queue.api.cloud.yandex.net
 - Region: ru-central1
-- Queue URL: https://message-queue.api.cloud.yandex.net/b1gfkhf234165rrluh60/dj60000000bu18uu03cs/connector-events.fifo
 - Тип очереди: FIFO (гарантия порядка и отсутствие дублей)
 
 **Формат сообщений:** Protocol Buffers (eventsPb.Event)
 
-### 6.2 OpenRouter API
+### 6.2 Yandex Message Queue (SQS) — notificator
+
+**Назначение:** Отправка команд на доставку push-уведомлений сервису notificator
+
+**Параметры подключения:**
+
+- Endpoint: https://message-queue.api.cloud.yandex.net
+- Region: ru-central1
+- SQS Group ID: `"tasker"`
+
+**Формат сообщений:** Protocol Buffers (pushpb.Notification)
+
+### 6.3 OpenRouter API
 
 **Назначение:** Доступ к LLM и Embedding моделям
 
-**Endpoints:**
-
-- LLM: https://openrouter.ai/api/v1 (стандартный OpenAI-совместимый endpoint)
-- Embeddings: https://openrouter.ai/api/v1 (через baseURL параметр)
+**Endpoint:** https://openrouter.ai/api/v1
 
 **Используемые модели:**
 
-- LLM: xiaomi/mimo-v2-flash:free
+- LLM (классификация + генерация задач): nvidia/nemotron-3-super-120b-a12b:free
 - Embeddings: openai/text-embedding-3-small
 
 **Аутентификация:** API Key через заголовок Authorization
@@ -624,12 +847,12 @@ User: Events:
 
 **Файлы:**
 
-- `configs/base.yaml` - базовая конфигурация
-- `configs/prod.yaml` - production настройки (переопределения)
+- `configs/base.yaml` — базовая конфигурация
+- `configs/prod.yaml` — production настройки (переопределения)
 
 ### 7.2 Конфигурационные секции
 
-#### 7.2.1 SQS
+#### 7.2.1 SQS (коннекторы)
 
 ```yaml
 sqs:
@@ -640,7 +863,18 @@ sqs:
   queueUrl: <Full queue URL>
 ```
 
-#### 7.2.2 Database
+#### 7.2.2 SQS (notificator)
+
+```yaml
+sqs-notificator:
+  endpoint: <SQS endpoint>
+  region: <AWS region>
+  accessKey: <Lockbox secret reference>
+  secretKey: <Lockbox secret reference>
+  queueUrl: <Full queue URL>
+```
+
+#### 7.2.3 Database
 
 ```yaml
 database:
@@ -652,7 +886,7 @@ database:
   options: <connection options>
 ```
 
-#### 7.2.3 LLM
+#### 7.2.4 LLM
 
 ```yaml
 llm:
@@ -660,7 +894,7 @@ llm:
   apiKey: <Lockbox secret reference>
 ```
 
-#### 7.2.4 Embedding
+#### 7.2.5 Embedding
 
 ```yaml
 embedding:
@@ -668,17 +902,38 @@ embedding:
   apiKey: <Lockbox secret reference>
 ```
 
-#### 7.2.5 Cluster Closure
+#### 7.2.6 Cluster Closure
 
 ```yaml
 cluster-closure:
-  maxEventCount: <int>        # По умолчанию: 5
-  inactivityMinutes: <int>    # По умолчанию: 5
+  maxEventCount: <int>        # По умолчанию: 25
+  inactivityMinutes: <int>    # По умолчанию: 10
   interval: <duration>        # По умолчанию: 5s
   batchSize: <int>            # По умолчанию: 10
 ```
 
-#### 7.2.6 Logging
+#### 7.2.7 Scheduling
+
+```yaml
+scheduling:
+  windowHours: <int>          # По умолчанию: 24
+  interval: <duration>        # По умолчанию: 30s
+  disabled: <bool>            # По умолчанию: false
+```
+
+#### 7.2.8 Notifications
+
+```yaml
+notifications:
+  upcomingEventMinPriority: <int>            # По умолчанию: 5
+  upcomingEventIntervals: [<duration>, ...]  # По умолчанию: [60m, 15m, 5m]
+  scheduleChangesEnabled: <bool>             # По умолчанию: true
+
+notifications-worker:
+  interval: <duration>        # По умолчанию: 1m
+```
+
+#### 7.2.9 Logging
 
 ```yaml
 logging:
@@ -686,7 +941,7 @@ logging:
   format: console|json
 ```
 
-#### 7.2.7 HTTP/gRPC Ports
+#### 7.2.10 HTTP/gRPC Ports
 
 ```yaml
 grpc:
@@ -698,83 +953,105 @@ http:
 
 ---
 
-## 8. Ограничения текущей версии
+## 8. Оценка качества (Eval)
 
-### 8.1 Функциональные ограничения
+### 8.1 Инструмент F1-оценки
 
-1. **Планирование задач**
-    - Модуль planning находится в разработке
-    - Все задачи создаются со статусом "pending"
-    - Автоматическое распределение по расписанию не реализовано
+**Расположение:** `eval/`
 
-2. **API для внешних клиентов**
-    - Отсутствуют HTTP/gRPC endpoints для получения задач
-    - Нет возможности обновления статуса задачи пользователем
-    - Нет API для получения списка событий/кластеров
+**Назначение:** Офлайн-оценка качества генерации задач на основе кураторских фикстур.
 
-3. **Управление кластерами**
-    - Нет механизма переоткрытия закрытых кластеров
-    - Нет возможности ручного управления кластерами
+**Метрики:**
 
-### 8.2 Технические ограничения
+- Precision / Recall / F1 (соответствие сгенерированных задач ожидаемым)
+- Точность по полям: title, description, duration_minutes, priority, category, deadline
+
+**Запуск:**
+
+```bash
+go run ./tasker/eval/cmd/f1 \
+  --fixture=fixtures/golden_v1.json \
+  --tasker-http=http://localhost:9091 \
+  --eval-queue-url=<sqs-url> \
+  --report=report.json
+```
+
+**Параметры:**
+
+- `--traitex-insecure` — использовать plaintext для локального Traitex (по умолчанию TLS)
+- `--overall-timeout` — общий таймаут ожидания (по умолчанию: 20 мин; должен превышать replay time + inactivity window)
+
+**Формат фикстур:** JSON с полями `snapshot_id`, `user_id`, `expected_tasks` (может быть пустым при первичной курации).
+
+---
+
+## 9. Ограничения текущей версии
+
+### 9.1 Функциональные ограничения
+
+1. **Управление кластерами**
+    - Нет механизма переоткрытия закрытых кластеров вручную
+    - Нет UI для просмотра кластеров конечным пользователем
+
+2. **Планирование**
+    - Алгоритм не учитывает рабочие часы и предпочтения пользователя
+    - Отсутствует интеграция с Google Calendar для синхронизации расписания
+
+### 9.2 Технические ограничения
 
 1. **Масштабирование**
     - Фиксированное количество воркеров (не динамическое)
-    - Отсутствие распределенных блокировок для multi-instance deployment
+    - Отсутствие распределённых блокировок для multi-instance deployment
 
 2. **Мониторинг**
     - Отсутствуют метрики Prometheus/Grafana
-    - Нет health check endpoints
     - Нет distributed tracing
 
 3. **Конфигурация**
-    - Некоторые параметры захардкожены (например, similarity threshold = 0.6)
+    - Порог сходства кластеризации (similarity threshold = 0.6) захардкожен
     - Отсутствует динамическая перезагрузка конфигурации
 
 ---
 
-## 9. Будущие расширения (вне текущего scope)
+## 10. Будущие расширения (вне текущего scope)
 
-### 9.1 Планирование задач
+### 10.1 Улучшение планирования
 
-- Алгоритм автоматического планирования задач в календаре пользователя
-- Учет приоритетов, дедлайнов и длительности
+- Учёт рабочих часов, предпочтительного времени и энергетических циклов пользователя
 - Интеграция с Google Calendar для синхронизации
+- Конфигурируемый порог similarity через настройки пользователя
 
-### 9.2 API для клиентских приложений
-
-- REST/gRPC API для получения списка задач
-- Обновление статуса задач
-- Фильтрация и сортировка задач
-
-### 9.3 Улучшение ML компонента
+### 10.2 Улучшение ML компонента
 
 - Fine-tuning модели embeddings под специфику домена
 - A/B тестирование различных LLM моделей
-- Настройка параметров кластеризации на основе feedback
+- Настройка параметров кластеризации на основе пользовательского feedback
 
-### 9.4 Расширенная аналитика
+### 10.3 Расширенная аналитика
 
 - Dashboard для просмотра статистики кластеризации
 - Анализ эффективности генерации задач
-- Метрики качества кластеризации
+- Автоматизированный CI-запуск F1-оценки на pull request
 
 ---
 
-## 10. Глоссарий
+## 11. Глоссарий
 
-| Термин         | Определение                                                                          |
-|----------------|--------------------------------------------------------------------------------------|
-| **Event**      | Событие из внешнего источника (email, сообщение, календарное событие)                |
-| **Embedding**  | Векторное представление текста в 1536-мерном пространстве                            |
-| **Cluster**    | Группа семантически похожих событий                                                  |
-| **Centroid**   | Центр кластера, вычисляемый как среднее векторов событий                             |
-| **Similarity** | Косинусное сходство между векторами (от 0 до 1)                                      |
-| **LLM**        | Large Language Model - большая языковая модель                                       |
-| **HNSW**       | Hierarchical Navigable Small World - алгоритм приближенного поиска ближайших соседей |
-| **Connector**  | Внешний источник событий (Gmail, Telegram, Google Calendar)                          |
-| **Task**       | Действенная задача, сгенерированная из кластера событий                              |
-| **Use Case**   | Бизнес-логика обработки (clusterization, task generation, planning)                  |
+| Термин                    | Определение                                                                          |
+|---------------------------|--------------------------------------------------------------------------------------|
+| **Event**                 | Событие из внешнего источника (email, сообщение, календарное событие)                |
+| **Embedding**             | Векторное представление текста в 1536-мерном пространстве                            |
+| **Cluster**               | Группа семантически похожих событий                                                  |
+| **Centroid**              | Центр кластера, вычисляемый как среднее векторов событий                             |
+| **Similarity**            | Косинусное сходство между векторами (от 0 до 1)                                      |
+| **LLM**                   | Large Language Model — большая языковая модель                                       |
+| **HNSW**                  | Hierarchical Navigable Small World — алгоритм приближённого поиска ближайших соседей |
+| **Connector**             | Внешний источник событий (Gmail, Telegram, Google Calendar)                          |
+| **Task**                  | Действенная задача, сгенерированная из кластера событий                              |
+| **Use Case**              | Бизнес-логика обработки (clusterization, task generation, scheduling)                |
+| **generation_outcome**    | Итог обработки кластера: task_generated / non_actionable / empty                     |
+| **evidence_event_ids**    | Массив ID событий, обосновывающих сгенерированную задачу                             |
+| **Actionability**         | Признак того, что кластер требует конкретного действия от пользователя               |
 
 ---
 
@@ -811,8 +1088,8 @@ http:
 │  Clusterization Use Case        │
 │  1. Поиск похожих кластеров     │
 │  2. Similarity >= 0.6?          │
-│     ├─ Да  → Добавить в кластер│
-│     └─ Нет → Новый кластер     │
+│     ├─ Да  → Добавить в кластер │
+│     └─ Нет → Новый кластер      │
 └──────┬──────────────────────────┘
        │
        ▼
@@ -828,27 +1105,43 @@ http:
 │  Cluster Closure Worker        │
 │  • Проверка каждые 5s          │
 │  • Критерии:                   │
-│    - event_count >= 5          │
-│    - inactivity >= 5min        │
+│    - event_count >= 25         │
+│    - inactivity >= 10min       │
 └──────┬─────────────────────────┘
        │
        ▼
-┌────────────────────────────────┐
-│  Task Generation Use Case      │
-│  1. Получить события кластера  │
-│  2. LLM генерация задачи       │
-│  3. Сохранить в tasks          │
-│  4. Закрыть кластер            │
-└──────┬─────────────────────────┘
+┌────────────────────────────────────────┐
+│  Task Generation Use Case (2 шага)     │
+│  1. Классификация: actionable?         │
+│     ├─ Нет → outcome=non_actionable    │
+│     └─ Да  →                          │
+│  2. LLM генерация задачи               │
+│     (retry 3x, backoff 500ms→1s→2s)   │
+│  3. Сохранить в tasks                  │
+│  4. Закрыть кластер                    │
+│     outcome=task_generated/empty       │
+└──────┬─────────────────────────────────┘
        │
        ▼
-┌─────────────────┐
-│   PostgreSQL    │
-│  • tasks        │
-│  • clusters     │
-│    (status=     │
-│     closed)     │
-└─────────────────┘
+┌─────────────────┐       ┌──────────────────────────┐
+│   PostgreSQL    │       │  Scheduling Worker (30s)  │
+│  • tasks        │◄─────►│  • Алгоритм слотов 15min  │
+│  • clusters     │       │  • Обновляет start/end    │
+│    (status=     │       │  • status → planned       │
+│     closed)     │       └──────────┬───────────────┘
+└─────────────────┘                  │ SQS
+                                     ▼
+                           ┌──────────────────────────┐
+                           │  Notification Worker (1m) │
+                           │  • Проверяет upcoming     │
+                           │  • Отправляет в SQS       │
+                           └──────────────────────────┘
+                                     │
+                                     ▼
+                           ┌──────────────────────┐
+                           │  Notificator Service  │
+                           │  (Web Push / VAPID)   │
+                           └──────────────────────┘
 ```
 
 ---
@@ -863,39 +1156,40 @@ http:
      └───┬──┘               │
          │                  │
          │ Условие:         │ Ошибка
-         │ • count >= 5     │ генерации
+         │ • count >= 25    │ генерации
          │ или              │
-         │ • inactive >= 5m │
+         │ • inactive>=10m  │
          │                  │
          ▼                  │
    ┌────────────┐           │
    │ processing │───────────┘
    └─────┬──────┘
          │
-         │ Успешная
-         │ генерация
-         │ задачи
+         │ Успешная обработка
+         │ (task_generated /
+         │  non_actionable /
+         │  empty)
          ▼
      ┌────────┐
      │ closed │
      └────────┘
 ```
 
-### B.2 Жизненный цикл задачи (текущая версия)
+### B.2 Жизненный цикл задачи
 
 ```
-     ┌─────────┐
-     │ pending │
-     └─────────┘
-         │
-         │ (Планирование - не реализовано)
-         ▼
-     ┌─────────┐
-     │ planned │
-     └─────────┘
-         │
-         │ (Завершение - не реализовано)
-         ▼
+     ┌──────────┐
+     │ unplanned│ ◄─────────────┐
+     └────┬─────┘               │
+          │                     │ Postpone
+          │ Scheduling Worker   │
+          ▼                     │
+     ┌─────────┐                │
+     │ planned │────────────────┘
+     └────┬────┘
+          │
+          │ Complete
+          ▼
      ┌───────────┐
      │ completed │
      └───────────┘
