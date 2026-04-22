@@ -8,8 +8,6 @@ using Personage.Auth.DataAccess.Models.Requests;
 using Personage.Auth.Domain.Exceptions;
 using Personage.Auth.Domain.Exceptions.Base;
 using Personage.Auth.Domain.Interfaces;
-using Personage.Auth.Domain.Models.Auth.Requests;
-using Personage.Auth.Domain.Models.Auth;
 using Personage.Auth.Domain.Models.Auth.Gmail.Requests;
 using Personage.Auth.Domain.Models.Auth.Gmail.Responses;
 using Personage.Auth.Domain.Models.Common;
@@ -26,10 +24,11 @@ public class AuthService(
     IGoogleOAuthService googleOAuthService,
     IPostboxService postboxService,
     ITokenService tokenService,
+    IClaimValues claimValues,
     ILogger<AuthService> logger
 ) : IAuthService
 {
-    public async Task<StartGmailAuthResponseModel> StartGmailAuth(string userEmail, string redirectUri,
+    public async Task<StartOAuthResponseModel> StartGmailAuth(string userEmail, string redirectUri,
         CancellationToken ct)
     {
         UserValidator.ValidateEmail(userEmail);
@@ -123,47 +122,6 @@ public class AuthService(
         return (user.Id, await googleOAuthService.ExchangeCode(request.Code, request.RedirectUri, ct));
     }
     
-    public async Task<OAuthTokenModel> GetUserGmailToken(string userEmail, CancellationToken ct)
-    {
-        var userToken = await gmailTokenRepository.GetTokenByUserEmail(userEmail, ct);
-        if (userToken is null)
-            throw new TokenNotFoundException($"Token for user with email {userEmail} not found");
-
-        if (userToken.ExpiresAt >= DateTime.UtcNow.AddMinutes(TokenExpirationThresholdMinutes))
-            return new OAuthTokenModel
-            {
-                AccessToken = userToken.AccessToken,
-                RefreshToken = userToken.RefreshToken,
-                ExpiresAt = userToken.ExpiresAt,
-                GmailEmail = userToken.GmailEmail
-            };
-
-        try
-        {
-            var refreshedToken = await googleOAuthService.RefreshToken(userToken.RefreshToken, ct);
-            await gmailTokenRepository.UpdateToken(
-                userToken.Id,
-                refreshedToken.AccessToken,
-                refreshedToken.RefreshToken ?? userToken.RefreshToken,
-                refreshedToken.ExpiresAt,
-                ct
-            );
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to refresh Gmail token for user {UserEmail}", userEmail);
-            throw new OAuthException($"Token refresh failed: {ex.Message}");
-        }
-
-        return new OAuthTokenModel
-        {
-            AccessToken = userToken.AccessToken,
-            RefreshToken = userToken.RefreshToken,
-            ExpiresAt = userToken.ExpiresAt,
-            GmailEmail = userToken.GmailEmail
-        };
-    }
-
     public async Task<PersonageTokenModel> RegisterWithPassword(RegisterUserRequestModel request, CancellationToken ct)
     {
         UserValidator.ValidateUser(request.Email, request.Password, request.Name);
@@ -301,71 +259,6 @@ public class AuthService(
         };
     }
     
-    private string GenerateAccessToken(User user)
-    {
-        var claims = new Claim[]
-        {
-            new(ClaimNames.UserId, user.Id.ToString())
-        };
-
-        var expiresAt = DateTime.UtcNow.AddMinutes(jwtSettings.CurrentValue.AccessTokenTtlMinutes);
-        return GenerateToken(expiresAt, claims);
-    }
-
-    private async Task<RefreshToken> GenerateAndStoreRefreshToken(Guid userId, CancellationToken ct)
-    {
-        var tokenBytes = new byte[64];
-        using var rng = RandomNumberGenerator.Create();
-        rng.GetBytes(tokenBytes);
-        var tokenString = Convert.ToBase64String(tokenBytes)
-            .Replace('+', '-')
-            .Replace('/', '_')
-            .Replace("=", "");
-
-        var createTokenRequest = new CreateRefreshTokenRequest
-        {
-            Token = tokenString,
-            UserId = userId,
-            ExpiresAt = DateTime.UtcNow.AddHours(jwtSettings.CurrentValue.RefreshTokenTtlHours)
-        };
-
-        return await refreshTokenRepository.CreateRefreshToken(createTokenRequest, ct);
-    }
-
-    private string GenerateToken(
-        DateTime expiresAt,
-        IEnumerable<Claim> claims
-    )
-    {
-        var payload = new JwtPayload(
-            issuer: jwtSettings.CurrentValue.Issuer,
-            audience: jwtSettings.CurrentValue.Audience,
-            claims: claims,
-            notBefore: null,
-            expires: expiresAt,
-            issuedAt: DateTime.UtcNow);
-
-        _signingCredentials ??= GetSigningCredentials();
-
-        var token = new JwtSecurityToken(new JwtHeader(_signingCredentials), payload);
-        return JwtHandler.WriteToken(token);
-    }
-
-    /// <summary>
-    /// Creates RSA signing credentials from the PEM key provided via configuration.
-    /// The PEM value is resolved from Lockbox by the configuration provider at startup.
-    /// </summary>
-    private SigningCredentials GetSigningCredentials()
-    {
-        var pem = jwtSettings.CurrentValue.PrivateKeyPem;
-        if (string.IsNullOrWhiteSpace(pem))
-            throw new InvalidOperationException(
-                "JwtSettings:PrivateKeyPem is not configured. " +
-                "In production, use the secret:{id}:{version}:{key} format.");
-
-        return new SigningCredentials(CreateRsaSecurityKeyFromPem(pem), SecurityAlgorithms.RsaSha256);
-    }
-
     private static string GenerateState()
     {
         using var rng = RandomNumberGenerator.Create();
