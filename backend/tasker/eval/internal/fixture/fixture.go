@@ -2,10 +2,10 @@ package fixture
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"time"
 
+	"github.com/Doremi203/personage/backend/libs/go/errors"
 	"github.com/Doremi203/personage/backend/tasker/eval/internal/score"
 	"github.com/Doremi203/personage/backend/tasker/internal/domain"
 )
@@ -22,13 +22,13 @@ type Fixture struct {
 
 // ExpectedTask is a single hand-curated expected task.
 type ExpectedTask struct {
-	ID              string     `json:"id,omitempty"`
+	ID              string     `json:"id,omitzero"`
 	Title           string     `json:"title"`
 	Description     string     `json:"description"`
 	DurationMinutes int        `json:"duration_minutes"`
 	Priority        int        `json:"priority"`
-	Deadline        *time.Time `json:"deadline,omitempty"`
-	StartTime       *time.Time `json:"start_time,omitempty"`
+	Deadline        *time.Time `json:"deadline,omitzero"`
+	StartTime       *time.Time `json:"start_time,omitzero"`
 	Category        string     `json:"category"`
 }
 
@@ -49,16 +49,16 @@ func (et ExpectedTask) ToScoreTask() score.Task {
 func Load(path string) (Fixture, error) {
 	data, err := os.ReadFile(path) //#nosec G304 -- eval tool, operator-supplied path
 	if err != nil {
-		return Fixture{}, fmt.Errorf("read fixture %s: %w", path, err)
+		return Fixture{}, errors.WrapFailf(err, "read fixture %v", errors.Token("path", path))
 	}
 
 	var fix Fixture
 	if err := json.Unmarshal(data, &fix); err != nil {
-		return Fixture{}, fmt.Errorf("parse fixture %s: %w", path, err)
+		return Fixture{}, errors.WrapFailf(err, "parse fixture %v", errors.Token("path", path))
 	}
 
 	if err := validate(fix); err != nil {
-		return Fixture{}, fmt.Errorf("invalid fixture %s: %w", path, err)
+		return Fixture{}, errors.WrapFailf(err, "invalid fixture %v", errors.Token("path", path))
 	}
 
 	return fix, nil
@@ -70,26 +70,41 @@ var validCategories = map[string]bool{
 
 func validate(f Fixture) error {
 	if f.Version != currentVersion {
-		return fmt.Errorf("unsupported version %d (want %d)", f.Version, currentVersion)
+		return errors.Errorf(
+			"unsupported version %v (want %v)",
+			errors.Token("version", f.Version),
+			errors.Token("expected_version", currentVersion),
+		)
 	}
 	if f.SnapshotID == "" {
-		return fmt.Errorf("snapshot_id is required")
+		return errors.Errorf("snapshot_id is required")
 	}
 	if f.UserID == "" {
-		return fmt.Errorf("user_id is required")
+		return errors.Errorf("user_id is required")
 	}
 	for i, et := range f.ExpectedTasks {
 		if et.Title == "" {
-			return fmt.Errorf("expected_tasks[%d].title is required", i)
+			return errors.Errorf("expected_tasks[%v].title is required", errors.Token("index", i))
 		}
 		if !validCategories[et.Category] {
-			return fmt.Errorf("expected_tasks[%d].category %q must be work|study|personal", i, et.Category)
+			return errors.Errorf(
+				"expected_tasks[%v].category %v must be work|study|personal",
+				errors.Token("index", i),
+				errors.Token("category", et.Category),
+			)
 		}
 		if et.Priority < 1 || et.Priority > 10 {
-			return fmt.Errorf("expected_tasks[%d].priority %d must be 1-10", i, et.Priority)
+			return errors.Errorf(
+				"expected_tasks[%v].priority %v must be 1-10",
+				errors.Token("index", i),
+				errors.Token("priority", et.Priority),
+			)
 		}
 		if et.DurationMinutes <= 0 {
-			return fmt.Errorf("expected_tasks[%d].duration_minutes must be > 0", i)
+			return errors.Errorf(
+				"expected_tasks[%v].duration_minutes must be > 0",
+				errors.Token("index", i),
+			)
 		}
 	}
 	return nil

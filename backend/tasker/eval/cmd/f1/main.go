@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/Doremi203/personage/backend/libs/go/errors"
 	"github.com/Doremi203/personage/backend/tasker/eval/internal/fixture"
 	"github.com/Doremi203/personage/backend/tasker/eval/internal/report"
 	"github.com/Doremi203/personage/backend/tasker/eval/internal/runner"
@@ -175,7 +176,7 @@ func (c *traitexClient) SendProcessingSnapshot(ctx context.Context, snapshotID, 
 	}
 	resp, err := c.client.SendProcessingSnapshot(ctx, req)
 	if err != nil {
-		return 0, fmt.Errorf("SendProcessingSnapshot: %w", err)
+		return 0, errors.WrapFail(err, "SendProcessingSnapshot")
 	}
 	return int(resp.GetEventsCount()), nil
 }
@@ -188,17 +189,17 @@ type taskerClient struct {
 type testListItem struct {
 	ID               string     `json:"id"`
 	UserID           string     `json:"user_id"`
-	ClusterID        *string    `json:"cluster_id,omitempty"`
+	ClusterID        *string    `json:"cluster_id,omitzero"`
 	Title            string     `json:"title"`
 	Description      string     `json:"description"`
 	DurationMinutes  int        `json:"duration_minutes"`
 	Priority         int        `json:"priority"`
-	Deadline         *time.Time `json:"deadline,omitempty"`
-	StartTime        *time.Time `json:"start_time,omitempty"`
-	EndTime          *time.Time `json:"end_time,omitempty"`
+	Deadline         *time.Time `json:"deadline,omitzero"`
+	StartTime        *time.Time `json:"start_time,omitzero"`
+	EndTime          *time.Time `json:"end_time,omitzero"`
 	Status           string     `json:"status"`
 	Category         string     `json:"category"`
-	EvidenceEventIDs []string   `json:"evidence_event_ids,omitempty"`
+	EvidenceEventIDs []string   `json:"evidence_event_ids,omitzero"`
 	CreatedAt        time.Time  `json:"created_at"`
 	UpdatedAt        time.Time  `json:"updated_at"`
 }
@@ -208,8 +209,8 @@ type testClusterDiagnosticItem struct {
 	UserID             string    `json:"user_id"`
 	Status             string    `json:"status"`
 	EventCount         int       `json:"event_count"`
-	GenerationOutcome  *string   `json:"generation_outcome,omitempty"`
-	GenerationReason   *string   `json:"generation_reason,omitempty"`
+	GenerationOutcome  *string   `json:"generation_outcome,omitzero"`
+	GenerationReason   *string   `json:"generation_reason,omitzero"`
 	GeneratedTaskCount int       `json:"generated_task_count"`
 	CreatedAt          time.Time `json:"created_at"`
 	UpdatedAt          time.Time `json:"updated_at"`
@@ -246,27 +247,31 @@ func (c *taskerClient) ListTasks(ctx context.Context, userID string) ([]domain.T
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("create request: %w", err)
+		return nil, errors.WrapFail(err, "create request")
 	}
 
 	resp, err := http.DefaultClient.Do(req) //nolint:gosec // eval tool, operator-controlled URL
 	if err != nil {
-		return nil, fmt.Errorf("GET %s: %w", url, err)
+		return nil, errors.WrapFailf(err, "GET %v", errors.Token("url", url))
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("read response: %w", err)
+		return nil, errors.WrapFail(err, "read response")
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("list tasks HTTP %d: %s", resp.StatusCode, body)
+		return nil, errors.Errorf(
+			"list tasks HTTP %v: %v",
+			errors.Token("status_code", resp.StatusCode),
+			errors.Token("body", string(body)),
+		)
 	}
 
 	var items []testListItem
 	if err := json.Unmarshal(body, &items); err != nil {
-		return nil, fmt.Errorf("decode tasks: %w", err)
+		return nil, errors.WrapFail(err, "decode tasks")
 	}
 
 	tasks := make([]domain.Task, len(items))
@@ -300,27 +305,31 @@ func (c *taskerClient) ListClusterDiagnostics(
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("create request: %w", err)
+		return nil, errors.WrapFail(err, "create request")
 	}
 
 	resp, err := http.DefaultClient.Do(req) //nolint:gosec // eval tool, operator-controlled URL
 	if err != nil {
-		return nil, fmt.Errorf("GET %s: %w", url, err)
+		return nil, errors.WrapFailf(err, "GET %v", errors.Token("url", url))
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("read response: %w", err)
+		return nil, errors.WrapFail(err, "read response")
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("list clusters HTTP %d: %s", resp.StatusCode, body)
+		return nil, errors.Errorf(
+			"list clusters HTTP %v: %v",
+			errors.Token("status_code", resp.StatusCode),
+			errors.Token("body", string(body)),
+		)
 	}
 
 	var items []testClusterDiagnosticItem
 	if err := json.Unmarshal(body, &items); err != nil {
-		return nil, fmt.Errorf("decode clusters: %w", err)
+		return nil, errors.WrapFail(err, "decode clusters")
 	}
 
 	diagnostics := make([]domain.ClusterGenerationDiagnostic, len(items))
@@ -351,7 +360,7 @@ func (d *dbResetter) Reset(ctx context.Context) error {
 	cmd.Stdout = os.Stderr
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("tasker-eval/migrate/reset: %w", err)
+		return errors.WrapFail(err, "tasker-eval/migrate/reset")
 	}
 	return nil
 }

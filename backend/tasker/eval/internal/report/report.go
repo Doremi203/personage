@@ -7,23 +7,24 @@ import (
 	"os"
 	"time"
 
+	"github.com/Doremi203/personage/backend/libs/go/errors"
 	"github.com/Doremi203/personage/backend/tasker/eval/internal/score"
 )
 
 // TaskSnapshot holds a complete task record for human-readable report output.
 type TaskSnapshot struct {
-	ID               string     `json:"id,omitempty"`
-	UserID           string     `json:"user_id,omitempty"`
-	ClusterID        *string    `json:"cluster_id,omitempty"`
+	ID               string     `json:"id,omitzero"`
+	UserID           string     `json:"user_id,omitzero"`
+	ClusterID        *string    `json:"cluster_id,omitzero"`
 	Title            string     `json:"title"`
 	Description      string     `json:"description"`
 	DurationMinutes  int        `json:"duration_minutes"`
 	Priority         int        `json:"priority"`
-	Deadline         *time.Time `json:"deadline,omitempty"`
-	StartTime        *time.Time `json:"start_time,omitempty"`
-	EndTime          *time.Time `json:"end_time,omitempty"`
+	Deadline         *time.Time `json:"deadline,omitzero"`
+	StartTime        *time.Time `json:"start_time,omitzero"`
+	EndTime          *time.Time `json:"end_time,omitzero"`
 	Category         string     `json:"category"`
-	EvidenceEventIDs []string   `json:"evidence_event_ids,omitempty"`
+	EvidenceEventIDs []string   `json:"evidence_event_ids,omitzero"`
 }
 
 type ClusterSnapshot struct {
@@ -31,8 +32,8 @@ type ClusterSnapshot struct {
 	UserID             string    `json:"user_id"`
 	Status             string    `json:"status"`
 	EventCount         int       `json:"event_count"`
-	GenerationOutcome  *string   `json:"generation_outcome,omitempty"`
-	GenerationReason   *string   `json:"generation_reason,omitempty"`
+	GenerationOutcome  *string   `json:"generation_outcome,omitzero"`
+	GenerationReason   *string   `json:"generation_reason,omitzero"`
 	GeneratedTaskCount int       `json:"generated_task_count"`
 	CreatedAt          time.Time `json:"created_at"`
 	UpdatedAt          time.Time `json:"updated_at"`
@@ -51,7 +52,7 @@ type MatchDetail struct {
 	ExpectedID        string       `json:"expected_id"`
 	GeneratedID       string       `json:"generated_id"`
 	TitleF1           float64      `json:"title_f1"`
-	TitleEmbeddingSim float64      `json:"title_embedding_sim,omitempty"`
+	TitleEmbeddingSim float64      `json:"title_embedding_sim,omitzero"`
 	FieldsPassed      []string     `json:"fields_passed"`
 	FieldsFailed      []string     `json:"fields_failed"`
 	Generated         TaskSnapshot `json:"generated"`
@@ -64,7 +65,7 @@ type UnmatchedGenerated struct {
 	Title                    string       `json:"title"`
 	ClosestExpected          string       `json:"closest_expected"`
 	ClosestTitleF1           float64      `json:"closest_title_f1"`
-	ClosestTitleEmbeddingSim float64      `json:"closest_title_embedding_sim,omitempty"`
+	ClosestTitleEmbeddingSim float64      `json:"closest_title_embedding_sim,omitzero"`
 	Task                     TaskSnapshot `json:"task"`
 }
 
@@ -125,10 +126,10 @@ func (r *Report) Compute() {
 func Write(path string, r Report) error {
 	data, err := json.MarshalIndent(r, "", "  ")
 	if err != nil {
-		return fmt.Errorf("marshal report: %w", err)
+		return errors.WrapFail(err, "marshal report")
 	}
 	if err := os.WriteFile(path, data, 0600); err != nil { //#nosec G306
-		return fmt.Errorf("write report %s: %w", path, err)
+		return errors.WrapFailf(err, "write report %v", errors.Token("path", path))
 	}
 	return nil
 }

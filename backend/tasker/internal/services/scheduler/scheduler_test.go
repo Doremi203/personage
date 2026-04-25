@@ -772,20 +772,20 @@ func TestSchedule_TableDriven(t *testing.T) {
 				{
 					ID:        "morning_meeting",
 					Duration:  30 * time.Minute,
-					StartTime: ptr(baseStart.Add(1 * time.Hour)),
+					StartTime: new(baseStart.Add(1 * time.Hour)),
 					Priority:  5,
 				},
 				{
 					ID:        "lunch",
 					Duration:  1 * time.Hour,
-					StartTime: ptr(baseStart.Add(4 * time.Hour)),
+					StartTime: new(baseStart.Add(4 * time.Hour)),
 					Priority:  5,
 				},
 				{
 					ID:       "urgent_task",
 					Duration: 45 * time.Minute,
 					Priority: 10,
-					Deadline: ptr(baseStart.Add(2 * time.Hour)),
+					Deadline: new(baseStart.Add(2 * time.Hour)),
 				},
 				{
 					ID:       "important_task",
@@ -825,13 +825,13 @@ func TestSchedule_TableDriven(t *testing.T) {
 				{
 					ID:        "fixed1",
 					Duration:  1 * time.Hour,
-					StartTime: ptr(baseStart),
+					StartTime: new(baseStart),
 					Priority:  5,
 				},
 				{
 					ID:        "fixed2",
 					Duration:  1 * time.Hour,
-					StartTime: ptr(baseStart.Add(2 * time.Hour)),
+					StartTime: new(baseStart.Add(2 * time.Hour)),
 					Priority:  5,
 				},
 				{
@@ -913,19 +913,19 @@ func TestSchedule_TableDriven(t *testing.T) {
 				{
 					ID:        "meeting1",
 					Duration:  15 * time.Minute,
-					StartTime: ptr(baseStart.Add(15 * time.Minute)),
+					StartTime: new(baseStart.Add(15 * time.Minute)),
 					Priority:  5,
 				},
 				{
 					ID:        "meeting2",
 					Duration:  15 * time.Minute,
-					StartTime: ptr(baseStart.Add(1 * time.Hour)),
+					StartTime: new(baseStart.Add(1 * time.Hour)),
 					Priority:  5,
 				},
 				{
 					ID:        "meeting3",
 					Duration:  15 * time.Minute,
-					StartTime: ptr(baseStart.Add(105 * time.Minute)),
+					StartTime: new(baseStart.Add(105 * time.Minute)),
 					Priority:  5,
 				},
 				{
@@ -965,13 +965,13 @@ func TestSchedule_TableDriven(t *testing.T) {
 					ID:       "task1",
 					Duration: 1 * time.Hour,
 					Priority: 10,
-					Deadline: ptr(baseStart.Add(30 * time.Minute)),
+					Deadline: new(baseStart.Add(30 * time.Minute)),
 				},
 				{
 					ID:       "task2",
 					Duration: 45 * time.Minute,
 					Priority: 5,
-					Deadline: ptr(baseStart.Add(20 * time.Minute)),
+					Deadline: new(baseStart.Add(20 * time.Minute)),
 				},
 			},
 			planningStart:       baseStart,
@@ -1019,7 +1019,7 @@ func TestSchedule_TableDriven(t *testing.T) {
 				}
 
 				// Verify tasks don't overlap (basic sanity check)
-				for i := 0; i < len(result.Planned); i++ {
+				for i := range result.Planned {
 					for j := i + 1; j < len(result.Planned); j++ {
 						task1 := result.Planned[i]
 						task2 := result.Planned[j]
@@ -1038,19 +1038,19 @@ func TestSchedule_TableDriven(t *testing.T) {
 				{
 					ID:        "fixed1",
 					Duration:  30 * time.Minute,
-					StartTime: ptr(baseStart),
+					StartTime: new(baseStart),
 					Priority:  5,
 				},
 				{
 					ID:        "fixed2",
 					Duration:  30 * time.Minute,
-					StartTime: ptr(baseStart.Add(30 * time.Minute)),
+					StartTime: new(baseStart.Add(30 * time.Minute)),
 					Priority:  5,
 				},
 				{
 					ID:        "fixed3",
 					Duration:  30 * time.Minute,
-					StartTime: ptr(baseStart.Add(60 * time.Minute)),
+					StartTime: new(baseStart.Add(60 * time.Minute)),
 					Priority:  5,
 				},
 				{
@@ -1083,7 +1083,7 @@ func TestSchedule_TableDriven(t *testing.T) {
 					ID:       "task1",
 					Duration: 30 * time.Minute,
 					Priority: 5,
-					Deadline: ptr(baseStart.Add(1 * time.Hour)), // Exactly at window end
+					Deadline: new(baseStart.Add(1 * time.Hour)), // Exactly at window end
 				},
 			},
 			planningStart:       baseStart,
@@ -1109,21 +1109,21 @@ func TestSchedule_TableDriven(t *testing.T) {
 				{
 					ID:        "standup",
 					Duration:  15 * time.Minute,
-					StartTime: ptr(baseStart.Add(30 * time.Minute)),
+					StartTime: new(baseStart.Add(30 * time.Minute)),
 					Priority:  8,
 				},
 				// Lunch break
 				{
 					ID:        "lunch",
 					Duration:  1 * time.Hour,
-					StartTime: ptr(baseStart.Add(4 * time.Hour)),
+					StartTime: new(baseStart.Add(4 * time.Hour)),
 					Priority:  10,
 				},
 				// Afternoon meeting
 				{
 					ID:        "client_meeting",
 					Duration:  1 * time.Hour,
-					StartTime: ptr(baseStart.Add(6 * time.Hour)),
+					StartTime: new(baseStart.Add(6 * time.Hour)),
 					Priority:  10,
 				},
 				// Urgent bug fix - must be done before standup
@@ -1131,14 +1131,14 @@ func TestSchedule_TableDriven(t *testing.T) {
 					ID:       "critical_bug",
 					Duration: 30 * time.Minute,
 					Priority: 10,
-					Deadline: ptr(baseStart.Add(30 * time.Minute)),
+					Deadline: new(baseStart.Add(30 * time.Minute)),
 				},
 				// Feature work
 				{
 					ID:       "feature_a",
 					Duration: 2 * time.Hour,
 					Priority: 7,
-					Deadline: ptr(baseStart.Add(7 * time.Hour)),
+					Deadline: new(baseStart.Add(7 * time.Hour)),
 				},
 				{
 					ID:       "feature_b",
@@ -1213,19 +1213,19 @@ func TestSchedule_TableDriven(t *testing.T) {
 					ID:       "task_a",
 					Duration: 30 * time.Minute,
 					Priority: 5,
-					Deadline: ptr(baseStart.Add(2 * time.Hour)),
+					Deadline: new(baseStart.Add(2 * time.Hour)),
 				},
 				{
 					ID:       "task_b",
 					Duration: 30 * time.Minute,
 					Priority: 5,
-					Deadline: ptr(baseStart.Add(2 * time.Hour)),
+					Deadline: new(baseStart.Add(2 * time.Hour)),
 				},
 				{
 					ID:       "task_c",
 					Duration: 30 * time.Minute,
 					Priority: 5,
-					Deadline: ptr(baseStart.Add(2 * time.Hour)),
+					Deadline: new(baseStart.Add(2 * time.Hour)),
 				},
 			},
 			planningStart:       baseStart,
@@ -1258,11 +1258,6 @@ func TestSchedule_TableDriven(t *testing.T) {
 			}
 		})
 	}
-}
-
-// Helper function to create time pointer
-func ptr(t time.Time) *time.Time {
-	return &t
 }
 
 // Helper function to find a planned task by ID

@@ -7,15 +7,15 @@ import (
 	"github.com/Doremi203/personage/backend/notificator/internal/domain/push"
 )
 
-func NewPushSubscription(pushRepo push.Repo) PushSubscription {
-	return PushSubscription{pushRepo: pushRepo}
+func NewPushSubscription(pushRepo push.Repo) *PushSubscription {
+	return &PushSubscription{pushRepo: pushRepo}
 }
 
 type PushSubscription struct {
 	pushRepo push.Repo
 }
 
-func (s PushSubscription) Subscribe(ctx context.Context, subscription push.Subscription) error {
+func (s *PushSubscription) Subscribe(ctx context.Context, subscription push.Subscription) error {
 	err := s.pushRepo.UpsertSubscription(ctx, subscription)
 	if err != nil {
 		return errors.WrapFailf(
@@ -28,7 +28,7 @@ func (s PushSubscription) Subscribe(ctx context.Context, subscription push.Subsc
 	return nil
 }
 
-func (s PushSubscription) Unsubscribe(ctx context.Context, subscription push.Subscription) error {
+func (s *PushSubscription) Unsubscribe(ctx context.Context, subscription push.Subscription) error {
 	err := s.pushRepo.DeleteSubscription(ctx, subscription)
 	if err != nil {
 		return errors.WrapFailf(
@@ -41,7 +41,7 @@ func (s PushSubscription) Unsubscribe(ctx context.Context, subscription push.Sub
 	return nil
 }
 
-func (s PushSubscription) GetRecipient(ctx context.Context, recipientID push.RecipientID) (push.Recipient, error) {
+func (s *PushSubscription) GetRecipient(ctx context.Context, recipientID push.RecipientID) (push.Recipient, error) {
 	subs, err := s.pushRepo.GetSubscriptionsByRecipientID(ctx, recipientID)
 	if err != nil {
 		return push.Recipient{}, errors.WrapFailf(

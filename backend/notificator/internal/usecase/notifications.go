@@ -10,9 +10,8 @@ import (
 
 const maxPageSize = 10
 
-// NewNotifications creates a new Notifications use case.
-func NewNotifications(repo notification.Repo) Notifications {
-	return Notifications{repo: repo}
+func NewNotifications(repo notification.Repo) *Notifications {
+	return &Notifications{repo: repo}
 }
 
 // Notifications encapsulates the business logic for listing notifications
@@ -29,11 +28,8 @@ type ListNotificationsParams struct {
 }
 
 // List returns a paginated list of notifications for the given user.
-func (u Notifications) List(ctx context.Context, params ListNotificationsParams) ([]notification.Notification, error) {
-	pageSize := params.PageSize
-	if pageSize > maxPageSize {
-		pageSize = maxPageSize
-	}
+func (u *Notifications) List(ctx context.Context, params ListNotificationsParams) ([]notification.Notification, error) {
+	pageSize := min(params.PageSize, maxPageSize)
 
 	offset := (params.Page - 1) * pageSize
 
@@ -50,7 +46,7 @@ func (u Notifications) List(ctx context.Context, params ListNotificationsParams)
 }
 
 // GetSettings returns all notification settings for the given user.
-func (u Notifications) GetSettings(ctx context.Context, userID uuid.UUID) ([]notification.Setting, error) {
+func (u *Notifications) GetSettings(ctx context.Context, userID uuid.UUID) ([]notification.Setting, error) {
 	settings, err := u.repo.GetSettings(ctx, userID)
 	if err != nil {
 		return nil, errors.WrapFailf(
@@ -62,7 +58,7 @@ func (u Notifications) GetSettings(ctx context.Context, userID uuid.UUID) ([]not
 
 	return settings, nil
 }
-func (u Notifications) Toggle(ctx context.Context, userID uuid.UUID, notificationType string) (notification.Setting, error) {
+func (u *Notifications) Toggle(ctx context.Context, userID uuid.UUID, notificationType string) (notification.Setting, error) {
 	if !notification.IsValidSettingType(notificationType) {
 		return notification.Setting{}, notification.ErrInvalidSettingType
 	}

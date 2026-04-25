@@ -13,33 +13,17 @@ const (
 	dateFormat = "02-01-2006" // DD-MM-YYYY
 )
 
-type taskRepo interface {
-	GetTaskByID(ctx context.Context, taskID domain.TaskID, userID domain.UserID) (domain.Task, error)
-	UpdateTask(ctx context.Context, taskID domain.TaskID, userID domain.UserID, update domain.TaskUpdate) (domain.Task, error)
-	UpdateTaskStatus(ctx context.Context, taskID domain.TaskID, status domain.TaskStatus) error
-	DeleteTask(ctx context.Context, taskID domain.TaskID) error
-	ListTasks(ctx context.Context, filter domain.TaskFilter, pagination domain.Pagination) ([]domain.Task, int, error)
-}
-
-type eventRepo interface {
-	DeleteEventsByClusterID(ctx context.Context, clusterID domain.ClusterID) error
-}
-
-type clusterRepo interface {
-	DeleteCluster(ctx context.Context, clusterID domain.ClusterID) error
-}
-
 type UseCase struct {
-	taskRepo    taskRepo
-	eventRepo   eventRepo
-	clusterRepo clusterRepo
+	taskRepo    domain.TaskRepo
+	eventRepo   domain.EventRepo
+	clusterRepo domain.ClusterRepo
 	txProvider  tx.Provider
 }
 
 func NewUseCase(
-	taskRepo taskRepo,
-	eventRepo eventRepo,
-	clusterRepo clusterRepo,
+	taskRepo domain.TaskRepo,
+	eventRepo domain.EventRepo,
+	clusterRepo domain.ClusterRepo,
 	txProvider tx.Provider,
 ) *UseCase {
 	return &UseCase{
@@ -86,7 +70,6 @@ func (uc *UseCase) UpdateTask(ctx context.Context, taskID string, userID string,
 	return task, nil
 }
 
-// PostponeTask sets the task status to unplanned, verifying ownership first.
 func (uc *UseCase) PostponeTask(ctx context.Context, taskID string, userID string) (domain.Task, error) {
 	task, err := uc.taskRepo.GetTaskByID(ctx, domain.TaskID(taskID), domain.UserID(userID))
 	if err != nil {
@@ -101,7 +84,6 @@ func (uc *UseCase) PostponeTask(ctx context.Context, taskID string, userID strin
 	return task, nil
 }
 
-// CompleteTask sets the task status to completed, verifying ownership first.
 func (uc *UseCase) CompleteTask(ctx context.Context, taskID string, userID string) (domain.Task, error) {
 	task, err := uc.taskRepo.GetTaskByID(ctx, domain.TaskID(taskID), domain.UserID(userID))
 	if err != nil {
@@ -116,9 +98,7 @@ func (uc *UseCase) CompleteTask(ctx context.Context, taskID string, userID strin
 	return task, nil
 }
 
-// DeleteTask deletes a task and its associated events and cluster within a transaction.
 func (uc *UseCase) DeleteTask(ctx context.Context, taskID string, userID string) error {
-	// Verify ownership and get cluster_id.
 	task, err := uc.taskRepo.GetTaskByID(ctx, domain.TaskID(taskID), domain.UserID(userID))
 	if err != nil {
 		return errors.WrapFail(err, "delete task")
@@ -126,19 +106,16 @@ func (uc *UseCase) DeleteTask(ctx context.Context, taskID string, userID string)
 
 	return uc.txProvider.RunWithTx(ctx, tx.IsolationReadCommitted, func(txCtx context.Context) error {
 		if task.ClusterID != nil {
-			// 1. Delete events referencing the cluster.
 			if err := uc.eventRepo.DeleteEventsByClusterID(txCtx, *task.ClusterID); err != nil {
 				return errors.WrapFail(err, "delete events for task")
 			}
 		}
 
-		// 2. Delete the task.
 		if err := uc.taskRepo.DeleteTask(txCtx, task.ID); err != nil {
 			return errors.WrapFail(err, "delete task record")
 		}
 
 		if task.ClusterID != nil {
-			// 3. Delete the cluster.
 			if err := uc.clusterRepo.DeleteCluster(txCtx, *task.ClusterID); err != nil {
 				return errors.WrapFail(err, "delete cluster for task")
 			}

@@ -2,7 +2,6 @@ package clusterpostgres
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/Doremi203/personage/backend/libs/go/errors"
@@ -14,14 +13,16 @@ import (
 	"github.com/pgvector/pgvector-go"
 )
 
-func NewRepo(client postgres.Client) *repo {
+func NewRepo(client postgres.Client, clock func() time.Time) *repo {
 	return &repo{
 		client: client,
+		clock:  clock,
 	}
 }
 
 type repo struct {
 	client postgres.Client
+	clock  func() time.Time
 }
 
 func (r *repo) FindSimilarClusters(
@@ -98,7 +99,7 @@ func (r *repo) UpsertCluster(ctx context.Context, cluster domain.Cluster) error 
 	)
 
 	if err != nil {
-		return fmt.Errorf("upsert cluster: %w", err)
+		return errors.WrapFail(err, "upsert cluster")
 	}
 
 	return nil
@@ -129,7 +130,7 @@ func (r *repo) FindClosableClusters(
 		FOR UPDATE SKIP LOCKED
 	`
 
-	inactivityThreshold := time.Now().Add(-inactivityDuration)
+	inactivityThreshold := r.clock().Add(-inactivityDuration)
 
 	rows, err := r.client.Query(ctx, query,
 		domain.ClusterStatusOpen,
@@ -138,7 +139,7 @@ func (r *repo) FindClosableClusters(
 		limit,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("find closable clusters: %w", err)
+		return nil, errors.WrapFail(err, "find closable clusters")
 	}
 	defer rows.Close()
 
@@ -157,9 +158,9 @@ func (r *repo) UpdateClusterStatus(ctx context.Context, clusterID domain.Cluster
 		WHERE cluster_id = $3
 	`
 
-	_, err := r.client.Exec(ctx, query, status, time.Now(), clusterID)
+	_, err := r.client.Exec(ctx, query, status, r.clock(), clusterID)
 	if err != nil {
-		return fmt.Errorf("update cluster status: %w", err)
+		return errors.WrapFail(err, "update cluster status")
 	}
 
 	return nil
@@ -180,9 +181,9 @@ func (r *repo) FinalizeCluster(
 		WHERE cluster_id = $5
 	`
 
-	_, err := r.client.Exec(ctx, query, domain.ClusterStatusClosed, outcome, reason, time.Now(), clusterID)
+	_, err := r.client.Exec(ctx, query, domain.ClusterStatusClosed, outcome, reason, r.clock(), clusterID)
 	if err != nil {
-		return fmt.Errorf("finalize cluster: %w", err)
+		return errors.WrapFail(err, "finalize cluster")
 	}
 
 	return nil
@@ -241,7 +242,7 @@ func (r *repo) DeleteCluster(ctx context.Context, clusterID domain.ClusterID) er
 	}
 
 	if result.RowsAffected() == 0 {
-		return errors.Errorf("cluster not found: %s", clusterID)
+		return errors.Errorf("cluster not found %v", errors.Token("cluster_id", clusterID))
 	}
 
 	return nil
@@ -255,7 +256,7 @@ func (r *repo) RecoverStaleClusters(ctx context.Context, staleThreshold time.Dur
 		AND updated_at < $4
 	`
 
-	now := time.Now()
+	now := r.clock()
 	threshold := now.Add(-staleThreshold)
 
 	result, err := r.client.Exec(ctx, query,
@@ -265,7 +266,7 @@ func (r *repo) RecoverStaleClusters(ctx context.Context, staleThreshold time.Dur
 		threshold,
 	)
 	if err != nil {
-		return 0, fmt.Errorf("recover stale clusters: %w", err)
+		return 0, errors.WrapFail(err, "recover stale clusters")
 	}
 
 	return int(result.RowsAffected()), nil

@@ -235,7 +235,7 @@ func (r *repo) UpdateTaskSchedule(ctx context.Context, taskID domain.TaskID, sta
 	}
 
 	if result.RowsAffected() == 0 {
-		return errors.Errorf("task not found: %s", taskID)
+		return errors.Errorf("task not found %v", errors.Token("task_id", taskID))
 	}
 
 	return nil
@@ -255,7 +255,7 @@ func (r *repo) UpdateTaskStatus(ctx context.Context, taskID domain.TaskID, statu
 	}
 
 	if result.RowsAffected() == 0 {
-		return errors.Errorf("task not found: %s", taskID)
+		return errors.Errorf("task not found %v", errors.Token("task_id", taskID))
 	}
 
 	return nil

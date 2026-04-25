@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"math"
 	"net/http"
 	"time"
+
+	"github.com/Doremi203/personage/backend/libs/go/errors"
 )
 
 const (
@@ -60,31 +61,35 @@ func (s *Scorer) EmbedBatch(ctx context.Context, texts []string) ([][]float64, e
 
 	body, err := json.Marshal(embRequest{Model: s.model, Input: texts})
 	if err != nil {
-		return nil, fmt.Errorf("marshal embed request: %w", err)
+		return nil, errors.WrapFail(err, "marshal embed request")
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, s.baseURL+"/embeddings", bytes.NewReader(body))
 	if err != nil {
-		return nil, fmt.Errorf("create embed request: %w", err)
+		return nil, errors.WrapFail(err, "create embed request")
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+s.apiKey)
 
-	resp, err := s.client.Do(req)
+	resp, err := s.client.Do(req) // #nosec G704 -- url is operator-supplied via --emb-base-url flag
 	if err != nil {
-		return nil, fmt.Errorf("embed request: %w", err)
+		return nil, errors.WrapFail(err, "embed request")
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		var buf bytes.Buffer
 		_, _ = buf.ReadFrom(resp.Body)
-		return nil, fmt.Errorf("embed API HTTP %d: %s", resp.StatusCode, buf.String())
+		return nil, errors.Errorf(
+			"embed API HTTP %v: %v",
+			errors.Token("status_code", resp.StatusCode),
+			errors.Token("body", buf.String()),
+		)
 	}
 
 	var parsed embResponse
 	if err := json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
-		return nil, fmt.Errorf("decode embed response: %w", err)
+		return nil, errors.WrapFail(err, "decode embed response")
 	}
 
 	result := make([][]float64, len(texts))

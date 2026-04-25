@@ -9,22 +9,29 @@ import (
 	pushpb "github.com/Doremi203/personage/backend/notificator/gen/api/push"
 	"github.com/Doremi203/personage/backend/notificator/internal/domain/notification"
 	"github.com/Doremi203/personage/backend/notificator/internal/domain/push"
-	"github.com/Doremi203/personage/backend/notificator/internal/usecase"
+	"github.com/Doremi203/personage/backend/notificator/internal/services/ratelimit"
 	"github.com/google/uuid"
 )
 
-type rateLimiter interface {
-	Allow(ctx context.Context, userID uuid.UUID, typ notification.SettingType) (bool, error)
+//go:generate mockgen -source=matcher.go -destination=mock/matcher_mock.go -typed
+
+type Sender interface {
+	Send(ctx context.Context, r push.Recipient, p push.Push) error
+}
+
+type SubscriptionGetter interface {
+	GetRecipient(ctx context.Context, id push.RecipientID) (push.Recipient, error)
 }
 
 func NewNotificationHandler(
 	logger log.Logger,
-	senderUseCase usecase.PushSender,
-	subscriptionUseCase usecase.PushSubscription,
+	senderUseCase Sender,
+	subscriptionUseCase SubscriptionGetter,
 	notificationRepo notification.Repo,
-	rateLimiter rateLimiter,
+	rateLimiter ratelimit.Allower,
 	retryInterval time.Duration,
 	maxAge time.Duration,
+	clock func() time.Time,
 ) *notificationHandler {
 	return &notificationHandler{
 		logger:              logger,
@@ -34,17 +41,19 @@ func NewNotificationHandler(
 		rateLimiter:         rateLimiter,
 		retryInterval:       retryInterval,
 		maxAge:              maxAge,
+		clock:               clock,
 	}
 }
 
 type notificationHandler struct {
-	senderUseCase       usecase.PushSender
-	subscriptionUseCase usecase.PushSubscription
+	senderUseCase       Sender
+	subscriptionUseCase SubscriptionGetter
 	notificationRepo    notification.Repo
-	rateLimiter         rateLimiter
+	rateLimiter         ratelimit.Allower
 	retryInterval       time.Duration
 	maxAge              time.Duration
 	logger              log.Logger
+	clock               func() time.Time
 }
 
 func (p *notificationHandler) Process(
@@ -85,24 +94,25 @@ func (p *notificationHandler) Process(
 	}
 
 	if !allowed {
-		now := time.Now()
-		retryAfter := now.Add(p.retryInterval)
-		expiresAt := now.Add(p.maxAge)
-		inserted, err := p.notificationRepo.CreateIfAbsent(ctx, notification.Notification{
-			UserID:         recipientUUID,
-			Title:          data.GetTitle(),
-			Type:           data.GetType(),
-			Text:           data.GetDetailedText(),
-			Status:         notification.StatusPending,
-			RetryAfter:     &retryAfter,
-			ExpiresAt:      &expiresAt,
-			IdempotencyKey: data.GetIdempotencyKey(),
-			PushPayload: &notification.PushPayload{
+		now := p.clock()
+		pending, err := notification.NewPending(
+			recipientUUID,
+			data.GetTitle(),
+			data.GetType(),
+			data.GetDetailedText(),
+			now.Add(p.retryInterval),
+			now.Add(p.maxAge),
+			&notification.PushPayload{
 				Body: data.GetBody(),
 				Icon: data.GetIcon(),
 				URL:  data.GetUrl(),
 			},
-		})
+			data.GetIdempotencyKey(),
+		)
+		if err != nil {
+			return errors.WrapFailf(err, "build pending notification for recipient %v", errors.Token("id", pushRecipientID))
+		}
+		inserted, err := p.notificationRepo.CreateIfAbsent(ctx, pending)
 		if err != nil {
 			return errors.WrapFailf(err, "persist pending notification for recipient %v", errors.Token("id", pushRecipientID))
 		}
@@ -116,16 +126,18 @@ func (p *notificationHandler) Process(
 		return nil
 	}
 
-	now := time.Now()
-	inserted, err := p.notificationRepo.CreateIfAbsent(ctx, notification.Notification{
-		UserID:         recipientUUID,
-		Title:          data.GetTitle(),
-		Type:           data.GetType(),
-		Text:           data.GetDetailedText(),
-		Status:         notification.StatusSent,
-		SentAt:         &now,
-		IdempotencyKey: data.GetIdempotencyKey(),
-	})
+	sent, err := notification.NewSent(
+		recipientUUID,
+		data.GetTitle(),
+		data.GetType(),
+		data.GetDetailedText(),
+		p.clock(),
+		data.GetIdempotencyKey(),
+	)
+	if err != nil {
+		return errors.WrapFailf(err, "build sent notification for recipient %v", errors.Token("id", pushRecipientID))
+	}
+	inserted, err := p.notificationRepo.CreateIfAbsent(ctx, sent)
 	if err != nil {
 		return errors.WrapFailf(
 			err,

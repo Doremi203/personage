@@ -1,4 +1,4 @@
-package notifications
+package notifications_test
 
 import (
 	"context"
@@ -8,72 +8,142 @@ import (
 	"github.com/Doremi203/personage/backend/libs/go/sqs"
 	pushpb "github.com/Doremi203/personage/backend/notificator/gen/api/push"
 	"github.com/Doremi203/personage/backend/tasker/internal/domain"
+	"github.com/Doremi203/personage/backend/tasker/internal/services/notifications"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-type capturingSQSWriter struct {
-	messages []*pushpb.Notification
+type stubSQSWriter struct {
+	err         error
+	gotMsg      *pushpb.Notification
+	gotOptCount int
 }
 
-func (w *capturingSQSWriter) SendMessage(_ context.Context, msg *pushpb.Notification, _ ...sqs.SendMessageOption) error {
-	w.messages = append(w.messages, msg)
-	return nil
+func (s *stubSQSWriter) SendMessage(_ context.Context, msg *pushpb.Notification, opts ...sqs.SendMessageOption) error {
+	s.gotMsg = msg
+	s.gotOptCount = len(opts)
+	return s.err
 }
 
-func TestNotificatorPushService_UsesNotificationTimeAsAnchor(t *testing.T) {
-	// notifTime sits exactly on a 5-minute bucket boundary
+func TestNotificatorPushService_Send(t *testing.T) {
 	notifTime := time.Date(2026, 4, 18, 10, 0, 0, 0, time.UTC)
-
-	// Two worker ticks that straddle the 09:55/10:00 boundary
-	tick1 := notifTime.Add(-30 * time.Second) // 09:59:30 — bucket 09:55
-	tick2 := notifTime.Add(30 * time.Second)  // 10:00:30 — bucket 10:00
-
-	// Precondition: the raw ticks land in different buckets and produce different keys
-	key1 := IdempotencyKey("user-1", tick1, "upcoming_event", "title")
-	key2 := IdempotencyKey("user-1", tick2, "upcoming_event", "title")
-	require.NotEqual(t, key1, key2, "precondition: ticks must be in different buckets")
-
-	writer := &capturingSQSWriter{}
-	svc := &notificatorPushService{client: writer}
-
-	notif := domain.Notification{
-		UserID:           domain.UserID("user-1"),
-		Title:            "title",
-		Type:             "upcoming_event",
-		NotificationTime: &notifTime,
-	}
-
-	svc.now = func() time.Time { return tick1 }
-	require.NoError(t, svc.Send(context.Background(), notif))
-
-	svc.now = func() time.Time { return tick2 }
-	require.NoError(t, svc.Send(context.Background(), notif))
-
-	require.Len(t, writer.messages, 2)
-	assert.Equal(t, writer.messages[0].GetIdempotencyKey(), writer.messages[1].GetIdempotencyKey(),
-		"both ticks must produce the same key when NotificationTime is set")
-}
-
-func TestNotificatorPushService_FallsBackToNowWhenNotificationTimeAbsent(t *testing.T) {
+	tickEarly := notifTime.Add(-30 * time.Second)
+	tickLate := notifTime.Add(30 * time.Second)
 	fixedNow := time.Date(2026, 4, 18, 10, 2, 0, 0, time.UTC)
+	userID := domain.UserID("user-1")
+	const (
+		notifType = "upcoming_event"
+		title     = "title"
+		body      = "body"
+	)
 
-	writer := &capturingSQSWriter{}
-	svc := &notificatorPushService{
-		client: writer,
-		now:    func() time.Time { return fixedNow },
+	type mocks struct {
+		writer *stubSQSWriter
+	}
+	type args struct {
+		notification domain.Notification
+		clock        func() time.Time
+	}
+	tests := []struct {
+		name    string
+		args    args
+		setup   func(m mocks, a args)
+		assert  func(t *testing.T, m mocks)
+		wantErr require.ErrorAssertionFunc
+	}{
+		{
+			name: "NotificationTime set populates fields and idempotency key",
+			args: args{
+				notification: domain.Notification{
+					UserID:           userID,
+					Title:            title,
+					Body:             body,
+					Type:             notifType,
+					NotificationTime: &notifTime,
+				},
+				clock: func() time.Time { return tickEarly },
+			},
+			setup: func(_ mocks, _ args) {},
+			assert: func(t *testing.T, m mocks) {
+				require.NotNil(t, m.writer.gotMsg)
+				expectedKey := notifications.IdempotencyKey(userID.String(), notifTime, notifType, title)
+				assert.Equal(t, userID.String(), m.writer.gotMsg.GetRecipientId())
+				assert.Equal(t, title, m.writer.gotMsg.GetTitle())
+				assert.Equal(t, body, m.writer.gotMsg.GetBody())
+				assert.Equal(t, "/icon-72x72.png", m.writer.gotMsg.GetIcon())
+				assert.Equal(t, "/", m.writer.gotMsg.GetUrl())
+				assert.Equal(t, notifType, m.writer.gotMsg.GetType())
+				assert.Equal(t, expectedKey, m.writer.gotMsg.GetIdempotencyKey())
+				assert.Equal(t, 1, m.writer.gotOptCount, "expected single group-id option to be passed")
+			},
+			wantErr: require.NoError,
+		},
+		{
+			name: "NotificationTime overrides clock so the key is bucket-stable",
+			args: args{
+				notification: domain.Notification{
+					UserID:           userID,
+					Title:            title,
+					Type:             notifType,
+					NotificationTime: &notifTime,
+				},
+				clock: func() time.Time { return tickLate },
+			},
+			setup: func(_ mocks, _ args) {},
+			assert: func(t *testing.T, m mocks) {
+				expectedKey := notifications.IdempotencyKey(userID.String(), notifTime, notifType, title)
+				assert.Equal(t, expectedKey, m.writer.gotMsg.GetIdempotencyKey())
+			},
+			wantErr: require.NoError,
+		},
+		{
+			name: "absent NotificationTime falls back to clock",
+			args: args{
+				notification: domain.Notification{
+					UserID: userID,
+					Title:  title,
+					Type:   "schedule_change",
+				},
+				clock: func() time.Time { return fixedNow },
+			},
+			setup: func(_ mocks, _ args) {},
+			assert: func(t *testing.T, m mocks) {
+				expectedKey := notifications.IdempotencyKey(userID.String(), fixedNow, "schedule_change", title)
+				assert.Equal(t, expectedKey, m.writer.gotMsg.GetIdempotencyKey())
+			},
+			wantErr: require.NoError,
+		},
+		{
+			name: "SendMessage error returned as-is",
+			args: args{
+				notification: domain.Notification{
+					UserID:           userID,
+					Title:            title,
+					Type:             notifType,
+					NotificationTime: &notifTime,
+				},
+				clock: func() time.Time { return tickEarly },
+			},
+			setup: func(m mocks, _ args) {
+				m.writer.err = assert.AnError
+			},
+			assert: func(_ *testing.T, _ mocks) {},
+			wantErr: func(t require.TestingT, err error, _ ...any) {
+				require.ErrorIs(t, err, assert.AnError)
+			},
+		},
 	}
 
-	notif := domain.Notification{
-		UserID: domain.UserID("user-1"),
-		Title:  "title",
-		Type:   "schedule_change",
-		// NotificationTime intentionally absent — should fall back to s.now()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := mocks{writer: &stubSQSWriter{}}
+			tt.setup(m, tt.args)
+
+			svc := notifications.NewNotificatorPushService(m.writer, tt.args.clock)
+			err := svc.Send(t.Context(), tt.args.notification)
+
+			tt.wantErr(t, err)
+			tt.assert(t, m)
+		})
 	}
-
-	require.NoError(t, svc.Send(context.Background(), notif))
-	require.Len(t, writer.messages, 1)
-
-	expected := IdempotencyKey("user-1", fixedNow, "schedule_change", "title")
-	assert.Equal(t, expected, writer.messages[0].GetIdempotencyKey())
 }

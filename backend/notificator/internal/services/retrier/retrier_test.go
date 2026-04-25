@@ -1,166 +1,202 @@
 package retrier_test
 
 import (
-	"context"
 	"testing"
 	"time"
 
+	"github.com/Doremi203/personage/backend/libs/go/log"
 	"github.com/Doremi203/personage/backend/notificator/internal/domain/notification"
 	mock_notification "github.com/Doremi203/personage/backend/notificator/internal/domain/notification/mock"
 	"github.com/Doremi203/personage/backend/notificator/internal/domain/push"
+	mock_ratelimit "github.com/Doremi203/personage/backend/notificator/internal/services/ratelimit/mock"
 	"github.com/Doremi203/personage/backend/notificator/internal/services/retrier"
+	mock_retrier "github.com/Doremi203/personage/backend/notificator/internal/services/retrier/mock"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 )
 
 var (
-	userID   = uuid.MustParse("11111111-1111-1111-1111-111111111111")
-	notifID  = uuid.MustParse("22222222-2222-2222-2222-222222222222")
-	now      = time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
-	retryInt = 15 * time.Minute
+	retrierUserID = uuid.MustParse("11111111-1111-1111-1111-111111111111")
+	retrierNotif  = uuid.MustParse("22222222-2222-2222-2222-222222222222")
+	retrierNow    = time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
 )
 
-// mockRateLimiter is a simple test double — no gomock needed.
-type mockRateLimiter struct{ allow bool }
+const retrierInterval = 15 * time.Minute
 
-func (m *mockRateLimiter) Allow(_ context.Context, _ uuid.UUID, _ notification.SettingType) (bool, error) {
-	return m.allow, nil
+func notif(retryAfter, expiresAt *time.Time) notification.Notification {
+	return notification.Notification{
+		ID:          retrierNotif,
+		UserID:      retrierUserID,
+		Title:       "T",
+		Type:        string(notification.SettingTypeScheduleChange),
+		Status:      notification.StatusPending,
+		PushPayload: &notification.PushPayload{Body: "b", Icon: "i", URL: "u"},
+		RetryAfter:  retryAfter,
+		ExpiresAt:   expiresAt,
+	}
 }
 
-// mockSender records the last Send call.
-type mockSender struct{ called bool }
-
-func (m *mockSender) Send(_ context.Context, _ push.Recipient, _ push.Push) error {
-	m.called = true
-	return nil
-}
-
-// mockSubscriptions always returns a single-subscription recipient.
-type mockSubscriptions struct{}
-
-func (m *mockSubscriptions) GetRecipient(_ context.Context, id push.RecipientID) (push.Recipient, error) {
+func recipientWithSub() push.Recipient {
 	return push.Recipient{
-		ID: id,
+		ID: push.RecipientID(retrierUserID),
 		Subscriptions: []push.Subscription{{
-			RecipientID: id,
+			RecipientID: push.RecipientID(retrierUserID),
 			Endpoint:    "https://example.com/push",
 		}},
-	}, nil
-}
-
-type errorSubscriptions struct{}
-
-func (m *errorSubscriptions) GetRecipient(_ context.Context, id push.RecipientID) (push.Recipient, error) {
-	return push.Recipient{}, assert.AnError
-}
-
-func expiredNotif() notification.Notification {
-	expired := now.Add(-3 * time.Hour)
-	retryT := now.Add(-time.Minute)
-	return notification.Notification{
-		ID:          notifID,
-		UserID:      userID,
-		Type:        string(notification.SettingTypeScheduleChange),
-		Status:      notification.StatusPending,
-		PushPayload: &notification.PushPayload{Body: "b", Icon: "i", URL: "u"},
-		RetryAfter:  &retryT,
-		ExpiresAt:   &expired,
 	}
 }
 
-func readyNotif() notification.Notification {
-	expires := now.Add(time.Hour)
-	retryT := now.Add(-time.Minute)
-	return notification.Notification{
-		ID:          notifID,
-		UserID:      userID,
-		Type:        string(notification.SettingTypeScheduleChange),
-		Status:      notification.StatusPending,
-		PushPayload: &notification.PushPayload{Body: "b", Icon: "i", URL: "u"},
-		RetryAfter:  &retryT,
-		ExpiresAt:   &expires,
+func TestRetrier_ProcessOnce(t *testing.T) {
+	expired := retrierNow.Add(-3 * time.Hour)
+	pastRetry := retrierNow.Add(-time.Minute)
+	futureRetry := retrierNow.Add(time.Minute)
+	futureExpiry := retrierNow.Add(time.Hour)
+
+	type mocks struct {
+		repo          *mock_notification.MockRepo
+		rateLimiter   *mock_ratelimit.MockAllower
+		sender        *mock_retrier.MockSender
+		subscriptions *mock_retrier.MockSubscriptionGetter
 	}
-}
-
-func notReadyNotif() notification.Notification {
-	expires := now.Add(time.Hour)
-	retryT := now.Add(time.Minute) // retry in the future
-	return notification.Notification{
-		ID:          notifID,
-		UserID:      userID,
-		Type:        string(notification.SettingTypeScheduleChange),
-		Status:      notification.StatusPending,
-		PushPayload: &notification.PushPayload{Body: "b", Icon: "i", URL: "u"},
-		RetryAfter:  &retryT,
-		ExpiresAt:   &expires,
+	tests := []struct {
+		name  string
+		setup func(m mocks)
+	}{
+		{
+			name: "list pending error logged and returns",
+			setup: func(m mocks) {
+				m.repo.EXPECT().ListPending(gomock.Any()).Return(nil, assert.AnError)
+			},
+		},
+		{
+			name: "empty pending list is a no-op",
+			setup: func(m mocks) {
+				m.repo.EXPECT().ListPending(gomock.Any()).Return(nil, nil)
+			},
+		},
+		{
+			name: "missing expiry skipped without further calls",
+			setup: func(m mocks) {
+				m.repo.EXPECT().ListPending(gomock.Any()).
+					Return([]notification.Notification{notif(&pastRetry, nil)}, nil)
+			},
+		},
+		{
+			name: "expired notification is dropped",
+			setup: func(m mocks) {
+				m.repo.EXPECT().ListPending(gomock.Any()).
+					Return([]notification.Notification{notif(&pastRetry, &expired)}, nil)
+				m.repo.EXPECT().Drop(gomock.Any(), retrierNotif).Return(nil)
+			},
+		},
+		{
+			name: "retry_after in the future is skipped",
+			setup: func(m mocks) {
+				m.repo.EXPECT().ListPending(gomock.Any()).
+					Return([]notification.Notification{notif(&futureRetry, &futureExpiry)}, nil)
+			},
+		},
+		{
+			name: "rate limit error skips entry",
+			setup: func(m mocks) {
+				m.repo.EXPECT().ListPending(gomock.Any()).
+					Return([]notification.Notification{notif(&pastRetry, &futureExpiry)}, nil)
+				m.rateLimiter.EXPECT().
+					Allow(gomock.Any(), retrierUserID, notification.SettingTypeScheduleChange).
+					Return(false, assert.AnError)
+			},
+		},
+		{
+			name: "rate limited updates retry_after",
+			setup: func(m mocks) {
+				m.repo.EXPECT().ListPending(gomock.Any()).
+					Return([]notification.Notification{notif(&pastRetry, &futureExpiry)}, nil)
+				m.rateLimiter.EXPECT().
+					Allow(gomock.Any(), retrierUserID, notification.SettingTypeScheduleChange).
+					Return(false, nil)
+				m.repo.EXPECT().
+					UpdateRetryAfter(gomock.Any(), retrierNotif, retrierNow.Add(retrierInterval)).
+					Return(nil)
+			},
+		},
+		{
+			name: "get recipient error skips entry",
+			setup: func(m mocks) {
+				m.repo.EXPECT().ListPending(gomock.Any()).
+					Return([]notification.Notification{notif(&pastRetry, &futureExpiry)}, nil)
+				m.rateLimiter.EXPECT().
+					Allow(gomock.Any(), retrierUserID, notification.SettingTypeScheduleChange).
+					Return(true, nil)
+				m.subscriptions.EXPECT().
+					GetRecipient(gomock.Any(), push.RecipientID(retrierUserID)).
+					Return(push.Recipient{}, assert.AnError)
+			},
+		},
+		{
+			name: "no subscriptions causes drop",
+			setup: func(m mocks) {
+				m.repo.EXPECT().ListPending(gomock.Any()).
+					Return([]notification.Notification{notif(&pastRetry, &futureExpiry)}, nil)
+				m.rateLimiter.EXPECT().
+					Allow(gomock.Any(), retrierUserID, notification.SettingTypeScheduleChange).
+					Return(true, nil)
+				m.subscriptions.EXPECT().
+					GetRecipient(gomock.Any(), push.RecipientID(retrierUserID)).
+					Return(push.Recipient{ID: push.RecipientID(retrierUserID)}, nil)
+				m.repo.EXPECT().Drop(gomock.Any(), retrierNotif).Return(nil)
+			},
+		},
+		{
+			name: "send failure updates retry_after and skips MarkSent",
+			setup: func(m mocks) {
+				m.repo.EXPECT().ListPending(gomock.Any()).
+					Return([]notification.Notification{notif(&pastRetry, &futureExpiry)}, nil)
+				m.rateLimiter.EXPECT().
+					Allow(gomock.Any(), retrierUserID, notification.SettingTypeScheduleChange).
+					Return(true, nil)
+				m.subscriptions.EXPECT().
+					GetRecipient(gomock.Any(), push.RecipientID(retrierUserID)).
+					Return(recipientWithSub(), nil)
+				m.sender.EXPECT().
+					Send(gomock.Any(), recipientWithSub(), push.Push{Title: "T", Body: "b", Icon: "i", Url: "u"}).
+					Return(assert.AnError)
+				m.repo.EXPECT().
+					UpdateRetryAfter(gomock.Any(), retrierNotif, retrierNow.Add(retrierInterval)).
+					Return(nil)
+			},
+		},
+		{
+			name: "successful send marks as sent",
+			setup: func(m mocks) {
+				m.repo.EXPECT().ListPending(gomock.Any()).
+					Return([]notification.Notification{notif(&pastRetry, &futureExpiry)}, nil)
+				m.rateLimiter.EXPECT().
+					Allow(gomock.Any(), retrierUserID, notification.SettingTypeScheduleChange).
+					Return(true, nil)
+				m.subscriptions.EXPECT().
+					GetRecipient(gomock.Any(), push.RecipientID(retrierUserID)).
+					Return(recipientWithSub(), nil)
+				m.sender.EXPECT().
+					Send(gomock.Any(), recipientWithSub(), push.Push{Title: "T", Body: "b", Icon: "i", Url: "u"}).
+					Return(nil)
+				m.repo.EXPECT().MarkSent(gomock.Any(), retrierNotif, retrierNow).Return(nil)
+			},
+		},
 	}
-}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			m := mocks{
+				repo:          mock_notification.NewMockRepo(ctrl),
+				rateLimiter:   mock_ratelimit.NewMockAllower(ctrl),
+				sender:        mock_retrier.NewMockSender(ctrl),
+				subscriptions: mock_retrier.NewMockSubscriptionGetter(ctrl),
+			}
+			tt.setup(m)
 
-func TestRetrier_ProcessOnce_ExpiredNotification(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	repo := mock_notification.NewMockRepo(ctrl)
-
-	repo.EXPECT().ListPending(gomock.Any()).Return([]notification.Notification{expiredNotif()}, nil)
-	repo.EXPECT().Drop(gomock.Any(), notifID).Return(nil)
-
-	r := retrier.New(repo, &mockRateLimiter{allow: true}, &mockSender{}, &mockSubscriptions{}, retryInt)
-	r.ProcessOnce(context.Background(), now)
-}
-
-func TestRetrier_ProcessOnce_RateLimited(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	repo := mock_notification.NewMockRepo(ctrl)
-
-	repo.EXPECT().ListPending(gomock.Any()).Return([]notification.Notification{readyNotif()}, nil)
-	repo.EXPECT().UpdateRetryAfter(gomock.Any(), notifID, now.Add(retryInt)).Return(nil)
-
-	r := retrier.New(repo, &mockRateLimiter{allow: false}, &mockSender{}, &mockSubscriptions{}, retryInt)
-	r.ProcessOnce(context.Background(), now)
-}
-
-func TestRetrier_ProcessOnce_SendsWhenAllowed(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	repo := mock_notification.NewMockRepo(ctrl)
-	sender := &mockSender{}
-
-	repo.EXPECT().ListPending(gomock.Any()).Return([]notification.Notification{readyNotif()}, nil)
-	repo.EXPECT().MarkSent(gomock.Any(), notifID, now).Return(nil)
-
-	r := retrier.New(repo, &mockRateLimiter{allow: true}, sender, &mockSubscriptions{}, retryInt)
-	r.ProcessOnce(context.Background(), now)
-
-	assert.True(t, sender.called)
-}
-
-func TestRetrier_ProcessOnce_NotYetReady(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	repo := mock_notification.NewMockRepo(ctrl)
-
-	repo.EXPECT().ListPending(gomock.Any()).Return([]notification.Notification{notReadyNotif()}, nil)
-	// No Drop, MarkSent, or UpdateRetryAfter — notification is not due yet.
-
-	r := retrier.New(repo, &mockRateLimiter{allow: true}, &mockSender{}, &mockSubscriptions{}, retryInt)
-	r.ProcessOnce(context.Background(), now)
-}
-
-func TestRetrier_ProcessOnce_Empty(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	repo := mock_notification.NewMockRepo(ctrl)
-
-	repo.EXPECT().ListPending(gomock.Any()).Return(nil, nil)
-
-	r := retrier.New(repo, &mockRateLimiter{allow: true}, &mockSender{}, &mockSubscriptions{}, retryInt)
-	r.ProcessOnce(context.Background(), now)
-}
-
-func TestRetrier_ProcessOnce_GetRecipientError(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	repo := mock_notification.NewMockRepo(ctrl)
-
-	repo.EXPECT().ListPending(gomock.Any()).Return([]notification.Notification{readyNotif()}, nil)
-	// No Drop, MarkSent, or UpdateRetryAfter — error getting recipient should just log and skip
-
-	r := retrier.New(repo, &mockRateLimiter{allow: true}, &mockSender{}, &errorSubscriptions{}, retryInt)
-	r.ProcessOnce(context.Background(), now)
+			r := retrier.New(m.repo, m.rateLimiter, m.sender, m.subscriptions, retrierInterval, log.Stub{})
+			r.ProcessOnce(t.Context(), retrierNow)
+		})
+	}
 }

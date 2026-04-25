@@ -2,9 +2,8 @@ package grpc
 
 import (
 	"context"
-	"errors"
 
-	liberrors "github.com/Doremi203/personage/backend/libs/go/errors"
+	"github.com/Doremi203/personage/backend/libs/go/errors"
 	"github.com/Doremi203/personage/backend/libs/go/log"
 	"github.com/Doremi203/personage/backend/libs/go/token"
 	taskspb "github.com/Doremi203/personage/backend/tasker/gen/api/tasks"
@@ -80,7 +79,7 @@ func (s *tasksService) ListTasksV1(
 		PageSize: req.GetPageSize(),
 	})
 	if err != nil {
-		return nil, liberrors.WrapFail(err, "get tasks")
+		return nil, errors.WrapFail(err, "get tasks")
 	}
 
 	protoTasks := make([]*taskspb.TaskItem, 0, len(result.Tasks))
@@ -114,7 +113,7 @@ func (s *tasksService) GetTaskV1(
 		if errors.Is(err, domain.ErrTaskNotFound) {
 			return nil, status.Error(codes.NotFound, "task not found")
 		}
-		return nil, liberrors.WrapFail(err, "get task")
+		return nil, errors.WrapFail(err, "get task")
 	}
 
 	return &taskspb.GetTaskV1Response{
@@ -165,7 +164,7 @@ func (s *tasksService) UpdateTaskV1(
 		if errors.Is(err, domain.ErrTaskNotFound) {
 			return nil, status.Error(codes.NotFound, "task not found")
 		}
-		return nil, liberrors.WrapFail(err, "update task")
+		return nil, errors.WrapFail(err, "update task")
 	}
 
 	return &taskspb.UpdateTaskV1Response{
@@ -191,7 +190,7 @@ func (s *tasksService) PostponeTaskV1(
 		if errors.Is(err, domain.ErrTaskNotFound) {
 			return nil, status.Error(codes.NotFound, "task not found")
 		}
-		return nil, liberrors.WrapFail(err, "postpone task")
+		return nil, errors.WrapFail(err, "postpone task")
 	}
 
 	return &taskspb.PostponeTaskV1Response{
@@ -217,7 +216,7 @@ func (s *tasksService) DeleteTaskV1(
 		if errors.Is(err, domain.ErrTaskNotFound) {
 			return nil, status.Error(codes.NotFound, "task not found")
 		}
-		return nil, liberrors.WrapFail(err, "delete task")
+		return nil, errors.WrapFail(err, "delete task")
 	}
 
 	return &taskspb.DeleteTaskV1Response{}, nil
@@ -241,7 +240,7 @@ func (s *tasksService) CompleteTaskV1(
 		if errors.Is(err, domain.ErrTaskNotFound) {
 			return nil, status.Error(codes.NotFound, "task not found")
 		}
-		return nil, liberrors.WrapFail(err, "complete task")
+		return nil, errors.WrapFail(err, "complete task")
 	}
 
 	return &taskspb.CompleteTaskV1Response{

@@ -39,7 +39,7 @@ func generateAndParseWithRetry[T any](
 
 		lastErr = err
 		logger.Warn(errors.Errorf(
-			"llm generation of %T failed %s retrying %s",
+			"llm generation of %T failed %v retrying %v",
 			parsed,
 			errors.Token("err", lastErr.Error()),
 			errors.Token("attempt", attempt),

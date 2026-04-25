@@ -9,13 +9,13 @@ import (
 	"github.com/Doremi203/personage/backend/tasker/internal/domain"
 )
 
-// NewNotificatorPushService creates a new push notification service that implements domain.NotificationsService.
 func NewNotificatorPushService(
 	client sqs.ClientWriter[*pushpb.Notification],
+	clock func() time.Time,
 ) domain.NotificationsService {
 	return &notificatorPushService{
 		client: client,
-		now:    time.Now,
+		now:    clock,
 	}
 }
 

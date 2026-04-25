@@ -8,6 +8,12 @@ import (
 	"github.com/google/uuid"
 )
 
+//go:generate mockgen -source=ratelimiter.go -destination=mock/ratelimiter_mock.go -typed
+
+type Allower interface {
+	Allow(ctx context.Context, userID uuid.UUID, typ notification.SettingType) (bool, error)
+}
+
 type Limits struct {
 	Hourly int
 	Daily  int
@@ -16,10 +22,11 @@ type Limits struct {
 type RateLimiter struct {
 	repo   notification.Repo
 	limits map[notification.SettingType]Limits
+	clock  func() time.Time
 }
 
-func New(repo notification.Repo, limits map[notification.SettingType]Limits) *RateLimiter {
-	return &RateLimiter{repo: repo, limits: limits}
+func New(repo notification.Repo, limits map[notification.SettingType]Limits, clock func() time.Time) *RateLimiter {
+	return &RateLimiter{repo: repo, limits: limits, clock: clock}
 }
 
 func (r *RateLimiter) Allow(ctx context.Context, userID uuid.UUID, typ notification.SettingType) (bool, error) {
@@ -28,7 +35,7 @@ func (r *RateLimiter) Allow(ctx context.Context, userID uuid.UUID, typ notificat
 		return true, nil
 	}
 
-	now := time.Now()
+	now := r.clock()
 
 	hourlyCount, err := r.repo.CountSentSince(ctx, userID, typ, now.Add(-time.Hour))
 	if err != nil {

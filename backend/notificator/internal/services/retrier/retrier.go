@@ -8,36 +8,35 @@ import (
 	"github.com/Doremi203/personage/backend/libs/go/log"
 	"github.com/Doremi203/personage/backend/notificator/internal/domain/notification"
 	"github.com/Doremi203/personage/backend/notificator/internal/domain/push"
-	"github.com/google/uuid"
+	"github.com/Doremi203/personage/backend/notificator/internal/services/ratelimit"
 )
 
-type rateLimiter interface {
-	Allow(ctx context.Context, userID uuid.UUID, typ notification.SettingType) (bool, error)
-}
+//go:generate mockgen -source=retrier.go -destination=mock/retrier_mock.go -typed
 
-type pushSender interface {
+type Sender interface {
 	Send(ctx context.Context, r push.Recipient, p push.Push) error
 }
 
-type subscriptionGetter interface {
+type SubscriptionGetter interface {
 	GetRecipient(ctx context.Context, id push.RecipientID) (push.Recipient, error)
 }
 
 type Retrier struct {
 	repo          notification.Repo
-	rateLimiter   rateLimiter
-	sender        pushSender
-	subscriptions subscriptionGetter
+	rateLimiter   ratelimit.Allower
+	sender        Sender
+	subscriptions SubscriptionGetter
 	retryInterval time.Duration
 	logger        log.Logger
 }
 
 func New(
 	repo notification.Repo,
-	rateLimiter rateLimiter,
-	sender pushSender,
-	subscriptions subscriptionGetter,
+	rateLimiter ratelimit.Allower,
+	sender Sender,
+	subscriptions SubscriptionGetter,
 	retryInterval time.Duration,
+	logger log.Logger,
 ) *Retrier {
 	return &Retrier{
 		repo:          repo,
@@ -45,20 +44,8 @@ func New(
 		sender:        sender,
 		subscriptions: subscriptions,
 		retryInterval: retryInterval,
+		logger:        logger,
 	}
-}
-
-func NewWithLogger(
-	repo notification.Repo,
-	rateLimiter rateLimiter,
-	sender pushSender,
-	subscriptions subscriptionGetter,
-	retryInterval time.Duration,
-	logger log.Logger,
-) *Retrier {
-	r := New(repo, rateLimiter, sender, subscriptions, retryInterval)
-	r.logger = logger
-	return r
 }
 
 func (r *Retrier) Run(ctx context.Context) error {
@@ -150,7 +137,5 @@ func (r *Retrier) process(ctx context.Context, n notification.Notification, now 
 }
 
 func (r *Retrier) logError(err error, msg string) {
-	if r.logger != nil {
-		r.logger.Error(errors.WrapFail(err, msg))
-	}
+	r.logger.Error(errors.WrapFail(err, msg))
 }

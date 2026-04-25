@@ -5,8 +5,6 @@ import (
 	"unicode"
 )
 
-// Tokenize lowercases s, splits on whitespace and Unicode punctuation,
-// and drops tokens of length <= 1.
 func Tokenize(s string) []string {
 	s = strings.ToLower(s)
 	fields := strings.FieldsFunc(s, func(r rune) bool {
@@ -21,8 +19,6 @@ func Tokenize(s string) []string {
 	return out
 }
 
-// Score returns the token-level F1 between predicted and gold strings.
-// Empty predicted or gold → 0.
 func Score(predicted, gold string) float64 {
 	p := Tokenize(predicted)
 	g := Tokenize(gold)

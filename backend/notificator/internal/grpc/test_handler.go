@@ -24,9 +24,6 @@ type testCreateNotificationResponse struct {
 	ID string `json:"id"`
 }
 
-// NewTestCreateNotificationHandler returns an HTTP handler for POST /v1/test/notifications.
-// It inserts a notification directly via the repo, bypassing the SQS pipeline.
-// Must only be registered in non-production environments.
 func NewTestCreateNotificationHandler(repo testNotificationCreator) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {

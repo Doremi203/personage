@@ -2,8 +2,8 @@ package llm
 
 import (
 	"context"
-	stderrors "errors"
 
+	"github.com/Doremi203/personage/backend/libs/go/errors"
 	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/schema"
 )
@@ -20,7 +20,7 @@ type stubChatModel struct {
 
 func (s *stubChatModel) Generate(context.Context, []*schema.Message, ...model.Option) (*schema.Message, error) {
 	if s.calls >= len(s.results) {
-		return nil, stderrors.New("unexpected Generate call")
+		return nil, errors.Error("unexpected Generate call")
 	}
 
 	result := s.results[s.calls]

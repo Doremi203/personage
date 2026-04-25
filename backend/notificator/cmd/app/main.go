@@ -80,7 +80,7 @@ func main() {
 				Hourly: rateLimitConfig.ScheduleChangeHourlyLimit,
 				Daily:  rateLimitConfig.ScheduleChangeDailyLimit,
 			},
-		})
+		}, time.Now)
 
 		pushSubscriptionUseCase := usecase.NewPushSubscription(pushRepo)
 		pushSubscriptionService := grpc.NewPushSubscriptionService(pushSubscriptionUseCase, app.Log)
@@ -111,6 +111,7 @@ func main() {
 				rateLimiter,
 				rateLimitConfig.RetryInterval,
 				rateLimitConfig.MaxAge,
+				time.Now,
 			),
 			5*time.Second,
 			5,
@@ -123,7 +124,7 @@ func main() {
 			notificationMessagesProcessor.ProcessMessages,
 		))
 
-		notificationRetrier := retrier.NewWithLogger(
+		notificationRetrier := retrier.New(
 			notificationRepo,
 			rateLimiter,
 			pushSenderUseCase,

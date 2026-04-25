@@ -15,8 +15,8 @@ func NewPushSender(
 	webPushOptions *webpush.Options,
 	pushRepo push.Repo,
 	logger log.Logger,
-) PushSender {
-	return PushSender{
+) *PushSender {
+	return &PushSender{
 		webPushOptions: webPushOptions,
 		pushRepo:       pushRepo,
 		logger:         logger,
@@ -29,7 +29,7 @@ type PushSender struct {
 	logger         log.Logger
 }
 
-func (u PushSender) Send(ctx context.Context, r push.Recipient, p push.Push) error {
+func (u *PushSender) Send(ctx context.Context, r push.Recipient, p push.Push) error {
 	pushJson, err := json.Marshal(p)
 	if err != nil {
 		return errors.WrapFailf(

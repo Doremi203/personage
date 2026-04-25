@@ -5,18 +5,15 @@ import (
 
 	"github.com/Doremi203/personage/backend/libs/go/errors"
 	"github.com/Doremi203/personage/backend/libs/go/log"
+	"github.com/Doremi203/personage/backend/tasker/internal/usecase/scheduling"
 )
 
-type schedulingUseCase interface {
-	SchedulePendingTasks(ctx context.Context) error
-}
-
 type Worker struct {
-	useCase schedulingUseCase
+	useCase *scheduling.UseCase
 	logger  log.Logger
 }
 
-func NewWorker(useCase schedulingUseCase, logger log.Logger) *Worker {
+func NewWorker(useCase *scheduling.UseCase, logger log.Logger) *Worker {
 	return &Worker{
 		useCase: useCase,
 		logger:  logger,
