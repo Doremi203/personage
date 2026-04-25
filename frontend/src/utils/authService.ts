@@ -1,20 +1,15 @@
+import { clearUserCache } from './userCache';
+
 const AUTH_API_URL =
   (import.meta.env.VITE_AUTH_API_URL as string | undefined) ??
   'https://auth.persomanage.ru';
 
 const TOKENS_KEY = 'personage_auth_tokens';
-const USER_INFO_KEY = 'personage_user_info';
-const GMAIL_EMAIL_KEY = 'personage_gmail_email';
 export const AUTH_STATE_CHANGE_EVENT = 'personage-auth-state-change';
 
 export interface AuthTokens {
   accessToken: string;
   refreshToken?: string | null;
-}
-
-export interface UserInfo {
-  email: string;
-  name?: string;
 }
 
 export interface UserApiResponse {
@@ -43,30 +38,15 @@ export function getTokens(): AuthTokens | null {
   }
 }
 
-export function setTokens(tokens: AuthTokens): void {
+function setTokens(tokens: AuthTokens): void {
   localStorage.setItem(TOKENS_KEY, JSON.stringify(tokens));
   notifyAuthStateChanged();
 }
 
-export function clearTokens(): void {
+function clearTokens(): void {
   localStorage.removeItem(TOKENS_KEY);
-  localStorage.removeItem(USER_INFO_KEY);
-  localStorage.removeItem(GMAIL_EMAIL_KEY);
+  clearUserCache();
   notifyAuthStateChanged();
-}
-
-export function getUserInfo(): UserInfo | null {
-  const raw = localStorage.getItem(USER_INFO_KEY);
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as UserInfo;
-  } catch {
-    return null;
-  }
-}
-
-export function setUserInfo(info: UserInfo): void {
-  localStorage.setItem(USER_INFO_KEY, JSON.stringify(info));
 }
 
 export function isAuthenticated(): boolean {
@@ -107,7 +87,6 @@ export async function login(
     refreshToken: data.refreshToken,
   };
   setTokens(tokens);
-  setUserInfo({ email });
   return tokens;
 }
 
@@ -139,7 +118,6 @@ export async function register(
     refreshToken: data.refreshToken,
   };
   setTokens(tokens);
-  setUserInfo({ email, name });
   return tokens;
 }
 
@@ -223,9 +201,6 @@ export async function resetPassword(
     refreshToken: data.refreshToken,
   };
   setTokens(tokens);
-  // Note: the reset-password response only returns tokens (no email/name),
-  // so userInfo cannot be populated here. The sidebar will show default
-  // values until the user's session is refreshed or they log in again.
   return tokens;
 }
 
@@ -245,18 +220,6 @@ export async function forgotPassword(
   if (!response.ok) {
     throw new Error(`Ошибка: ${response.status}`);
   }
-}
-
-export function getConnectedGmailEmail(): string | null {
-  return localStorage.getItem(GMAIL_EMAIL_KEY);
-}
-
-export function setConnectedGmailEmail(email: string): void {
-  localStorage.setItem(GMAIL_EMAIL_KEY, email);
-}
-
-export function clearConnectedGmailEmail(): void {
-  localStorage.removeItem(GMAIL_EMAIL_KEY);
 }
 
 export async function startGmailAuth(
@@ -319,7 +282,5 @@ export async function fetchCurrentUser(): Promise<UserApiResponse> {
     );
   }
 
-  const user = (await response.json()) as UserApiResponse;
-  setUserInfo({ email: user.email, name: user.name });
-  return user;
+  return (await response.json()) as UserApiResponse;
 }

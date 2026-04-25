@@ -1,351 +1,411 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Search, Plus, Loader2, SlidersHorizontal, ChevronLeft, ChevronRight } from 'lucide-react';
-import TaskList from '../components/TaskList';
-import TaskDetail from '../components/TaskDetail';
-import TaskFilters from '../components/TaskFilters';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  listTasks,
-  completeTask,
-  postponeTask,
-  deleteTask,
-  ApiTaskItem,
-  ApiTaskStatus,
-  ApiTaskPriority,
+  CalendarClock,
+  CheckCheck,
+  Calendar as CalendarIcon,
+  Inbox,
+  RefreshCw,
+  Sun,
+  type LucideIcon,
+} from 'lucide-react';
+import {
+  LargeHeader,
+  SearchBar,
+  Segmented,
+  type SegmentedItem,
+} from '../mobile/Chrome';
+import {
+  CATEGORY_LABELS,
+  SANS,
+  SERIF,
+  T,
+  type Category,
+  type Priority,
+} from '../mobile/tokens';
+import { TaskDetailSheet, type DetailTask } from '../mobile/TaskDetailSheet';
+import { ErrorState } from '../mobile/StateViews';
+import {
   ApiTaskCategory,
+  ApiTaskPriority,
+  ApiTaskStatus,
   ApiTaskStatusFilter,
-  ApiTaskCategoryFilter,
+  completeTask,
+  deleteTask,
+  listTasks,
+  postponeTask,
+  type ApiTaskItem,
 } from '../utils/taskerService';
+import { RU_MONTHS_GEN, startOfDay, toApiDateParam } from '../utils/dateFormat';
 
-export type TaskStatus = 'unplanned' | 'planned' | 'completed';
-export type TaskPriority = 'high' | 'medium' | 'low';
-export type TaskCategory = 'work' | 'study' | 'personal';
+type Filter = 'today' | 'upcoming' | 'inbox' | 'done';
 
-export interface Task {
+interface Task {
   id: string;
   title: string;
   description: string;
-  status: TaskStatus;
-  priority: TaskPriority;
-  category: TaskCategory;
-  deadline: string;
-  startTime: string;
-  endTime: string;
-  progress: number;
-  tags: string[];
-  notes?: string;
+  status: 'unplanned' | 'planned' | 'completed';
+  priority: Priority;
+  category: Category;
+  deadline: string;        // pre-formatted Russian display string
+  deadlineDate?: Date;     // raw Date for sorting
+  raw: ApiTaskItem;        // kept for the detail sheet
 }
 
-function mapStatus(status: string): TaskStatus {
+function formatDeadline(iso: string | undefined): string {
+  if (!iso) return 'Без даты';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return 'Без даты';
+  const today = startOfDay(new Date());
+  const tomorrow = new Date(today);
+  tomorrow.setDate(today.getDate() + 1);
+  const day = startOfDay(d);
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  const time = `${hh}:${mm}`;
+  if (day.getTime() === today.getTime())    return `Сегодня, ${time}`;
+  if (day.getTime() === tomorrow.getTime()) return `Завтра, ${time}`;
+  const sameYear = d.getFullYear() === today.getFullYear();
+  return `${d.getDate()} ${RU_MONTHS_GEN[d.getMonth()]}${sameYear ? '' : ' ' + d.getFullYear()}`;
+}
+
+function mapStatus(status: string): Task['status'] {
   if (status === ApiTaskStatus.COMPLETED) return 'completed';
   if (status === ApiTaskStatus.UNPLANNED) return 'unplanned';
   return 'planned';
 }
 
-function mapPriority(priority: string): TaskPriority {
+function mapPriority(priority: string): Priority {
   if (priority === ApiTaskPriority.HIGH) return 'high';
-  if (priority === ApiTaskPriority.LOW) return 'low';
+  if (priority === ApiTaskPriority.LOW)  return 'low';
   return 'medium';
 }
 
-function mapCategory(category: string): TaskCategory {
-  if (category === ApiTaskCategory.WORK) return 'work';
+function mapCategory(category: string): Category {
+  if (category === ApiTaskCategory.WORK)  return 'work';
   if (category === ApiTaskCategory.STUDY) return 'study';
   return 'personal';
 }
 
-function mapApiTask(apiTask: ApiTaskItem): Task {
-  const toDateString = (ts?: string) =>
-    ts ? new Date(ts).toISOString().split('T')[0] : '';
+function mapApiTask(t: ApiTaskItem): Task {
+  const deadlineSource = t.deadline ?? t.startTime;
+  const dl = deadlineSource ? new Date(deadlineSource) : undefined;
   return {
-    id: apiTask.id,
-    title: apiTask.title,
-    description: apiTask.description,
-    status: mapStatus(apiTask.status),
-    priority: mapPriority(apiTask.priority),
-    category: mapCategory(apiTask.category),
-    deadline: toDateString(apiTask.deadline),
-    startTime: toDateString(apiTask.startTime),
-    endTime: toDateString(apiTask.endTime),
-    progress: apiTask.status === ApiTaskStatus.COMPLETED ? 100 : 0,
-    tags: [],
+    id: t.id,
+    title: t.title,
+    description: t.description,
+    status: mapStatus(t.status),
+    priority: mapPriority(t.priority),
+    category: mapCategory(t.category),
+    deadline: formatDeadline(deadlineSource),
+    deadlineDate: dl && !Number.isNaN(dl.getTime()) ? dl : undefined,
+    raw: t,
   };
 }
 
-function pluralizeTasks(count: number): string {
-  const mod10 = count % 10;
-  const mod100 = count % 100;
-  if (mod100 >= 11 && mod100 <= 19) return `${count} задач`;
-  if (mod10 === 1) return `${count} задача`;
-  if (mod10 >= 2 && mod10 <= 4) return `${count} задачи`;
-  return `${count} задач`;
+function toDetailTask(task: Task): DetailTask {
+  const start = task.raw.startTime ?? task.raw.deadline;
+  const end   = task.raw.endTime   ?? task.raw.deadline;
+  return {
+    id: task.id,
+    title: task.title,
+    description: task.description,
+    status: task.status,
+    priority: task.priority,
+    category: task.category,
+    startLabel: start ? formatDeadline(start) : '—',
+    endLabel:   end   ? formatDeadline(end)   : '—',
+  };
 }
 
-function getApiFilters(filter: string): {
+interface FilterParams {
   status?: string;
-  category?: string;
-} {
+  from?: string;
+  till?: string;
+}
+
+function paramsForFilter(filter: Filter): FilterParams {
+  const today = new Date();
+  const todayParam = toApiDateParam(today);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(today.getDate() + 1);
   switch (filter) {
-    case 'unplanned':
+    case 'today':
+      return { status: ApiTaskStatusFilter.PLANNED, from: todayParam, till: todayParam };
+    case 'upcoming':
+      return { status: ApiTaskStatusFilter.PLANNED, from: toApiDateParam(tomorrow) };
+    case 'inbox':
       return { status: ApiTaskStatusFilter.UNPLANNED };
-    case 'planned':
-      return { status: ApiTaskStatusFilter.PLANNED };
-    case 'completed':
+    case 'done':
       return { status: ApiTaskStatusFilter.COMPLETED };
-    case 'work':
-      return { category: ApiTaskCategoryFilter.WORK };
-    case 'study':
-      return { category: ApiTaskCategoryFilter.STUDY };
-    case 'personal':
-      return { category: ApiTaskCategoryFilter.PERSONAL };
-    default:
-      return {};
   }
 }
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 50;
 
 const TasksScreen = () => {
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const [filterCategory, setFilterCategory] = useState<string>('all');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [filter, setFilter] = useState<Filter>('today');
+  const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [counts, setCounts] = useState<Record<Filter, number>>({
+    today: 0, upcoming: 0, inbox: 0, done: 0,
+  });
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [actionLoading, setActionLoading] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
-  const [showMobileFilters, setShowMobileFilters] = useState(false);
-
-  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
+    const t = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(t);
+  }, [search]);
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [filterCategory, debouncedSearch]);
-
-  const fetchTasks = useCallback(async () => {
+  const fetchAll = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const filters = getApiFilters(filterCategory);
-      const response = await listTasks({
-        ...filters,
-        text: debouncedSearch || undefined,
-        pageSize: PAGE_SIZE,
-        page: currentPage,
+      const [list, c1, c2, c3, c4] = await Promise.all([
+        listTasks({
+          ...paramsForFilter(filter),
+          text: debouncedSearch || undefined,
+          pageSize: PAGE_SIZE,
+          page: 1,
+        }),
+        listTasks({ ...paramsForFilter('today'),    pageSize: 1, page: 1 }),
+        listTasks({ ...paramsForFilter('upcoming'), pageSize: 1, page: 1 }),
+        listTasks({ ...paramsForFilter('inbox'),    pageSize: 1, page: 1 }),
+        listTasks({ ...paramsForFilter('done'),     pageSize: 1, page: 1 }),
+      ]);
+      setTasks((list.tasks ?? []).map(mapApiTask));
+      setCounts({
+        today:    c1.total ?? 0,
+        upcoming: c2.total ?? 0,
+        inbox:    c3.total ?? 0,
+        done:     c4.total ?? 0,
       });
-      const mapped = (response.tasks ?? []).map(mapApiTask);
-      setTasks(mapped);
-      setTotalCount(response.total ?? 0);
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'Не удалось загрузить задачи',
-      );
+      setError(err instanceof Error ? err.message : 'Не удалось загрузить задачи');
     } finally {
       setLoading(false);
     }
-  }, [filterCategory, debouncedSearch, currentPage]);
+  }, [filter, debouncedSearch]);
 
   useEffect(() => {
-    void fetchTasks();
-  }, [fetchTasks]);
+    void fetchAll();
+  }, [fetchAll]);
 
-  const handleComplete = useCallback(async () => {
-    if (!selectedTask) return;
-    setActionLoading(true);
-    try {
-      await completeTask(selectedTask.id);
-      await fetchTasks();
+  const runAction = useCallback(
+    async (id: string, action: (id: string) => Promise<unknown>) => {
+      await action(id);
       setSelectedTask(null);
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'Не удалось завершить задачу',
-      );
-    } finally {
-      setActionLoading(false);
-    }
-  }, [selectedTask, fetchTasks]);
+      await fetchAll();
+    },
+    [fetchAll],
+  );
 
-  const handlePostpone = useCallback(async () => {
-    if (!selectedTask) return;
-    setActionLoading(true);
-    try {
-      await postponeTask(selectedTask.id);
-      await fetchTasks();
-      setSelectedTask(null);
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'Не удалось отложить задачу',
-      );
-    } finally {
-      setActionLoading(false);
-    }
-  }, [selectedTask, fetchTasks]);
+  const items: SegmentedItem<Filter>[] = useMemo(() => [
+    { id: 'today',    label: 'Сегодня',  count: counts.today },
+    { id: 'upcoming', label: 'Скоро',    count: counts.upcoming },
+    { id: 'inbox',    label: 'Без даты', count: counts.inbox },
+    { id: 'done',     label: 'Готово',   count: counts.done },
+  ], [counts]);
 
-  const handleDelete = useCallback(async () => {
-    if (!selectedTask) return;
-    setActionLoading(true);
-    try {
-      await deleteTask(selectedTask.id);
-      await fetchTasks();
-      setSelectedTask(null);
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'Не удалось удалить задачу',
-      );
-    } finally {
-      setActionLoading(false);
-    }
-  }, [selectedTask, fetchTasks]);
+  const subtitle =
+    counts.today > 0 ? `${counts.today} запланировано на сегодня`
+                     : 'На сегодня всё готово';
 
   return (
-    <div className="h-full flex flex-col md:flex-row md:pt-0 pt-16">
-      <div className="hidden md:flex md:w-80 bg-white border-r border-gray-200 flex-col">
-        <div className="p-6 border-b border-gray-200">
-          <h2 className="text-2xl font-bold text-[#2D2F31] mb-4">Задачи</h2>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-            <input
-              type="text"
-              placeholder="Поиск задач..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-[#F7F8FA] border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#5C6BFF] focus:border-transparent text-base"
-            />
-          </div>
-        </div>
-        <TaskFilters currentFilter={filterCategory} onFilterChange={setFilterCategory} />
-      </div>
+    <>
+      <LargeHeader title="Задачи" subtitle={subtitle} />
 
-      <div className="flex-1 overflow-auto">
-        <div className="p-4 md:p-8">
-          <div className="mb-4 md:mb-6">
-            <div className="flex items-center justify-between mb-4 md:hidden">
-              <h2 className="text-xl font-bold text-[#2D2F31]">Задачи</h2>
-              <button
-                onClick={() => setShowMobileFilters((v) => !v)}
-                className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-sm transition-colors ${
-                  showMobileFilters
-                    ? 'border-[#5C6BFF] text-[#5C6BFF] bg-[#5C6BFF]/5'
-                    : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-                }`}
-              >
-                <SlidersHorizontal size={16} />
-                Фильтры
-                {filterCategory !== 'all' && (
-                  <span className="w-2 h-2 bg-[#5C6BFF] rounded-full" />
-                )}
-              </button>
-            </div>
-            {showMobileFilters && (
-              <div className="mb-4 bg-white rounded-xl border border-gray-200 md:hidden">
-                <TaskFilters
-                  currentFilter={filterCategory}
-                  onFilterChange={(f) => {
-                    setFilterCategory(f);
-                    setShowMobileFilters(false);
-                  }}
-                />
-              </div>
-            )}
-            <div className="relative md:hidden mb-4">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-              <input
-                type="text"
-                placeholder="Поиск задач..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 bg-[#F7F8FA] border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#5C6BFF] focus:border-transparent text-base"
-              />
-            </div>
-          </div>
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4 md:mb-6">
-            <div>
-              <h3 className="text-lg md:text-xl font-semibold text-[#2D2F31]">
-                {filterCategory === 'all' ? 'Все задачи' : 'Фильтрованные'}
-              </h3>
-              <p className="text-xs md:text-sm text-gray-500 mt-1">{pluralizeTasks(totalCount)}</p>
-            </div>
-            <button className="flex items-center justify-center gap-2 px-4 py-2.5 bg-[#5C6BFF] text-white rounded-xl hover:bg-[#4C5BEF] transition-colors shadow-lg shadow-[#5C6BFF]/20 text-sm md:text-base">
-              <Plus size={18} />
-              <span className="font-medium">Новая</span>
-            </button>
-          </div>
-          {loading ? (
-            <div className="flex items-center justify-center py-16 text-gray-400">
-              <Loader2 size={32} className="animate-spin" />
-            </div>
-          ) : error ? (
-            <div className="py-8 text-center">
-              <p className="text-red-500 text-sm mb-3">{error}</p>
-              <button
-                onClick={() => void fetchTasks()}
-                className="px-4 py-2 bg-[#5C6BFF] text-white rounded-xl text-sm hover:bg-[#4C5BEF] transition-colors"
-              >
-                Повторить
-              </button>
-            </div>
-          ) : (
-            <>
-              <TaskList tasks={tasks} onTaskSelect={setSelectedTask} selectedTaskId={selectedTask?.id} />
-              {totalPages > 1 && (
-                <div className="flex items-center justify-center gap-3 mt-6">
-                  <button
-                    onClick={() => setCurrentPage((p) => p - 1)}
-                    disabled={currentPage === 1}
-                    className="flex items-center gap-1 px-4 py-2 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <ChevronLeft size={16} />
-                    Назад
-                  </button>
-                  <span className="text-sm text-gray-500 min-w-[60px] text-center">
-                    {currentPage} / {totalPages}
-                  </span>
-                  <button
-                    onClick={() => setCurrentPage((p) => p + 1)}
-                    disabled={currentPage === totalPages}
-                    className="flex items-center gap-1 px-4 py-2 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                  >
-                    Далее
-                    <ChevronRight size={16} />
-                  </button>
-                </div>
-              )}
-            </>
+      <SearchBar
+        value={search}
+        onChange={setSearch}
+        placeholder="Найти задачу"
+      />
+
+      <Segmented value={filter} onChange={setFilter} items={items} />
+
+      {loading ? (
+        <ListPlaceholder text="Загрузка…" />
+      ) : error ? (
+        <ErrorState message={error} onRetry={() => void fetchAll()} />
+      ) : tasks.length === 0 ? (
+        <EmptyState filter={filter} />
+      ) : (
+        <div style={{ padding: '0 16px', display: 'grid', gap: 10 }}>
+          {tasks.map((task) => (
+            <TaskListCard
+              key={task.id}
+              task={task}
+              onClick={() => setSelectedTask(task)}
+            />
+          ))}
+        </div>
+      )}
+
+      <SyncFooter />
+
+      {selectedTask && (
+        <TaskDetailSheet
+          task={toDetailTask(selectedTask)}
+          onClose={() => setSelectedTask(null)}
+          onComplete={() => runAction(selectedTask.id, completeTask)}
+          onPostpone={() => runAction(selectedTask.id, postponeTask)}
+          onDelete={()   => runAction(selectedTask.id, deleteTask)}
+        />
+      )}
+    </>
+  );
+};
+
+interface TaskListCardProps {
+  task: Task;
+  onClick: () => void;
+}
+
+function TaskListCard({ task, onClick }: TaskListCardProps) {
+  const pal = T[task.priority];
+  const catPal = T[task.category];
+  const isDone = task.status === 'completed';
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        width: '100%', textAlign: 'left',
+        background: T.surface,
+        border: `0.5px solid ${T.hairline}`,
+        borderRadius: 14,
+        padding: '14px 14px 14px 16px',
+        cursor: 'pointer',
+        position: 'relative',
+        fontFamily: SANS,
+        display: 'flex', flexDirection: 'column', gap: 10,
+      }}
+    >
+      <div style={{
+        position: 'absolute', left: 0, top: 14, bottom: 14, width: 3,
+        borderRadius: '0 3px 3px 0',
+        background: isDone ? T.subtleHi : pal.rail,
+      }} />
+
+      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+        <div style={{
+          width: 22, height: 22, borderRadius: '50%',
+          border: `1.5px solid ${isDone ? T.ok : T.ink4}`,
+          background: isDone ? T.ok : 'transparent',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          flexShrink: 0, marginTop: 1,
+        }}>
+          {isDone && (
+            <svg width="11" height="9" viewBox="0 0 11 9" aria-hidden>
+              <path d="M1 4.5L4 7.5L10 1.5" stroke="#fff" strokeWidth="2"
+                strokeLinecap="round" strokeLinejoin="round" fill="none" />
+            </svg>
+          )}
+        </div>
+
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{
+            fontFamily: SERIF, fontSize: 18, lineHeight: 1.2,
+            color: T.ink, letterSpacing: -0.1,
+            textDecoration: isDone ? 'line-through' : 'none',
+            textDecorationColor: T.ink4,
+            marginBottom: 3,
+            wordBreak: 'break-word',
+          }}>{task.title}</div>
+          {task.description && (
+            <div style={{
+              fontSize: 13, color: T.ink3, lineHeight: 1.4,
+              display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+            }}>{task.description}</div>
           )}
         </div>
       </div>
 
-      {selectedTask && (
-        <>
-          <div className="md:hidden fixed inset-0 bg-black/50 z-40" onClick={() => setSelectedTask(null)} />
-          <div className="md:w-96 fixed md:relative bottom-0 left-0 right-0 md:bottom-auto bg-white rounded-t-2xl md:rounded-none md:border-l border-gray-200 overflow-auto max-h-[80vh] md:max-h-full z-40">
-            <TaskDetail
-              task={selectedTask}
-              onClose={() => setSelectedTask(null)}
-              onComplete={handleComplete}
-              onPostpone={handlePostpone}
-              onDelete={handleDelete}
-              actionLoading={actionLoading}
-            />
-          </div>
-        </>
-      )}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 10, paddingLeft: 34,
+        flexWrap: 'wrap',
+      }}>
+        <span style={{
+          display: 'inline-flex', alignItems: 'center', gap: 5,
+          fontSize: 12, color: T.ink3, fontWeight: 500,
+        }}>
+          <CalendarIcon size={12} strokeWidth={1.8} />
+          {task.deadline}
+        </span>
+        <span style={{
+          display: 'inline-flex', alignItems: 'center', gap: 5,
+          fontSize: 12, color: T.ink3, fontWeight: 500,
+        }}>
+          <span style={{ width: 6, height: 6, borderRadius: '50%', background: catPal.rail }} />
+          {CATEGORY_LABELS[task.category]}
+        </span>
+      </div>
+    </button>
+  );
+}
 
-      {!selectedTask && (
-        <div className="md:flex hidden md:w-80 bg-white border-l border-gray-200 flex-col">
-          <div className="p-4 text-center text-gray-500">
-            <p>Выберите задачу для просмотра деталей</p>
-          </div>
-        </div>
-      )}
+interface EmptyMsg {
+  icon: LucideIcon;
+  title: string;
+  sub: string;
+}
+
+const EMPTY_BY_FILTER: Record<Filter, EmptyMsg> = {
+  today:    { icon: Sun,           title: 'На сегодня свободно',     sub: 'Новые задачи появятся автоматически из почты, календаря и Telegram' },
+  upcoming: { icon: CalendarClock, title: 'Нет предстоящих',         sub: 'Личный ассистент пока не нашёл новых задач на ближайшие дни' },
+  inbox:    { icon: Inbox,         title: 'Входящие пусты',          sub: 'Задачи без даты будут появляться здесь' },
+  done:     { icon: CheckCheck,    title: 'Пока ничего не сделано',  sub: 'Завершённые задачи появятся здесь' },
+};
+
+function EmptyState({ filter }: { filter: Filter }) {
+  const msg = EMPTY_BY_FILTER[filter];
+  const Icon = msg.icon;
+  return (
+    <div style={{ padding: '48px 32px 16px', textAlign: 'center' }}>
+      <div style={{
+        width: 56, height: 56, margin: '0 auto 14px',
+        borderRadius: '50%', background: T.amberFill,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        color: T.amberDp,
+      }}>
+        <Icon size={26} strokeWidth={1.6} />
+      </div>
+      <div style={{
+        fontFamily: SERIF, fontSize: 22, color: T.ink,
+        letterSpacing: -0.2, marginBottom: 6,
+      }}>{msg.title}</div>
+      <div style={{
+        fontSize: 13.5, color: T.ink3, lineHeight: 1.45,
+        maxWidth: 280, margin: '0 auto',
+      }}>{msg.sub}</div>
     </div>
   );
-};
+}
+
+function ListPlaceholder({ text }: { text: string }) {
+  return (
+    <div style={{
+      padding: '64px 16px', textAlign: 'center',
+      color: T.ink3, fontSize: 14,
+    }}>{text}</div>
+  );
+}
+
+function SyncFooter() {
+  return (
+    <div style={{
+      padding: '20px 16px 8px',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+      color: T.ink4, fontSize: 11.5,
+    }}>
+      <RefreshCw size={11} strokeWidth={1.8} />
+      Обновлено только что
+    </div>
+  );
+}
 
 export default TasksScreen;

@@ -1,4 +1,4 @@
-import { fetchWithTokenRefresh } from './authService';
+import { fetchWithAuth } from './fetchWithAuth';
 
 const TASKER_API_URL =
   (import.meta.env.VITE_TASKER_API_URL as string | undefined) ??
@@ -70,31 +70,6 @@ export interface ListTasksParams {
   till?: string; // DD-MM-YYYY
   pageSize?: number;
   page?: number;
-}
-
-async function fetchWithAuth<T>(
-  url: string,
-  options: RequestInit = {},
-): Promise<T> {
-  const response = await fetchWithTokenRefresh((accessToken) =>
-    fetch(url, {
-      ...options,
-      headers: {
-        ...options.headers,
-        'User-Token': accessToken,
-      },
-    }),
-  );
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(
-      (error as { message?: string }).message ?? `Ошибка: ${response.status}`,
-    );
-  }
-
-  const text = await response.text();
-  return (text ? (JSON.parse(text) as T) : ({} as T));
 }
 
 export async function listTasks(

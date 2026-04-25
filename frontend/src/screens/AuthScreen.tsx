@@ -1,344 +1,609 @@
-import { useState } from 'react';
-import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
 import {
-  login,
-  register,
-  forgotPassword,
-} from '../utils/authService';
+  ChevronLeft,
+  Eye,
+  EyeOff,
+  KeyRound,
+  Loader2,
+  Lock,
+  Mail,
+  MailCheck,
+  ShieldCheck,
+  User,
+  type LucideIcon,
+} from 'lucide-react';
+import { BrandMark } from '../mobile/Chrome';
+import { SANS, SERIF, T } from '../mobile/tokens';
+import { forgotPassword, login, register } from '../utils/authService';
 
-type AuthMode = 'login' | 'register' | 'forgot';
+const CONSENT_KEY = 'personage_consent_accepted';
+
+type Mode = 'login' | 'register';
+type View = 'auth' | 'forgot' | 'forgot-sent';
 
 interface AuthScreenProps {
   onAuthSuccess: () => void;
 }
 
 const AuthScreen = ({ onAuthSuccess }: AuthScreenProps) => {
-  const [mode, setMode] = useState<AuthMode>('login');
+  const [view, setView] = useState<View>('auth');
+  const [mode, setMode] = useState<Mode>('login');
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [name, setName] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+  const [showPwd, setShowPwd] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [forgotSuccess, setForgotSuccess] = useState(false);
+  const [consentRequired, setConsentRequired] = useState(false);
 
-  const resetForm = () => {
+  const handleSubmit = () => {
     setError(null);
-    setForgotSuccess(false);
-    setPassword('');
-    setConfirmPassword('');
+    if (!email || !password) {
+      setError('Заполните email и пароль');
+      return;
+    }
+    if (mode === 'register') {
+      if (!name) { setError('Введите имя'); return; }
+      if (password.length < 8) { setError('Пароль должен содержать не менее 8 символов'); return; }
+    }
+    if (localStorage.getItem(CONSENT_KEY) === 'true') {
+      void runAuth();
+    } else {
+      setConsentRequired(true);
+    }
   };
 
-  const switchMode = (newMode: AuthMode) => {
-    resetForm();
-    setMode(newMode);
-  };
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
+  const runAuth = async () => {
     setLoading(true);
+    setError(null);
     try {
-      await login(email, password);
+      if (mode === 'login') await login(email, password);
+      else                  await register(email, password, name);
       onAuthSuccess();
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'Произошла ошибка при входе',
-      );
+      setError(err instanceof Error ? err.message : 'Произошла ошибка');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-
-    if (password !== confirmPassword) {
-      setError('Пароли не совпадают');
-      return;
-    }
-    if (password.length < 8) {
-      setError('Пароль должен содержать не менее 8 символов');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      await register(email, password, name);
-      onAuthSuccess();
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'Произошла ошибка при регистрации',
-      );
-    } finally {
-      setLoading(false);
-    }
+  const handleConsentAccepted = () => {
+    localStorage.setItem(CONSENT_KEY, 'true');
+    setConsentRequired(false);
+    void runAuth();
   };
 
-  const handleForgotPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
+  if (view === 'forgot' || view === 'forgot-sent') {
+    return (
+      <ForgotView
+        sent={view === 'forgot-sent'}
+        defaultEmail={email}
+        onBack={() => setView('auth')}
+        onSent={(em) => { setEmail(em); setView('forgot-sent'); }}
+      />
+    );
+  }
+
+  return (
+    <div style={{
+      width: '100%', height: '100%',
+      display: 'flex', flexDirection: 'column',
+      background: T.bg, color: T.ink, fontFamily: SANS,
+      paddingBottom: 34,
+      overflowY: 'auto',
+    }}>
+      {/* Brand block */}
+      <div style={{
+        flex: 1, display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
+        padding: '40px 28px 16px',
+        textAlign: 'center',
+      }}>
+        <BrandMark size={84} />
+        <div style={{
+          fontFamily: SERIF, fontSize: 38, color: T.ink, letterSpacing: -0.6,
+          marginTop: 24, lineHeight: 1.05,
+        }}>Personage</div>
+        <div style={{
+          fontSize: 15, color: T.ink3, marginTop: 8,
+          maxWidth: 280, lineHeight: 1.45,
+        }}>
+          Личный ассистент, который сам собирает задачи из почты, чатов и календаря
+        </div>
+      </div>
+
+      <div style={{ padding: '0 20px 16px' }}>
+        {/* Mode tabs */}
+        <div style={{
+          display: 'flex',
+          background: T.subtle,
+          borderRadius: 9,
+          padding: 2,
+          marginBottom: 16,
+        }}>
+          {(['login', 'register'] as Mode[]).map((m) => {
+            const active = mode === m;
+            return (
+              <button
+                type="button"
+                key={m}
+                onClick={() => { setMode(m); setError(null); }}
+                style={{
+                  flex: 1, padding: '9px 0', borderRadius: 7,
+                  background: active ? T.surface : 'transparent',
+                  border: 'none', cursor: 'pointer',
+                  fontFamily: SANS, fontSize: 14, fontWeight: active ? 600 : 500,
+                  color: active ? T.ink : T.ink2,
+                  boxShadow: active ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
+                }}
+              >
+                {m === 'login' ? 'Вход' : 'Регистрация'}
+              </button>
+            );
+          })}
+        </div>
+
+        {error && (
+          <div style={{
+            marginBottom: 12, padding: '10px 12px',
+            borderRadius: 10, background: T.dangerFill,
+            border: `0.5px solid ${T.hairline}`,
+            fontSize: 13, color: T.danger,
+          }}>{error}</div>
+        )}
+
+        <div style={{
+          background: T.surface, borderRadius: 14,
+          border: `0.5px solid ${T.hairline}`,
+          overflow: 'hidden',
+          marginBottom: 14,
+        }}>
+          {mode === 'register' && (
+            <Field icon={User} placeholder="Ваше имя" value={name} onChange={setName} />
+          )}
+          <Field
+            icon={Mail}
+            placeholder="Email"
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={setEmail}
+          />
+          <Field
+            icon={Lock}
+            placeholder="Пароль"
+            type={showPwd ? 'text' : 'password'}
+            autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
+            value={password}
+            onChange={setPassword}
+            trailing={
+              <button
+                type="button"
+                onClick={() => setShowPwd(!showPwd)}
+                aria-label={showPwd ? 'Скрыть пароль' : 'Показать пароль'}
+                style={{
+                  background: 'transparent', border: 'none', cursor: 'pointer',
+                  padding: 4, color: T.ink3,
+                }}
+              >
+                {showPwd ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            }
+            last
+          />
+        </div>
+
+        {mode === 'login' && (
+          <div style={{ textAlign: 'right', marginBottom: 14 }}>
+            <button
+              type="button"
+              onClick={() => setView('forgot')}
+              style={{
+                background: 'transparent', border: 'none', cursor: 'pointer',
+                fontFamily: SANS, fontSize: 13.5, color: T.amberDp, fontWeight: 500,
+              }}
+            >Забыли пароль?</button>
+          </div>
+        )}
+
+        <button
+          type="button"
+          onClick={handleSubmit}
+          disabled={loading}
+          style={{
+            width: '100%', padding: 15,
+            background: T.ink, color: T.bg,
+            border: 'none', borderRadius: 14,
+            cursor: loading ? 'default' : 'pointer',
+            fontFamily: SANS, fontSize: 16, fontWeight: 600,
+            marginBottom: 14,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            opacity: loading ? 0.7 : 1,
+          }}
+        >
+          {loading && <Loader2 size={16} className="animate-spin" />}
+          {mode === 'login' ? 'Войти' : 'Создать аккаунт'}
+        </button>
+      </div>
+
+      <div style={{
+        padding: '8px 28px 14px', textAlign: 'center',
+        fontSize: 11.5, color: T.ink4, lineHeight: 1.5,
+      }}>
+        Продолжая, вы соглашаетесь с условиями использования и политикой конфиденциальности
+      </div>
+
+      {consentRequired && (
+        <ConsentSheet
+          onCancel={() => setConsentRequired(false)}
+          onAgree={handleConsentAccepted}
+        />
+      )}
+    </div>
+  );
+};
+
+interface FieldProps {
+  icon: LucideIcon;
+  placeholder: string;
+  type?: string;
+  autoComplete?: string;
+  value: string;
+  onChange: (v: string) => void;
+  trailing?: ReactNode;
+  last?: boolean;
+}
+
+function Field({
+  icon: Icon, placeholder, type = 'text', autoComplete,
+  value, onChange, trailing, last,
+}: FieldProps) {
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 10,
+      padding: '13px 14px',
+      borderBottom: last ? 'none' : `0.5px solid ${T.hairline}`,
+    }}>
+      <Icon size={16} strokeWidth={1.8} style={{ color: T.ink3, flexShrink: 0 }} />
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        type={type}
+        autoComplete={autoComplete}
+        placeholder={placeholder}
+        style={{
+          flex: 1, background: 'transparent', border: 'none', outline: 'none',
+          fontFamily: SANS, fontSize: 15, color: T.ink, minWidth: 0,
+        }}
+      />
+      {trailing}
+    </div>
+  );
+}
+
+interface ForgotViewProps {
+  sent: boolean;
+  defaultEmail: string;
+  onBack: () => void;
+  onSent: (email: string) => void;
+}
+
+function ForgotView({ sent, defaultEmail, onBack, onSent }: ForgotViewProps) {
+  const [email, setEmail] = useState(defaultEmail);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async () => {
     setError(null);
+    if (!email) { setError('Введите email'); return; }
     setLoading(true);
     try {
       await forgotPassword(email, window.location.origin);
-      setForgotSuccess(true);
+      onSent(email);
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'Произошла ошибка при отправке запроса',
-      );
+      setError(err instanceof Error ? err.message : 'Не удалось отправить письмо');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#F7F8FA] flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="flex flex-col items-center mb-8">
-          <div className="w-16 h-16 rounded-2xl overflow-hidden flex items-center justify-center mb-4">
-            <img src="/icon-192x192.png" alt="Personage" className="w-full h-full object-contain" />
-          </div>
-          <h1 className="text-2xl font-bold text-[#1A1B1E]">Personage</h1>
-          <p className="text-sm text-gray-500 mt-1">Персональный ассистент</p>
+    <div style={{
+      width: '100%', height: '100%',
+      display: 'flex', flexDirection: 'column',
+      background: T.bg, color: T.ink, fontFamily: SANS,
+      paddingTop: 50, paddingBottom: 34,
+    }}>
+      <div style={{ padding: '0 12px 4px' }}>
+        <button
+          type="button"
+          onClick={onBack}
+          style={{
+            background: 'transparent', border: 'none', cursor: 'pointer',
+            padding: '8px 10px', color: T.amberDp,
+            fontFamily: SANS, fontSize: 16, fontWeight: 400,
+            display: 'inline-flex', alignItems: 'center', gap: 2,
+          }}
+        >
+          <ChevronLeft size={20} strokeWidth={2.2} />
+          Назад
+        </button>
+      </div>
+
+      <div style={{
+        flex: 1, padding: '8px 24px 16px',
+        display: 'flex', flexDirection: 'column',
+      }}>
+        <div style={{
+          width: 56, height: 56, borderRadius: '50%', background: T.amberFill,
+          color: T.amberDp,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          marginBottom: 18,
+        }}>
+          {sent
+            ? <MailCheck size={26} strokeWidth={1.7} />
+            : <KeyRound  size={26} strokeWidth={1.7} />}
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
-          {mode !== 'forgot' && (
-            <div className="flex rounded-xl bg-gray-100 p-1 mb-6">
-              <button
-                onClick={() => switchMode('login')}
-                className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
-                  mode === 'login'
-                    ? 'bg-white text-[#1A1B1E] shadow-sm'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                Войти
-              </button>
-              <button
-                onClick={() => switchMode('register')}
-                className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
-                  mode === 'register'
-                    ? 'bg-white text-[#1A1B1E] shadow-sm'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                Регистрация
-              </button>
-            </div>
-          )}
+        <div style={{
+          fontFamily: SERIF, fontSize: 30, color: T.ink, letterSpacing: -0.4, lineHeight: 1.1,
+          marginBottom: 10,
+        }}>
+          {sent ? 'Письмо отправлено' : 'Восстановление пароля'}
+        </div>
+        <div style={{
+          fontSize: 14.5, color: T.ink3, lineHeight: 1.5, marginBottom: 22,
+        }}>
+          {sent
+            ? 'Мы отправили ссылку для сброса пароля на ваш email. Проверьте папку «Входящие» и «Спам».'
+            : 'Введите email от вашего аккаунта — мы пришлём ссылку для сброса пароля.'}
+        </div>
 
-          {mode === 'forgot' && (
-            <div className="mb-6">
-              <h2 className="text-lg font-semibold text-[#1A1B1E]">
-                Восстановление пароля
-              </h2>
-              <p className="text-sm text-gray-500 mt-1">
-                Введите email для получения ссылки
-              </p>
-            </div>
-          )}
+        {error && (
+          <div style={{
+            marginBottom: 12, padding: '10px 12px',
+            borderRadius: 10, background: T.dangerFill,
+            border: `0.5px solid ${T.hairline}`,
+            fontSize: 13, color: T.danger,
+          }}>{error}</div>
+        )}
 
-          {error && (
-            <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-100 text-sm text-red-600">
-              {error}
-            </div>
-          )}
+        {!sent && (
+          <div style={{
+            background: T.surface, borderRadius: 14,
+            border: `0.5px solid ${T.hairline}`,
+            overflow: 'hidden', marginBottom: 16,
+          }}>
+            <Field
+              icon={Mail}
+              placeholder="Email"
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={setEmail}
+              last
+            />
+          </div>
+        )}
 
-          {mode === 'login' && (
-            <form onSubmit={(e) => void handleLogin(e)} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  placeholder="your@email.com"
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-base focus:outline-none focus:ring-2 focus:ring-[#5C6BFF]/30 focus:border-[#5C6BFF] transition-all"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Пароль
-                </label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    placeholder="••••••••"
-                    className="w-full px-4 py-2.5 pr-10 rounded-xl border border-gray-200 text-base focus:outline-none focus:ring-2 focus:ring-[#5C6BFF]/30 focus:border-[#5C6BFF] transition-all"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-              </div>
-              <div className="flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => switchMode('forgot')}
-                  className="text-xs text-[#5C6BFF] hover:underline"
-                >
-                  Забыли пароль?
-                </button>
-              </div>
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-2.5 rounded-xl bg-[#5C6BFF] text-white text-sm font-medium hover:bg-[#4B5AEE] disabled:opacity-60 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
-              >
-                {loading ? (
-                  <Loader2 size={16} className="animate-spin" />
-                ) : null}
-                {loading ? 'Вход...' : 'Войти'}
-              </button>
-            </form>
-          )}
+        {sent ? (
+          <button
+            type="button"
+            onClick={onBack}
+            style={primaryButton(false)}
+          >Вернуться к входу</button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => void handleSubmit()}
+            disabled={loading}
+            style={primaryButton(loading)}
+          >
+            {loading && <Loader2 size={16} className="animate-spin" />}
+            Отправить ссылку
+          </button>
+        )}
 
-          {mode === 'register' && (
-            <form
-              onSubmit={(e) => void handleRegister(e)}
-              className="space-y-4"
-            >
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Имя
-                </label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                  placeholder="Иван Иванов"
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-base focus:outline-none focus:ring-2 focus:ring-[#5C6BFF]/30 focus:border-[#5C6BFF] transition-all"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  placeholder="your@email.com"
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-base focus:outline-none focus:ring-2 focus:ring-[#5C6BFF]/30 focus:border-[#5C6BFF] transition-all"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Пароль
-                </label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    placeholder="••••••••"
-                    className="w-full px-4 py-2.5 pr-10 rounded-xl border border-gray-200 text-base focus:outline-none focus:ring-2 focus:ring-[#5C6BFF]/30 focus:border-[#5C6BFF] transition-all"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Подтверждение пароля
-                </label>
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  required
-                  placeholder="••••••••"
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-base focus:outline-none focus:ring-2 focus:ring-[#5C6BFF]/30 focus:border-[#5C6BFF] transition-all"
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-2.5 rounded-xl bg-[#5C6BFF] text-white text-sm font-medium hover:bg-[#4B5AEE] disabled:opacity-60 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
-              >
-                {loading ? (
-                  <Loader2 size={16} className="animate-spin" />
-                ) : null}
-                {loading ? 'Регистрация...' : 'Создать аккаунт'}
-              </button>
-            </form>
-          )}
+        {!sent && (
+          <div style={{
+            marginTop: 14, textAlign: 'center',
+            fontSize: 13.5, color: T.ink3,
+          }}>
+            Вспомнили пароль?{' '}
+            <button
+              type="button"
+              onClick={onBack}
+              style={{
+                background: 'transparent', border: 'none', cursor: 'pointer',
+                fontFamily: SANS, fontSize: 13.5, color: T.amberDp, fontWeight: 600, padding: 0,
+              }}
+            >Войти</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
-          {mode === 'forgot' && (
-            <form
-              onSubmit={(e) => void handleForgotPassword(e)}
-              className="space-y-4"
-            >
-              {forgotSuccess ? (
-                <div className="p-3 rounded-lg bg-green-50 border border-green-100 text-sm text-green-600">
-                  Если аккаунт с таким email существует, ссылка для
-                  восстановления пароля была отправлена.
-                </div>
-              ) : (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    placeholder="your@email.com"
-                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-base focus:outline-none focus:ring-2 focus:ring-[#5C6BFF]/30 focus:border-[#5C6BFF] transition-all"
-                  />
-                </div>
-              )}
-              {!forgotSuccess && (
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full py-2.5 rounded-xl bg-[#5C6BFF] text-white text-sm font-medium hover:bg-[#4B5AEE] disabled:opacity-60 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
-                >
-                  {loading ? (
-                    <Loader2 size={16} className="animate-spin" />
-                  ) : null}
-                  {loading ? 'Отправка...' : 'Отправить ссылку'}
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => switchMode('login')}
-                className="w-full py-2.5 rounded-xl border border-gray-200 text-gray-600 text-sm font-medium hover:bg-gray-50 transition-all"
-              >
-                Назад к входу
-              </button>
-            </form>
-          )}
+function primaryButton(loading: boolean): React.CSSProperties {
+  return {
+    width: '100%', padding: 15,
+    background: T.ink, color: T.bg,
+    border: 'none', borderRadius: 14,
+    cursor: loading ? 'default' : 'pointer',
+    fontFamily: SANS, fontSize: 16, fontWeight: 600,
+    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+    opacity: loading ? 0.7 : 1,
+  };
+}
+
+interface ConsentSheetProps {
+  onCancel: () => void;
+  onAgree: () => void;
+}
+
+function ConsentSheet({ onCancel, onAgree }: ConsentSheetProps) {
+  const [agreedPolicy, setAgreedPolicy] = useState(false);
+  const [agreedData, setAgreedData] = useState(false);
+  const can = agreedPolicy && agreedData;
+
+  return (
+    <div
+      className="animate-consent-fade"
+      style={{
+        position: 'absolute', inset: 0, zIndex: 200,
+        background: 'rgba(20,16,8,0.45)',
+        backdropFilter: 'blur(2px)',
+        display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+      }}
+    >
+      <div
+        className="animate-consent-rise"
+        style={{
+          width: '100%', background: T.bg, color: T.ink,
+          borderRadius: '20px 20px 0 0',
+          padding: '14px 20px 28px',
+          boxShadow: '0 -10px 32px rgba(0,0,0,0.18)',
+          maxHeight: '88%',
+          display: 'flex', flexDirection: 'column',
+          fontFamily: SANS,
+        }}
+      >
+        <div style={{
+          width: 36, height: 5, borderRadius: 99,
+          background: T.subtleHi, margin: '0 auto 14px',
+        }} />
+
+        <div style={{
+          width: 48, height: 48, borderRadius: 14, background: T.amberFill,
+          color: T.amberDp,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          marginBottom: 12,
+        }}>
+          <ShieldCheck size={24} strokeWidth={1.8} />
+        </div>
+
+        <div style={{
+          fontFamily: SERIF, fontSize: 26, color: T.ink,
+          letterSpacing: -0.3, lineHeight: 1.12,
+          marginBottom: 8,
+        }}>Обработка персональных данных</div>
+        <div style={{
+          fontSize: 13.5, color: T.ink3, lineHeight: 1.5, marginBottom: 14,
+        }}>
+          Чтобы продолжить, ознакомьтесь с условиями и подтвердите согласие. Без этого мы не сможем создать аккаунт.
+        </div>
+
+        <div style={{
+          flex: 1, minHeight: 0, overflow: 'auto',
+          background: T.surface, borderRadius: 12,
+          border: `0.5px solid ${T.hairline}`,
+          padding: '12px 14px', marginBottom: 14,
+          fontSize: 12.5, color: T.ink2, lineHeight: 1.55,
+        }}>
+          <div style={{ fontWeight: 600, color: T.ink, marginBottom: 6 }}>
+            Какие данные мы обрабатываем
+          </div>
+          <div style={{ marginBottom: 10 }}>
+            Email, имя, содержимое подключённых источников (Gmail, Telegram) — только в объёме, необходимом для извлечения задач. Данные хранятся в зашифрованном виде на серверах в РФ.
+          </div>
+          <div style={{ fontWeight: 600, color: T.ink, marginBottom: 6 }}>
+            Как используем
+          </div>
+          <div style={{ marginBottom: 10 }}>
+            Только для работы сервиса: распознавание задач, напоминания, синхронизация. Не передаём третьим лицам, не используем для рекламы.
+          </div>
+          <div style={{ fontWeight: 600, color: T.ink, marginBottom: 6 }}>
+            Ваши права
+          </div>
+          <div>
+            Вы можете в любой момент отозвать согласие, удалить аккаунт и все данные через настройки.
+          </div>
+        </div>
+
+        <ConsentCheck
+          checked={agreedPolicy}
+          onToggle={() => setAgreedPolicy(!agreedPolicy)}
+          label={
+            <>
+              Я прочитал(а) и принимаю{' '}
+              <span style={{ color: T.amberDp, fontWeight: 500 }}>Политику конфиденциальности</span>
+              {' '}и{' '}
+              <span style={{ color: T.amberDp, fontWeight: 500 }}>Условия использования</span>
+            </>
+          }
+        />
+        <ConsentCheck
+          checked={agreedData}
+          onToggle={() => setAgreedData(!agreedData)}
+          label={<>Согласен(на) на обработку персональных данных в соответствии с 152-ФЗ</>}
+        />
+
+        <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+          <button
+            type="button"
+            onClick={onCancel}
+            style={{
+              flex: 1, padding: 14, borderRadius: 12,
+              background: T.subtle, color: T.ink2,
+              border: 'none', cursor: 'pointer',
+              fontFamily: SANS, fontSize: 15, fontWeight: 500,
+            }}
+          >Отмена</button>
+          <button
+            type="button"
+            onClick={can ? onAgree : undefined}
+            disabled={!can}
+            style={{
+              flex: 1.4, padding: 14, borderRadius: 12,
+              background: can ? T.ink : T.subtleHi,
+              color: can ? T.bg : T.ink4,
+              border: 'none', cursor: can ? 'pointer' : 'not-allowed',
+              fontFamily: SANS, fontSize: 15, fontWeight: 600,
+            }}
+          >Принять и продолжить</button>
         </div>
       </div>
     </div>
   );
-};
+}
+
+interface ConsentCheckProps {
+  checked: boolean;
+  onToggle: () => void;
+  label: ReactNode;
+}
+
+function ConsentCheck({ checked, onToggle, label }: ConsentCheckProps) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      style={{
+        display: 'flex', gap: 10, alignItems: 'flex-start',
+        background: 'transparent', border: 'none', cursor: 'pointer',
+        padding: '8px 2px', textAlign: 'left',
+        fontFamily: SANS,
+      }}
+    >
+      <div style={{
+        width: 20, height: 20, borderRadius: 6,
+        border: `1.5px solid ${checked ? T.amberDp : T.hairline}`,
+        background: checked ? T.amberDp : 'transparent',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        flexShrink: 0, marginTop: 1,
+        transition: 'all .15s',
+      }}>
+        {checked && (
+          <svg width="11" height="9" viewBox="0 0 11 9">
+            <path d="M1 4.5L4 7.5L10 1.5" stroke="#fff" strokeWidth="2"
+              strokeLinecap="round" strokeLinejoin="round" fill="none" />
+          </svg>
+        )}
+      </div>
+      <div style={{ fontSize: 13, color: T.ink2, lineHeight: 1.45 }}>{label}</div>
+    </button>
+  );
+}
 
 export default AuthScreen;

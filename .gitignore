@@ -44,3 +44,5 @@ terraform.rc
 # End of https://www.toptal.com/developers/gitignore/api/terraform
 
 .worktrees
+
+node_modules

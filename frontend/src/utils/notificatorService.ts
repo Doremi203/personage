@@ -1,4 +1,4 @@
-import { fetchWithTokenRefresh } from './authService';
+import { fetchWithAuth } from './fetchWithAuth';
 
 const NOTIFICATOR_API_URL =
   (import.meta.env.VITE_NOTIFICATOR_API_URL as string | undefined) ??
@@ -15,31 +15,6 @@ export interface ApiNotificationItem {
 
 export interface ListNotificationsResponse {
   notifications: ApiNotificationItem[];
-}
-
-async function fetchWithAuth<T>(
-  url: string,
-  options: RequestInit = {},
-): Promise<T> {
-  const response = await fetchWithTokenRefresh((accessToken) =>
-    fetch(url, {
-      ...options,
-      headers: {
-        ...options.headers,
-        'User-Token': accessToken,
-      },
-    }),
-  );
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(
-      (error as { message?: string }).message ?? `Ошибка: ${response.status}`,
-    );
-  }
-
-  const text = await response.text();
-  return (text ? (JSON.parse(text) as T) : ({} as T));
 }
 
 export interface NotificationSettingItem {

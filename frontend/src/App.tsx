@@ -5,21 +5,18 @@ import NotificationsScreen from './screens/NotificationsScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import AuthScreen from './screens/AuthScreen';
 import ResetPasswordScreen from './screens/ResetPasswordScreen';
-import Sidebar from './components/Sidebar';
-import PWAInstallPrompt from './components/PWAInstallPrompt';
-import WelcomeScreen from './components/WelcomeScreen';
+import { Frame } from './mobile/Frame';
+import { Shell, type Tab } from './mobile/Chrome';
+import { OnboardingPrompt } from './mobile/OnboardingPrompt';
+import { refreshNotifications, useNotifications } from './mobile/notificationsStore';
 import {
   AUTH_STATE_CHANGE_EVENT,
+  fetchCurrentUser,
   isAuthenticated,
   logout,
-  getUserInfo,
   handleGmailCallback,
-  setConnectedGmailEmail,
 } from './utils/authService';
-
-const ONBOARDING_KEY = 'personage_onboarding_completed';
-
-type Screen = 'tasks' | 'schedule' | 'notifications' | 'settings';
+import { clearUserCache } from './utils/userCache';
 
 function getResetToken(): string | null {
   return new URLSearchParams(window.location.search).get('token');
@@ -49,10 +46,7 @@ function clearGmailCallbackParams(): void {
 function App() {
   const [resetToken, setResetToken] = useState<string | null>(() => getResetToken());
   const [authenticated, setAuthenticated] = useState(() => isAuthenticated());
-  const [currentScreen, setCurrentScreen] = useState<Screen>('tasks');
-  const [onboardingComplete, setOnboardingComplete] = useState(
-    () => localStorage.getItem(ONBOARDING_KEY) === 'true',
-  );
+  const [currentTab, setCurrentTab] = useState<Tab>('tasks');
 
   useEffect(() => {
     const syncAuthenticatedState = () => {
@@ -66,24 +60,26 @@ function App() {
   }, []);
 
   useEffect(() => {
+    if (authenticated) void refreshNotifications();
+  }, [authenticated]);
+
+  useEffect(() => {
     const params = getGmailCallbackParams();
     if (!params || !isAuthenticated()) return;
 
     const { code, state } = params;
-    const userInfo = getUserInfo();
-    if (!userInfo?.email) return;
-
-    handleGmailCallback(userInfo.email, code, state, window.location.origin)
-      .then((gmailEmail) => {
-        setConnectedGmailEmail(gmailEmail);
-        clearGmailCallbackParams();
-        setCurrentScreen('settings');
-      })
-      .catch((err: unknown) => {
+    void (async () => {
+      try {
+        const user = await fetchCurrentUser();
+        await handleGmailCallback(user.email, code, state, window.location.origin);
+      } catch (err) {
         console.error('Gmail callback failed:', err);
+      } finally {
+        clearUserCache();
         clearGmailCallbackParams();
-        setCurrentScreen('settings');
-      });
+        setCurrentTab('settings');
+      }
+    })();
   }, []);
 
   const handleAuthSuccess = () => {
@@ -101,49 +97,59 @@ function App() {
     setAuthenticated(false);
   };
 
-  const handleOnboardingComplete = () => {
-    localStorage.setItem(ONBOARDING_KEY, 'true');
-    setOnboardingComplete(true);
-  };
-
   if (resetToken) {
-    return <ResetPasswordScreen token={resetToken} onSuccess={handleResetSuccess} />;
+    return (
+      <Frame>
+        <ResetPasswordScreen token={resetToken} onSuccess={handleResetSuccess} />
+      </Frame>
+    );
   }
 
   if (!authenticated) {
-    return <AuthScreen onAuthSuccess={handleAuthSuccess} />;
+    return (
+      <Frame>
+        <AuthScreen onAuthSuccess={handleAuthSuccess} />
+      </Frame>
+    );
   }
 
   const renderScreen = () => {
-    switch (currentScreen) {
-      case 'tasks':
-        return <TasksScreen />;
-      case 'schedule':
-        return <ScheduleScreen />;
-      case 'notifications':
-        return <NotificationsScreen />;
-      case 'settings':
-        return <SettingsScreen />;
-      default:
-        return <TasksScreen />;
+    switch (currentTab) {
+      case 'tasks':         return <TasksScreen />;
+      case 'schedule':      return <ScheduleScreen />;
+      case 'notifications': return <NotificationsScreen />;
+      case 'settings':      return <SettingsScreen onLogout={handleLogout} />;
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#F7F8FA] flex">
-      <Sidebar
-        currentScreen={currentScreen}
-        onScreenChange={setCurrentScreen}
-        onLogout={handleLogout}
+    <Frame>
+      <AuthedApp
+        currentTab={currentTab}
+        onTabChange={setCurrentTab}
+        renderScreen={renderScreen}
       />
-      <main className="flex-1 overflow-hidden">
-        {renderScreen()}
-      </main>
-      <PWAInstallPrompt />
-      {!onboardingComplete && (
-        <WelcomeScreen onComplete={handleOnboardingComplete} />
-      )}
-    </div>
+      <OnboardingPrompt />
+    </Frame>
+  );
+}
+
+interface AuthedAppProps {
+  currentTab: Tab;
+  onTabChange: (t: Tab) => void;
+  renderScreen: () => React.ReactNode;
+}
+
+function AuthedApp({ currentTab, onTabChange, renderScreen }: AuthedAppProps) {
+  const { unreadCount } = useNotifications();
+  return (
+    <Shell
+      tab={currentTab}
+      onTabChange={onTabChange}
+      badges={{ notifications: unreadCount }}
+    >
+      {renderScreen()}
+    </Shell>
   );
 }
 
