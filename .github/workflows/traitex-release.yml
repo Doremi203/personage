@@ -115,7 +115,7 @@ jobs:
           EOF
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: "1.14.3"
 
@@ -194,7 +194,7 @@ jobs:
         run: echo "RELEASE_VERSION=${{ github.run_number }}" >> $GITHUB_ENV
 
       - name: Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: release-traitex-v${{ env.RELEASE_VERSION }}
           name: Release traitex v${{ env.RELEASE_VERSION }}
