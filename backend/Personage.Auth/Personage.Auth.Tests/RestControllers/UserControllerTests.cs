@@ -48,7 +48,7 @@ public class UserControllerTests : TestClassBase
             {
                 Name = nameToBeSet,
             },
-            userId: user.Id.ToString(),
+            userId: "Bearer " + user.Id.ToString(),
             CancellationToken.None);
         var userAfterUpdate = await UserRepository.GetUserById(user.Id, CancellationToken.None);
         
