@@ -45,8 +45,8 @@ public class UserController(IUserService userService) : ControllerBase
     
     [HttpPut]
     [Authorize]
-    [ProducesResponseType(typeof(UserInfo), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult> UpdateUserInfo(
         [FromBody] UpdateUserInfoRequest request,
         CancellationToken ct)
