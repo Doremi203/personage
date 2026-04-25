@@ -1,4 +1,3 @@
-using System.Threading.Tasks;
 using RestEase;
 
 namespace Personage.Auth.Tests.Api;

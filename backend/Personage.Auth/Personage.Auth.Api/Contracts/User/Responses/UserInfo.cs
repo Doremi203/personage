@@ -9,4 +9,5 @@ public class UserInfo
 
     public GmailIntegration GmailIntegration { get; init; } = null!;
     public TelegramIntegration TelegramIntegration { get; init; } = null!;
+    public GoogleCalendarIntegration GoogleCalendarIntegration { get; init; } = null!;
 }

@@ -53,7 +53,7 @@ public static partial class UserValidator
         }
     }
     
-    private static void ValidateName(string name)
+    public static void ValidateName(string name)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ValidationException(ErrorCode.UserNameValidationFail, "Name cannot be empty");

@@ -1,3 +1,4 @@
+using Personage.Auth.Bll.Helpers.Validation;
 using Personage.Auth.DataAccess.Interfaces.Repositories;
 using Personage.Auth.Domain.Exceptions.Base;
 using Personage.Auth.Domain.Interfaces;
@@ -10,7 +11,8 @@ public class UserService(
     IClaimValues claimValues,
     IUserRepository userRepository,
     ITelegramSessionRepository telegramSessionRepository,
-    IGmailTokenRepository gmailTokenRepository
+    IGmailTokenRepository gmailTokenRepository,
+    IGoogleCalendarTokenRepository googleCalendarTokenRepository
 ) : IUserService
 {
     public async Task<UserInfoModel> GetUserInfo(CancellationToken ct)
@@ -24,20 +26,38 @@ public class UserService(
         
         var telegramSession = await telegramSessionRepository.GetSessionString(userId, ct);
         var gmailInfo = await gmailTokenRepository.GetTokenByUserId(userId, ct);
+        var googleCalendarInfo = await googleCalendarTokenRepository.GetTokenByUserId(userId, ct);
 
         return new UserInfoModel
         {
             Email = userInfo.Email,
             Name = userInfo.Name,
-            GmailIntegrationModel = new GmailIntegrationModel
+            GmailIntegration = new GmailIntegrationModel
             {
                 Enabled = gmailInfo is not null,
                 Gmail = gmailInfo?.GmailEmail
             },
-            TelegramIntegrationModel = new TelegramIntegrationModel
+            TelegramIntegration = new TelegramIntegrationModel
             {
                 Enabled = telegramSession is not null
+            },
+            GoogleCalendarIntegration = new GoogleCalendarIntegrationModel
+            {
+                Enabled = googleCalendarInfo is not null,
+                Gmail = googleCalendarInfo?.GmailEmail
             }
         };
+    }
+
+    public async Task UpdateUserInfo(string name, CancellationToken ct)
+    {
+        UserValidator.ValidateName(name);
+        
+        var userId = claimValues.GetUserId();
+        var userInfo = await userRepository.GetUserById(userId, ct);
+        if(userInfo is null)
+            throw new NotFoundException(ErrorCode.UserNotFound, "User with specified id not found");
+        
+        await userRepository.UpdateName(userId, name, ct);
     }
 }

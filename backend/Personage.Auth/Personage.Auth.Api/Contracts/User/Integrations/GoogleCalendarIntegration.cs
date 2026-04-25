@@ -1,6 +1,6 @@
 namespace Personage.Auth.Api.Contracts.User.Integrations;
 
-public class GmailIntegration : BaseIntegration
+public class GoogleCalendarIntegration : BaseIntegration
 {
     public string? Gmail { get; init; }
 }
