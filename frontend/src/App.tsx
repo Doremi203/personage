@@ -11,10 +11,13 @@ import { OnboardingPrompt } from './mobile/OnboardingPrompt';
 import { refreshNotifications, useNotifications } from './mobile/notificationsStore';
 import {
   AUTH_STATE_CHANGE_EVENT,
+  OAUTH_PROVIDER_STORAGE_KEY,
+  type OAuthProvider,
   fetchCurrentUser,
   isAuthenticated,
   logout,
   handleGmailCallback,
+  handleGoogleCalendarCallback,
 } from './utils/authService';
 import { clearUserCache } from './utils/userCache';
 
@@ -28,7 +31,7 @@ function clearResetToken(): void {
   window.history.replaceState({}, '', url.pathname + url.search);
 }
 
-function getGmailCallbackParams(): { code: string; state: string } | null {
+function getOAuthCallbackParams(): { code: string; state: string } | null {
   const params = new URLSearchParams(window.location.search);
   const code = params.get('code');
   const state = params.get('state');
@@ -36,11 +39,17 @@ function getGmailCallbackParams(): { code: string; state: string } | null {
   return null;
 }
 
-function clearGmailCallbackParams(): void {
+function clearOAuthCallbackParams(): void {
   const url = new URL(window.location.href);
   url.searchParams.delete('code');
   url.searchParams.delete('state');
   window.history.replaceState({}, '', url.pathname + url.search);
+}
+
+function readOAuthProvider(): OAuthProvider {
+  const stored = sessionStorage.getItem(OAUTH_PROVIDER_STORAGE_KEY);
+  sessionStorage.removeItem(OAUTH_PROVIDER_STORAGE_KEY);
+  return stored === 'google-calendar' ? 'google-calendar' : 'gmail';
 }
 
 function App() {
@@ -64,19 +73,24 @@ function App() {
   }, [authenticated]);
 
   useEffect(() => {
-    const params = getGmailCallbackParams();
+    const params = getOAuthCallbackParams();
     if (!params || !isAuthenticated()) return;
 
     const { code, state } = params;
+    const provider = readOAuthProvider();
     void (async () => {
       try {
         const user = await fetchCurrentUser();
-        await handleGmailCallback(user.email, code, state, window.location.origin);
+        if (provider === 'google-calendar') {
+          await handleGoogleCalendarCallback(user.email, code, state, window.location.origin);
+        } else {
+          await handleGmailCallback(user.email, code, state, window.location.origin);
+        }
       } catch (err) {
-        console.error('Gmail callback failed:', err);
+        console.error(`${provider} callback failed:`, err);
       } finally {
         clearUserCache();
-        clearGmailCallbackParams();
+        clearOAuthCallbackParams();
         setCurrentTab('settings');
       }
     })();

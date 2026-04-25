@@ -13,8 +13,10 @@ import {
 import { LargeHeader } from '../mobile/Chrome';
 import { SANS, SERIF, T } from '../mobile/tokens';
 import {
+  OAUTH_PROVIDER_STORAGE_KEY,
   fetchCurrentUser,
   startGmailAuth,
+  startGoogleCalendarAuth,
   type UserApiResponse,
 } from '../utils/authService';
 import { clearUserCache } from '../utils/userCache';
@@ -73,6 +75,9 @@ const SettingsScreen = ({ onLogout }: SettingsScreenProps) => {
   const [gmail, setGmail] = useState<string | null>(null);
   const [gmailLoading, setGmailLoading] = useState(false);
   const [gmailError, setGmailError] = useState<string | null>(null);
+  const [calendar, setCalendar] = useState<string | null>(null);
+  const [calendarLoading, setCalendarLoading] = useState(false);
+  const [calendarError, setCalendarError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -99,6 +104,9 @@ const SettingsScreen = ({ onLogout }: SettingsScreenProps) => {
         if (data.gmailIntegration.enabled && data.gmailIntegration.gmail) {
           setGmail(data.gmailIntegration.gmail);
         }
+        if (data.googleCalendarIntegration.enabled && data.googleCalendarIntegration.gmail) {
+          setCalendar(data.googleCalendarIntegration.gmail);
+        }
       } catch (err) {
         console.error('Failed to fetch user data:', err);
       } finally {
@@ -116,6 +124,7 @@ const SettingsScreen = ({ onLogout }: SettingsScreenProps) => {
         setGmailError('Не удалось определить email пользователя');
         return;
       }
+      sessionStorage.setItem(OAUTH_PROVIDER_STORAGE_KEY, 'gmail');
       const { authorizationUrl } = await startGmailAuth(user.email, window.location.origin);
       window.location.href = authorizationUrl;
     } catch (err) {
@@ -128,6 +137,25 @@ const SettingsScreen = ({ onLogout }: SettingsScreenProps) => {
     clearUserCache();
     setGmail(null);
     setGmailError(null);
+  };
+
+  const handleConnectCalendar = async () => {
+    setCalendarError(null);
+    setCalendarLoading(true);
+    try {
+      sessionStorage.setItem(OAUTH_PROVIDER_STORAGE_KEY, 'google-calendar');
+      const { authorizationUrl } = await startGoogleCalendarAuth(window.location.origin);
+      window.location.href = authorizationUrl;
+    } catch (err) {
+      setCalendarError(err instanceof Error ? err.message : 'Не удалось запустить авторизацию Google Calendar');
+      setCalendarLoading(false);
+    }
+  };
+
+  const handleDisconnectCalendar = () => {
+    clearUserCache();
+    setCalendar(null);
+    setCalendarError(null);
   };
 
   const handleToggle = (type: string) => {
@@ -241,6 +269,36 @@ const SettingsScreen = ({ onLogout }: SettingsScreenProps) => {
             disabled={gmailLoading}
             loading={gmailLoading}
             onAction={() => void handleConnectGmail()}
+          />
+        )}
+        {calendarError && (
+          <div style={{
+            padding: '10px 14px',
+            fontSize: 13, color: T.danger, background: T.dangerFill,
+            borderBottom: `0.5px solid ${T.hairline}`,
+          }}>{calendarError}</div>
+        )}
+        {calendar ? (
+          <NavRow
+            icon={CalendarClock}
+            iconBg={T.okFill}
+            iconInk={T.ok}
+            title="Google Calendar"
+            value={calendar}
+            actionLabel="Отключить"
+            onAction={handleDisconnectCalendar}
+          />
+        ) : (
+          <ActionRow
+            icon={CalendarClock}
+            iconBg={T.okFill}
+            iconInk={T.ok}
+            title="Google Calendar"
+            subtitle="Подключить календарь"
+            actionLabel={calendarLoading ? 'Переход…' : 'Подключить'}
+            disabled={calendarLoading}
+            loading={calendarLoading}
+            onAction={() => void handleConnectCalendar()}
           />
         )}
         <ReadonlyRow
