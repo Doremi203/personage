@@ -1,3 +1,4 @@
+using System.Net.Http.Headers;
 using AutoFixture;
 using Grpc.Net.Client;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -6,6 +7,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Personage.Auth.Api;
 using Personage.Auth.Api.Grpc;
 using Personage.Auth.Api.Grpc.State;
+using Personage.Auth.Domain.Interfaces;
 using Personage.Auth.Tests.Api;
 using RestEase;
 
@@ -14,6 +16,7 @@ namespace Personage.Auth.Tests.Infrastructure;
 public abstract class TestClassBase : IDisposable
 {
     protected WebApplicationFactory<Program> Factory { get; }
+    private ITokenService TokenService { get; }
     private HttpClient HttpClient { get; }
     private GrpcChannel GrpcChannel { get; }
     protected Fixture Fixture { get; } = new();
@@ -46,6 +49,7 @@ public abstract class TestClassBase : IDisposable
         StateTrackingGrpcClient = new StateTrackingService.StateTrackingServiceClient(GrpcChannel);
 
         Cleaner = Factory.Services.GetRequiredService<Cleaner>();
+        TokenService = Factory.Services.GetRequiredService<ITokenService>();
     }
     
     protected virtual void OverrideServices(IServiceCollection services)
@@ -65,5 +69,11 @@ public abstract class TestClassBase : IDisposable
     public async Task Cleanup()
     {
         await Cleaner.CleanCreatedObjects();
+    }
+
+    protected void InitializeClientWithAuth(Guid userId)
+    {
+        var token = TokenService.GenerateAccessToken(userId);
+        HttpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
     }
 }
