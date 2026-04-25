@@ -16,7 +16,7 @@ import (
 )
 
 func NewPushSubscriptionService(
-	pushSubscriptionUseCase *usecase.PushSubscription,
+	pushSubscriptionUseCase usecase.PushSubscription,
 	logger log.Logger,
 ) *pushSubscriptionService {
 	return &pushSubscriptionService{
@@ -26,7 +26,7 @@ func NewPushSubscriptionService(
 }
 
 type pushSubscriptionService struct {
-	pushSubscriptionUseCase *usecase.PushSubscription
+	pushSubscriptionUseCase usecase.PushSubscription
 
 	logger log.Logger
 	pushpb.UnimplementedSubscriptionServer

@@ -10,23 +10,14 @@ import (
 	"github.com/Doremi203/personage/backend/notificator/internal/domain/notification"
 	"github.com/Doremi203/personage/backend/notificator/internal/domain/push"
 	"github.com/Doremi203/personage/backend/notificator/internal/services/ratelimit"
+	"github.com/Doremi203/personage/backend/notificator/internal/usecase"
 	"github.com/google/uuid"
 )
 
-//go:generate mockgen -source=matcher.go -destination=mock/matcher_mock.go -typed
-
-type Sender interface {
-	Send(ctx context.Context, r push.Recipient, p push.Push) error
-}
-
-type SubscriptionGetter interface {
-	GetRecipient(ctx context.Context, id push.RecipientID) (push.Recipient, error)
-}
-
 func NewNotificationHandler(
 	logger log.Logger,
-	senderUseCase Sender,
-	subscriptionUseCase SubscriptionGetter,
+	senderUseCase usecase.PushSender,
+	subscriptionUseCase usecase.RecipientGetter,
 	notificationRepo notification.Repo,
 	rateLimiter ratelimit.Allower,
 	retryInterval time.Duration,
@@ -46,8 +37,8 @@ func NewNotificationHandler(
 }
 
 type notificationHandler struct {
-	senderUseCase       Sender
-	subscriptionUseCase SubscriptionGetter
+	senderUseCase       usecase.PushSender
+	subscriptionUseCase usecase.RecipientGetter
 	notificationRepo    notification.Repo
 	rateLimiter         ratelimit.Allower
 	retryInterval       time.Duration

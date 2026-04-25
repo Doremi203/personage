@@ -16,7 +16,9 @@ import (
 	pushpostgres "github.com/Doremi203/personage/backend/notificator/internal/repo/push/postgres"
 	"github.com/Doremi203/personage/backend/notificator/internal/services/ratelimit"
 	"github.com/Doremi203/personage/backend/notificator/internal/services/retrier"
-	"github.com/Doremi203/personage/backend/notificator/internal/usecase"
+	"github.com/Doremi203/personage/backend/notificator/internal/usecase/notifications"
+	"github.com/Doremi203/personage/backend/notificator/internal/usecase/pushsender"
+	"github.com/Doremi203/personage/backend/notificator/internal/usecase/pushsubscription"
 	sqspush "github.com/Doremi203/personage/backend/notificator/internal/worker"
 	"github.com/SherClockHolmes/webpush-go"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -82,10 +84,10 @@ func main() {
 			},
 		}, time.Now)
 
-		pushSubscriptionUseCase := usecase.NewPushSubscription(pushRepo)
+		pushSubscriptionUseCase := pushsubscription.New(pushRepo)
 		pushSubscriptionService := grpc.NewPushSubscriptionService(pushSubscriptionUseCase, app.Log)
 
-		pushSenderUseCase := usecase.NewPushSender(
+		pushSenderUseCase := pushsender.New(
 			&webpush.Options{
 				Subscriber:      webPushConfig.Subscriber,
 				TTL:             60,
@@ -137,7 +139,7 @@ func main() {
 			notificationRetrier.Run,
 		))
 
-		notificationsUseCase := usecase.NewNotifications(notificationRepo)
+		notificationsUseCase := notifications.New(notificationRepo)
 		notificationsService := grpc.NewNotificationsService(notificationsUseCase, app.Log)
 
 		app.AddAPIKeyProtectedEndpoints(pushpb.Admin_SendPushV1_FullMethodName)

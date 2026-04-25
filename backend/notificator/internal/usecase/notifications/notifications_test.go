@@ -1,4 +1,4 @@
-package usecase_test
+package notifications_test
 
 import (
 	"testing"
@@ -6,6 +6,7 @@ import (
 	"github.com/Doremi203/personage/backend/notificator/internal/domain/notification"
 	mock_notification "github.com/Doremi203/personage/backend/notificator/internal/domain/notification/mock"
 	"github.com/Doremi203/personage/backend/notificator/internal/usecase"
+	"github.com/Doremi203/personage/backend/notificator/internal/usecase/notifications"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -16,7 +17,7 @@ var (
 	notifUserID = uuid.MustParse("11111111-1111-1111-1111-111111111111")
 )
 
-func TestNotifications_List(t *testing.T) {
+func TestService_List(t *testing.T) {
 	type mocks struct {
 		repo *mock_notification.MockRepo
 	}
@@ -104,8 +105,8 @@ func TestNotifications_List(t *testing.T) {
 			m := mocks{repo: mock_notification.NewMockRepo(ctrl)}
 			tt.setup(m, tt.args)
 
-			u := usecase.NewNotifications(m.repo)
-			got, err := u.List(t.Context(), tt.args.params)
+			s := notifications.New(m.repo)
+			got, err := s.List(t.Context(), tt.args.params)
 
 			tt.wantErr(t, err)
 			if err == nil {
@@ -115,7 +116,7 @@ func TestNotifications_List(t *testing.T) {
 	}
 }
 
-func TestNotifications_GetSettings(t *testing.T) {
+func TestService_GetSettings(t *testing.T) {
 	type mocks struct {
 		repo *mock_notification.MockRepo
 	}
@@ -165,8 +166,8 @@ func TestNotifications_GetSettings(t *testing.T) {
 			m := mocks{repo: mock_notification.NewMockRepo(ctrl)}
 			tt.setup(m, tt.args)
 
-			u := usecase.NewNotifications(m.repo)
-			got, err := u.GetSettings(t.Context(), tt.args.userID)
+			s := notifications.New(m.repo)
+			got, err := s.GetSettings(t.Context(), tt.args.userID)
 
 			tt.wantErr(t, err)
 			if err == nil {
@@ -176,7 +177,7 @@ func TestNotifications_GetSettings(t *testing.T) {
 	}
 }
 
-func TestNotifications_Toggle(t *testing.T) {
+func TestService_Toggle(t *testing.T) {
 	type mocks struct {
 		repo *mock_notification.MockRepo
 	}
@@ -244,8 +245,8 @@ func TestNotifications_Toggle(t *testing.T) {
 			m := mocks{repo: mock_notification.NewMockRepo(ctrl)}
 			tt.setup(m, tt.args)
 
-			u := usecase.NewNotifications(m.repo)
-			got, err := u.Toggle(t.Context(), tt.args.userID, tt.args.notificationType)
+			s := notifications.New(m.repo)
+			got, err := s.Toggle(t.Context(), tt.args.userID, tt.args.notificationType)
 
 			tt.wantErr(t, err)
 			if err == nil {

@@ -9,23 +9,14 @@ import (
 	"github.com/Doremi203/personage/backend/notificator/internal/domain/notification"
 	"github.com/Doremi203/personage/backend/notificator/internal/domain/push"
 	"github.com/Doremi203/personage/backend/notificator/internal/services/ratelimit"
+	"github.com/Doremi203/personage/backend/notificator/internal/usecase"
 )
-
-//go:generate mockgen -source=retrier.go -destination=mock/retrier_mock.go -typed
-
-type Sender interface {
-	Send(ctx context.Context, r push.Recipient, p push.Push) error
-}
-
-type SubscriptionGetter interface {
-	GetRecipient(ctx context.Context, id push.RecipientID) (push.Recipient, error)
-}
 
 type Retrier struct {
 	repo          notification.Repo
 	rateLimiter   ratelimit.Allower
-	sender        Sender
-	subscriptions SubscriptionGetter
+	sender        usecase.PushSender
+	subscriptions usecase.RecipientGetter
 	retryInterval time.Duration
 	logger        log.Logger
 }
@@ -33,8 +24,8 @@ type Retrier struct {
 func New(
 	repo notification.Repo,
 	rateLimiter ratelimit.Allower,
-	sender Sender,
-	subscriptions SubscriptionGetter,
+	sender usecase.PushSender,
+	subscriptions usecase.RecipientGetter,
 	retryInterval time.Duration,
 	logger log.Logger,
 ) *Retrier {

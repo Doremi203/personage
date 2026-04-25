@@ -1,4 +1,4 @@
-package usecase
+package pushsender
 
 import (
 	"context"
@@ -11,25 +11,25 @@ import (
 	"github.com/SherClockHolmes/webpush-go"
 )
 
-func NewPushSender(
+func New(
 	webPushOptions *webpush.Options,
 	pushRepo push.Repo,
 	logger log.Logger,
-) *PushSender {
-	return &PushSender{
+) *Service {
+	return &Service{
 		webPushOptions: webPushOptions,
 		pushRepo:       pushRepo,
 		logger:         logger,
 	}
 }
 
-type PushSender struct {
+type Service struct {
 	webPushOptions *webpush.Options
 	pushRepo       push.Repo
 	logger         log.Logger
 }
 
-func (u *PushSender) Send(ctx context.Context, r push.Recipient, p push.Push) error {
+func (s *Service) Send(ctx context.Context, r push.Recipient, p push.Push) error {
 	pushJson, err := json.Marshal(p)
 	if err != nil {
 		return errors.WrapFailf(
@@ -47,9 +47,9 @@ func (u *PushSender) Send(ctx context.Context, r push.Recipient, p push.Push) er
 				Auth:   sub.Credentials.AuthKey,
 				P256dh: sub.Credentials.P256dh,
 			},
-		}, u.webPushOptions)
+		}, s.webPushOptions)
 		if err != nil {
-			u.logger.Error(errors.WrapFailf(
+			s.logger.Error(errors.WrapFailf(
 				err,
 				"send push to %v",
 				errors.Token("endpoint", sub.Endpoint),
@@ -57,28 +57,27 @@ func (u *PushSender) Send(ctx context.Context, r push.Recipient, p push.Push) er
 		} else {
 			body, err = io.ReadAll(resp.Body)
 			if err != nil {
-				u.logger.Error(errors.WrapFail(err, "read response body"))
+				s.logger.Error(errors.WrapFail(err, "read response body"))
 			}
 			err = resp.Body.Close()
 			if err != nil {
-				u.logger.Warn(errors.WrapFailf(err, "close response body"))
+				s.logger.Warn(errors.WrapFailf(err, "close response body"))
 			}
 		}
 
 		switch resp.StatusCode {
 		case 201:
-			// Успех
 		case 410, 404:
-			err = u.pushRepo.DeleteSubscription(ctx, sub)
+			err = s.pushRepo.DeleteSubscription(ctx, sub)
 			if err != nil {
-				u.logger.Error(errors.WrapFailf(
+				s.logger.Error(errors.WrapFailf(
 					err,
 					"delete stale push subscription for %v",
 					errors.Token("endpoint", sub.Endpoint),
 				))
 			}
 		default:
-			u.logger.Error(errors.Errorf(
+			s.logger.Error(errors.Errorf(
 				"got unexpected %v sending push for %v %v",
 				errors.Token("status_code", resp.StatusCode),
 				errors.Token("endpoint", sub.Endpoint),

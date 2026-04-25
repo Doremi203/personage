@@ -1,11 +1,11 @@
-package usecase_test
+package pushsubscription_test
 
 import (
 	"testing"
 
 	"github.com/Doremi203/personage/backend/notificator/internal/domain/push"
 	mock_push "github.com/Doremi203/personage/backend/notificator/internal/domain/push/mock"
-	"github.com/Doremi203/personage/backend/notificator/internal/usecase"
+	"github.com/Doremi203/personage/backend/notificator/internal/usecase/pushsubscription"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -21,7 +21,7 @@ var (
 	}
 )
 
-func TestPushSubscription_Subscribe(t *testing.T) {
+func TestService_Subscribe(t *testing.T) {
 	type mocks struct {
 		repo *mock_push.MockRepo
 	}
@@ -57,7 +57,7 @@ func TestPushSubscription_Subscribe(t *testing.T) {
 			m := mocks{repo: mock_push.NewMockRepo(ctrl)}
 			tt.setup(m, tt.args)
 
-			s := usecase.NewPushSubscription(m.repo)
+			s := pushsubscription.New(m.repo)
 			err := s.Subscribe(t.Context(), tt.args.subscription)
 
 			tt.wantErr(t, err)
@@ -65,7 +65,7 @@ func TestPushSubscription_Subscribe(t *testing.T) {
 	}
 }
 
-func TestPushSubscription_Unsubscribe(t *testing.T) {
+func TestService_Unsubscribe(t *testing.T) {
 	type mocks struct {
 		repo *mock_push.MockRepo
 	}
@@ -101,7 +101,7 @@ func TestPushSubscription_Unsubscribe(t *testing.T) {
 			m := mocks{repo: mock_push.NewMockRepo(ctrl)}
 			tt.setup(m, tt.args)
 
-			s := usecase.NewPushSubscription(m.repo)
+			s := pushsubscription.New(m.repo)
 			err := s.Unsubscribe(t.Context(), tt.args.subscription)
 
 			tt.wantErr(t, err)
@@ -109,7 +109,7 @@ func TestPushSubscription_Unsubscribe(t *testing.T) {
 	}
 }
 
-func TestPushSubscription_GetRecipient(t *testing.T) {
+func TestService_GetRecipient(t *testing.T) {
 	type mocks struct {
 		repo *mock_push.MockRepo
 	}
@@ -154,7 +154,7 @@ func TestPushSubscription_GetRecipient(t *testing.T) {
 			m := mocks{repo: mock_push.NewMockRepo(ctrl)}
 			tt.setup(m, tt.args)
 
-			s := usecase.NewPushSubscription(m.repo)
+			s := pushsubscription.New(m.repo)
 			got, err := s.GetRecipient(t.Context(), tt.args.recipientID)
 
 			tt.wantErr(t, err)

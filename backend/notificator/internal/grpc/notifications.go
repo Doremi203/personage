@@ -17,7 +17,7 @@ import (
 )
 
 func NewNotificationsService(
-	notificationsUseCase *usecase.Notifications,
+	notificationsUseCase usecase.Notifications,
 	logger log.Logger,
 ) *notificationsService {
 	return &notificationsService{
@@ -27,7 +27,7 @@ func NewNotificationsService(
 }
 
 type notificationsService struct {
-	notificationsUseCase *usecase.Notifications
+	notificationsUseCase usecase.Notifications
 
 	logger log.Logger
 	pushpb.UnimplementedNotificationsServer

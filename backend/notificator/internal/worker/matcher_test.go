@@ -11,8 +11,8 @@ import (
 	mock_notification "github.com/Doremi203/personage/backend/notificator/internal/domain/notification/mock"
 	"github.com/Doremi203/personage/backend/notificator/internal/domain/push"
 	mock_ratelimit "github.com/Doremi203/personage/backend/notificator/internal/services/ratelimit/mock"
+	mock_usecase "github.com/Doremi203/personage/backend/notificator/internal/usecase/mock"
 	sqspush "github.com/Doremi203/personage/backend/notificator/internal/worker"
-	mock_sqspush "github.com/Doremi203/personage/backend/notificator/internal/worker/mock"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -59,8 +59,8 @@ func TestNotificationHandler_Process(t *testing.T) {
 	type mocks struct {
 		repo          *mock_notification.MockRepo
 		rateLimiter   *mock_ratelimit.MockAllower
-		sender        *mock_sqspush.MockSender
-		subscriptions *mock_sqspush.MockSubscriptionGetter
+		sender        *mock_usecase.MockPushSender
+		subscriptions *mock_usecase.MockRecipientGetter
 	}
 	type args struct {
 		data *pushpb.Notification
@@ -232,8 +232,8 @@ func TestNotificationHandler_Process(t *testing.T) {
 			m := mocks{
 				repo:          mock_notification.NewMockRepo(ctrl),
 				rateLimiter:   mock_ratelimit.NewMockAllower(ctrl),
-				sender:        mock_sqspush.NewMockSender(ctrl),
-				subscriptions: mock_sqspush.NewMockSubscriptionGetter(ctrl),
+				sender:        mock_usecase.NewMockPushSender(ctrl),
+				subscriptions: mock_usecase.NewMockRecipientGetter(ctrl),
 			}
 			tt.setup(m, tt.args)
 

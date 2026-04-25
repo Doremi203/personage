@@ -14,7 +14,7 @@ import (
 
 func NewAdminService(
 	pushRepo push.Repo,
-	pushSender *usecase.PushSender,
+	pushSender usecase.PushSender,
 	logger log.Logger,
 ) *adminService {
 	return &adminService{
@@ -26,7 +26,7 @@ func NewAdminService(
 
 type adminService struct {
 	pushRepo   push.Repo
-	pushSender *usecase.PushSender
+	pushSender usecase.PushSender
 
 	logger log.Logger
 	pushpb.UnimplementedAdminServer

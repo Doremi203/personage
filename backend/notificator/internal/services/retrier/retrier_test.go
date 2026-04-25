@@ -10,7 +10,7 @@ import (
 	"github.com/Doremi203/personage/backend/notificator/internal/domain/push"
 	mock_ratelimit "github.com/Doremi203/personage/backend/notificator/internal/services/ratelimit/mock"
 	"github.com/Doremi203/personage/backend/notificator/internal/services/retrier"
-	mock_retrier "github.com/Doremi203/personage/backend/notificator/internal/services/retrier/mock"
+	mock_usecase "github.com/Doremi203/personage/backend/notificator/internal/usecase/mock"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
@@ -56,8 +56,8 @@ func TestRetrier_ProcessOnce(t *testing.T) {
 	type mocks struct {
 		repo          *mock_notification.MockRepo
 		rateLimiter   *mock_ratelimit.MockAllower
-		sender        *mock_retrier.MockSender
-		subscriptions *mock_retrier.MockSubscriptionGetter
+		sender        *mock_usecase.MockPushSender
+		subscriptions *mock_usecase.MockRecipientGetter
 	}
 	tests := []struct {
 		name  string
@@ -190,8 +190,8 @@ func TestRetrier_ProcessOnce(t *testing.T) {
 			m := mocks{
 				repo:          mock_notification.NewMockRepo(ctrl),
 				rateLimiter:   mock_ratelimit.NewMockAllower(ctrl),
-				sender:        mock_retrier.NewMockSender(ctrl),
-				subscriptions: mock_retrier.NewMockSubscriptionGetter(ctrl),
+				sender:        mock_usecase.NewMockPushSender(ctrl),
+				subscriptions: mock_usecase.NewMockRecipientGetter(ctrl),
 			}
 			tt.setup(m)
 
