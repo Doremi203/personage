@@ -1,4 +1,4 @@
-import { getTokens } from './authService';
+import { fetchWithTokenRefresh } from './authService';
 
 const SUBSCRIBE_ENDPOINT = 'https://notificator.persomanage.ru/v1/push/subscribe';
 const UNSUBSCRIBE_ENDPOINT = 'https://notificator.persomanage.ru/v1/push/unsubscribe';
@@ -86,17 +86,16 @@ export async function sendSubscriptionToBackend(
     auth_key: keys.auth,
   };
 
-  const tokens = getTokens();
-  const response = await fetch(SUBSCRIBE_ENDPOINT, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(tokens?.accessToken
-        ? { 'User-Token': tokens.accessToken }
-        : {}),
-    },
-    body: JSON.stringify(body),
-  });
+  const response = await fetchWithTokenRefresh((accessToken) =>
+    fetch(SUBSCRIBE_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Token': accessToken,
+      },
+      body: JSON.stringify(body),
+    }),
+  );
 
   if (!response.ok) {
     throw new Error(
@@ -110,17 +109,16 @@ export async function unsubscribeFromPush(): Promise<void> {
   const subscription = await registration.pushManager.getSubscription();
   if (!subscription) return;
 
-  const tokens = getTokens();
-  const response = await fetch(UNSUBSCRIBE_ENDPOINT, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(tokens?.accessToken
-        ? { 'User-Token': tokens.accessToken }
-        : {}),
-    },
-    body: JSON.stringify({ endpoint: subscription.endpoint }),
-  });
+  const response = await fetchWithTokenRefresh((accessToken) =>
+    fetch(UNSUBSCRIBE_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Token': accessToken,
+      },
+      body: JSON.stringify({ endpoint: subscription.endpoint }),
+    }),
+  );
 
   if (!response.ok) {
     throw new Error(

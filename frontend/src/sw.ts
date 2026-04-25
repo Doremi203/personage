@@ -1,11 +1,27 @@
 /// <reference lib="webworker" />
 
 import {cleanupOutdatedCaches, precacheAndRoute} from 'workbox-precaching';
+import {registerRoute} from 'workbox-routing';
+import {StaleWhileRevalidate} from 'workbox-strategies';
 
 declare let self: ServiceWorkerGlobalScope;
 
 cleanupOutdatedCaches();
 precacheAndRoute(self.__WB_MANIFEST);
+
+const USER_CACHE = 'personage-user-v1';
+
+registerRoute(
+    ({url, request}) => request.method === 'GET' && url.pathname === '/user',
+    new StaleWhileRevalidate({cacheName: USER_CACHE}),
+);
+
+self.addEventListener('message', (event: ExtendableMessageEvent) => {
+    const data = event.data as {type?: string} | undefined;
+    if (data?.type === 'CLEAR_USER_CACHE') {
+        event.waitUntil(caches.delete(USER_CACHE));
+    }
+});
 
 interface PushPayload {
     title: string;
