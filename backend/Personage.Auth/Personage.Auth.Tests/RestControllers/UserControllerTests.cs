@@ -41,13 +41,15 @@ public class UserControllerTests : TestClassBase
         {
             await TestCleaners.DeleteUser(user.Id);
         });
-        
+
         //act
         var userBeforeUpdate = await UserRepository.GetUserById(user.Id, CancellationToken.None);
         await UserApi.UpdateUserInfo(new UpdateUserInfoRequest
-        {
-            Name = nameToBeSet,
-        }, CancellationToken.None);
+            {
+                Name = nameToBeSet,
+            },
+            userId: user.Id.ToString(),
+            CancellationToken.None);
         var userAfterUpdate = await UserRepository.GetUserById(user.Id, CancellationToken.None);
         
         //assert
