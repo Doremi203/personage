@@ -133,4 +133,20 @@ public class GmailTokenRepository(IDbConnectionFactory connectionFactory) : IGma
                 processedAtMoments = users.Select(u => u.ProcessedAt).ToArray()
             });
     }
+
+    public async Task RemoveToken(Guid userId, CancellationToken ct)
+    {
+        using var connection = await connectionFactory.CreateConnection(ct);
+        
+        await connection.ExecuteAsync(
+            """
+            --GmailTokenRepository.RemoveToken
+            DELETE FROM gmail_token
+            WHERE user_id = @userId;
+            """,
+            new
+            {
+                userId
+            });
+    }
 }

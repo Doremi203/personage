@@ -57,4 +57,20 @@ public class TelegramSessionRepository(IDbConnectionFactory connectionFactory) :
                 processedAtMoments = users.Select(u => u.ProcessedAt).ToArray()
             });
     }
+
+    public async Task RemoveSession(Guid userId, CancellationToken ct)
+    {
+        using var connection = await connectionFactory.CreateConnection(ct);
+        
+        await connection.ExecuteAsync(
+            """
+            --TelegramSessionRepository.RemoveSession
+            DELETE FROM telegram_session
+            WHERE user_id = @userId;
+            """,
+            new
+            {
+                userId
+            });
+    }
 }

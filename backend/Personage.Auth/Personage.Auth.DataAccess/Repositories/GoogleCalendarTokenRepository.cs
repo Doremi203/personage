@@ -74,4 +74,20 @@ public class GoogleCalendarTokenRepository(IDbConnectionFactory connectionFactor
             """,
             new { userId });
     }
+
+    public async Task RemoveToken(Guid userId, CancellationToken ct)
+    {
+        using var connection = await connectionFactory.CreateConnection(ct);
+        
+        await connection.ExecuteAsync(
+            """
+            --GoogleCalendarTokenRepository.RemoveToken
+            DELETE FROM calendar_token
+            WHERE user_id = @userId;
+            """,
+            new
+            {
+                userId
+            });
+    }
 }

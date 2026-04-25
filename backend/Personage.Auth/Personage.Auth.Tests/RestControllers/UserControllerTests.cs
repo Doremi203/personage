@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using AutoFixture;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
