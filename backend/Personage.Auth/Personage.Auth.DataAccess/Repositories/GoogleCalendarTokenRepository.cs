@@ -13,7 +13,7 @@ public class GoogleCalendarTokenRepository(IDbConnectionFactory connectionFactor
         
         await connection.ExecuteAsync(
             """
-            --GmailTokenRepository.SaveToken
+            --GoogleCalendarTokenRepository.SaveToken
             INSERT INTO calendar_token (
                 user_id,
                 access_token,
@@ -38,7 +38,7 @@ public class GoogleCalendarTokenRepository(IDbConnectionFactory connectionFactor
         
         await connection.ExecuteAsync(
             """
-            --GmailTokenRepository.MarkUsersAsProcessed
+            --GoogleCalendarTokenRepository.MarkUsersAsProcessed
             UPDATE calendar_token ct
             SET last_processed_at = batch.processed_at
             FROM (select
@@ -52,5 +52,26 @@ public class GoogleCalendarTokenRepository(IDbConnectionFactory connectionFactor
                 userIds = users.Select(u => u.UserId).ToArray(),
                 processedAtMoments = users.Select(u => u.ProcessedAt).ToArray()
             });
+    }
+
+    public async Task<OAuthTokenWithId?> GetTokenByUserId(Guid userId, CancellationToken ct)
+    {
+        using var connection = await connectionFactory.CreateConnection(ct);
+        
+        return await connection.QueryFirstOrDefaultAsync<OAuthTokenWithId>(
+            """
+            --GoogleCalendarTokenRepository.GetTokenByUserId
+            SELECT
+                ct.id as Id,
+                ct.user_id as UserId,
+                ct.access_token as AccessToken, 
+                ct.refresh_token as RefreshToken,
+                ct.expires_at as ExpiresAt,
+                ct.gmail_email as GmailEmail,
+                ct.created_at as CreatedAt
+            FROM calendar_token ct
+            WHERE ct.user_id = @userId;
+            """,
+            new { userId });
     }
 }

@@ -7,6 +7,7 @@ public class UserInfoModel
     public string Email { get; init; } = null!;
     public string Name { get; init; } = null!;
 
-    public GmailIntegrationModel GmailIntegrationModel { get; init; } = null!;
-    public TelegramIntegrationModel TelegramIntegrationModel { get; init; } = null!;
+    public GmailIntegrationModel GmailIntegration { get; init; } = null!;
+    public TelegramIntegrationModel TelegramIntegration { get; init; } = null!;
+    public GoogleCalendarIntegrationModel GoogleCalendarIntegration { get; init; } = null!;
 }

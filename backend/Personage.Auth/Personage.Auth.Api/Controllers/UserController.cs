@@ -27,12 +27,17 @@ public class UserController(IUserService userService) : ControllerBase
             Name = user.Name,
             GmailIntegration = new GmailIntegration
             {
-                Enabled = user.GmailIntegrationModel.Enabled,
-                Gmail = user.GmailIntegrationModel.Gmail,
+                Enabled = user.GmailIntegration.Enabled,
+                Gmail = user.GmailIntegration.Gmail
             },
             TelegramIntegration = new TelegramIntegration
             {
-                Enabled = user.TelegramIntegrationModel.Enabled,
+                Enabled = user.TelegramIntegration.Enabled
+            },
+            GoogleCalendarIntegration = new GoogleCalendarIntegration
+            {
+                Enabled = user.GoogleCalendarIntegration.Enabled,
+                Gmail = user.GoogleCalendarIntegration.Gmail
             }
         };
     }

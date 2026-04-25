@@ -119,7 +119,7 @@ public class TokenService(
             
             ValidateIssuer = false,
             ValidateAudience = false,
-            ValidateLifetime = false,
+            ValidateLifetime = true,
         };
     }
 
