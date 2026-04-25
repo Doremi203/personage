@@ -110,26 +110,7 @@ func (r *repo) GetSettings(ctx context.Context, userID uuid.UUID) ([]notificatio
 		return nil, errors.WrapFail(err, "collect notification settings rows")
 	}
 
-	stored := make(map[notification.SettingType]notification.Setting, len(entities))
-	for _, e := range entities {
-		s := settingEntityToDomain(e)
-		stored[s.Type] = s
-	}
-
-	result := make([]notification.Setting, 0, len(notification.AvailableSettingTypes))
-	for _, typ := range notification.AvailableSettingTypes {
-		if s, ok := stored[typ]; ok {
-			result = append(result, s)
-		} else {
-			result = append(result, notification.Setting{
-				UserID:  userID,
-				Type:    typ,
-				Enabled: true,
-			})
-		}
-	}
-
-	return result, nil
+	return slices.Map(entities, settingEntityToDomain), nil
 }
 
 func (r *repo) CreateAndReturnID(ctx context.Context, n notification.Notification) (uuid.UUID, error) {
