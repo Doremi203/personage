@@ -36,15 +36,15 @@ type Cluster struct {
 	UpdatedAt         time.Time
 }
 
-func (c *Cluster) AddEvent(e EventWithEmbedding) {
+func (c *Cluster) AddEvent(e EventWithEmbedding, now time.Time) {
 	dim := len(c.Centroid)
 
 	n := float32(c.EventCount)
-	for i := 0; i < dim; i++ {
+	for i := range dim {
 		c.Centroid[i] = (c.Centroid[i]*n + e.Embedding[i]) / (n + 1)
 	}
 	c.EventCount++
-	c.UpdatedAt = time.Now()
+	c.UpdatedAt = now
 }
 
 type ClusterWithSimilarity struct {

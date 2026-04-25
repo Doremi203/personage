@@ -67,8 +67,8 @@ func main() {
 
 		postgresTxProvider := postgres.NewTxProvider(dbClient.Pool, app.Log)
 
-		postgresEventRepo := eventpostgres.NewRepo(dbClient)
-		postgresClusterRepo := clusterpostgres.NewRepo(dbClient)
+		postgresEventRepo := eventpostgres.NewRepo(dbClient, time.Now)
+		postgresClusterRepo := clusterpostgres.NewRepo(dbClient, time.Now)
 		postgresTaskRepo := taskpostgres.NewRepo(dbClient)
 
 		type LLMConfig struct {
@@ -119,6 +119,7 @@ func main() {
 			postgresClusterRepo,
 			0.65,
 			5,
+			time.Now,
 		)
 
 		connectorEventsProcessor, err := sqs.NewMessageProcessor(
@@ -172,6 +173,7 @@ func main() {
 			app.Log,
 			clusterClosureConfig.MaxEventCount,
 			time.Duration(clusterClosureConfig.InactivityMinutes)*time.Minute,
+			time.Now,
 		)
 
 		clusterClosureWorker := clusterclosure.NewWorker(
@@ -210,7 +212,7 @@ func main() {
 
 		var ruPrinter = message.NewPrinter(language.Russian)
 
-		notificationSender := notifications.NewNotificatorPushService(notificatorSQSClient)
+		notificationSender := notifications.NewNotificatorPushService(notificatorSQSClient, time.Now)
 
 		upcomingEventNotifier, err := notifications.NewUpcomingEventNotifier(
 			notificationSender,
@@ -268,6 +270,7 @@ func main() {
 				postgresTaskRepo,
 				notificationSender,
 				time.Duration(schedulingConfig.WindowHours)*time.Hour,
+				time.Now,
 			)
 
 			schedulingWorker := schedulingworker.NewWorker(schedulingUseCase, app.Log)
@@ -292,7 +295,7 @@ func main() {
 		app.AddGatewayHandlers(tasksService)
 
 		if app.Env == webapp.DevEnvironment || app.Env == webapp.TestsEnvironment || app.Env == webapp.EvalEnvironment {
-			app.AddHTTPHandler("/v1/test/tasks", taskergrpc.NewTestCreateTaskHandler(postgresTaskRepo))
+			app.AddHTTPHandler("/v1/test/tasks", taskergrpc.NewTestCreateTaskHandler(postgresTaskRepo, time.Now))
 			app.AddHTTPHandler("/v1/test/tasks/list", taskergrpc.NewTestListTasksHandler(postgresTaskRepo))
 			app.AddHTTPHandler("/v1/test/clusters/list", taskergrpc.NewTestListClusterGenerationDiagnosticsHandler(postgresClusterRepo))
 		}

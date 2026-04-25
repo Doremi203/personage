@@ -6,21 +6,20 @@ import (
 	"github.com/google/uuid"
 )
 
-// TelegramContext represents the structure of Telegram event context
 type TelegramContext struct {
 	ChatID       string             `json:"chat_id"`
-	ChatTitle    string             `json:"chat_title,omitempty"`
+	ChatTitle    string             `json:"chat_title,omitzero"`
 	MessageID    string             `json:"message_id"`
 	From         TelegramUser       `json:"from"`
-	Mentions     []TelegramUser     `json:"mentions,omitempty"`
+	Mentions     []TelegramUser     `json:"mentions,omitzero"`
 	Text         string             `json:"text"`
-	Participants []TelegramUser     `json:"participants,omitempty"`
-	ReplyTo      *TelegramReplyInfo `json:"reply_to,omitempty"`
+	Participants []TelegramUser     `json:"participants,omitzero"`
+	ReplyTo      *TelegramReplyInfo `json:"reply_to,omitzero"`
 }
 
 type TelegramUser struct {
 	Username    string `json:"username"`
-	DisplayName string `json:"display_name,omitempty"`
+	DisplayName string `json:"display_name,omitzero"`
 }
 
 type TelegramReplyInfo struct {
@@ -28,30 +27,28 @@ type TelegramReplyInfo struct {
 	From      string `json:"from"`
 }
 
-// GmailContext represents the structure of Gmail event context
 type GmailContext struct {
 	ThreadID  string   `json:"thread_id"`
 	MessageID string   `json:"message_id"`
 	From      string   `json:"from"`
 	To        []string `json:"to"`
-	Cc        []string `json:"cc,omitempty"`
+	Cc        []string `json:"cc,omitzero"`
 	Subject   string   `json:"subject"`
 	Snippet   string   `json:"snippet"`
-	Body      string   `json:"body,omitempty"` // May contain HTML
-	Labels    []string `json:"labels,omitempty"`
+	Body      string   `json:"body,omitzero"` // May contain HTML
+	Labels    []string `json:"labels,omitzero"`
 }
 
-// CalendarContext represents the structure of Google Calendar event context
 type CalendarContext struct {
 	CalendarID  string   `json:"calendar_id"`
 	EventID     string   `json:"event_id"`
 	Title       string   `json:"title"`
-	Location    string   `json:"location,omitempty"`
-	Attendees   []string `json:"attendees,omitempty"`
-	Description string   `json:"description,omitempty"`
+	Location    string   `json:"location,omitzero"`
+	Attendees   []string `json:"attendees,omitzero"`
+	Description string   `json:"description,omitzero"`
 	StartTime   string   `json:"start_time"` // ISO8601
 	EndTime     string   `json:"end_time"`   // ISO8601
-	Recurring   bool     `json:"recurring,omitempty"`
+	Recurring   bool     `json:"recurring,omitzero"`
 }
 
 type SearchParams struct {
@@ -64,13 +61,11 @@ type SearchParams struct {
 	BeforeDate    *time.Time
 }
 
-// BatchEmbeddingRequest represents a batch of texts to embed
 type BatchEmbeddingRequest struct {
 	Texts []string `json:"texts"`
-	Model string   `json:"model,omitempty"` // Optional: specify model variant
+	Model string   `json:"model,omitzero"` // Optional: specify model variant
 }
 
-// BatchEmbeddingResponse represents the result of a batch embedding request
 type BatchEmbeddingResponse struct {
 	Embeddings [][]float32            `json:"embeddings"`
 	Metadata   BatchEmbeddingMetadata `json:"metadata"`
@@ -78,6 +73,6 @@ type BatchEmbeddingResponse struct {
 
 type BatchEmbeddingMetadata struct {
 	Model       string        `json:"model"`
-	TotalTokens int           `json:"total_tokens,omitempty"`
+	TotalTokens int           `json:"total_tokens,omitzero"`
 	Duration    time.Duration `json:"duration"`
 }

@@ -6,6 +6,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/Doremi203/personage/backend/libs/go/errors"
 	"github.com/Doremi203/personage/backend/libs/go/postgres"
 	"github.com/Doremi203/personage/backend/tasker/internal/domain"
 	clusterpostgres "github.com/Doremi203/personage/backend/tasker/internal/repo/cluster/postgres"
@@ -16,13 +17,11 @@ import (
 	pgxvec "github.com/pgvector/pgvector-go/pgx"
 )
 
-// testUser groups a user ID with the tasks to be created for that user.
 type testUser struct {
 	UserID domain.UserID
 	Tasks  []testTask
 }
 
-// testTask describes a task to be inserted.
 type testTask struct {
 	Title           string
 	Description     string
@@ -34,7 +33,6 @@ type testTask struct {
 func main() {
 	ctx := context.Background()
 
-	// Use the same database config as the main application (configs/base.yaml defaults).
 	dbConfig := postgres.Config{
 		Host:     "localhost",
 		Port:     5432,
@@ -49,7 +47,6 @@ func main() {
 		log.Fatalf("Failed to parse pool config: %v", err)
 	}
 
-	// Register pgvector types exactly as the main application does.
 	poolConfig.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
 		return pgxvec.RegisterTypes(ctx, conn)
 	}
@@ -67,11 +64,9 @@ func main() {
 
 	fmt.Println("Connected to database successfully")
 
-	// Use the same repos as the main application.
-	clusterRepo := clusterpostgres.NewRepo(dbClient)
+	clusterRepo := clusterpostgres.NewRepo(dbClient, time.Now)
 	taskRepo := taskpostgres.NewRepo(dbClient)
 
-	// Generate and insert test data.
 	testUsers := generateTestUsers()
 
 	for _, u := range testUsers {
@@ -85,8 +80,6 @@ func main() {
 	fmt.Println("\nDone. You can now run the scheduling worker to verify it picks up these tasks.")
 }
 
-// insertUserData creates a closed cluster for the user and then creates all tasks
-// linked to that cluster with status "pending".
 func insertUserData(
 	ctx context.Context,
 	clusterRepo domain.ClusterRepo,
@@ -95,11 +88,9 @@ func insertUserData(
 ) error {
 	now := time.Now()
 
-	// Each task requires a unique cluster_id (UNIQUE constraint on tasks.cluster_id).
 	for _, t := range u.Tasks {
 		clusterID := domain.ClusterID(uuid.New().String())
 
-		// Create a cluster in "closed" status so the cluster-closure worker ignores it.
 		cluster := domain.Cluster{
 			ID:         clusterID,
 			UserID:     u.UserID,
@@ -110,7 +101,7 @@ func insertUserData(
 			UpdatedAt:  now,
 		}
 		if err := clusterRepo.UpsertCluster(ctx, cluster); err != nil {
-			return fmt.Errorf("create cluster for task %q: %w", t.Title, err)
+			return errors.WrapFailf(err, "create cluster for task %v", errors.Token("title", t.Title))
 		}
 
 		task := domain.Task{
@@ -129,14 +120,13 @@ func insertUserData(
 			UpdatedAt:   now,
 		}
 		if err := taskRepo.CreateTask(ctx, task); err != nil {
-			return fmt.Errorf("create task %q: %w", t.Title, err)
+			return errors.WrapFailf(err, "create task %v", errors.Token("title", t.Title))
 		}
 	}
 
 	return nil
 }
 
-// generateTestUsers returns three test users with a variety of tasks.
 func generateTestUsers() []testUser {
 	now := time.Now()
 	tomorrow := now.Add(24 * time.Hour)

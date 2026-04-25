@@ -62,12 +62,11 @@ func (s *adminService) SendPushV1(
 			Icon:  req.GetNotification().GetIcon(),
 		})
 		if err != nil {
-			s.logger.Error(errors.Errorf(
-				"failed to send push notification to %v", errors.Token(
-					"recipient_id",
-					recipient.ID,
-				)),
-			)
+			s.logger.Error(errors.WrapFailf(
+				err,
+				"send push to %v",
+				errors.Token("recipient_id", recipient.ID),
+			))
 			continue
 		}
 	}

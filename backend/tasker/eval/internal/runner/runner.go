@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/Doremi203/personage/backend/libs/go/errors"
 	"github.com/Doremi203/personage/backend/tasker/eval/internal/embscore"
 	"github.com/Doremi203/personage/backend/tasker/eval/internal/fixture"
 	"github.com/Doremi203/personage/backend/tasker/eval/internal/match"
@@ -80,12 +81,12 @@ func (r *Runner) Run(ctx context.Context, fix fixture.Fixture, fixtureName strin
 		fmt.Fprintf(os.Stderr, "report-only mode: skipping DB reset and snapshot replay\n")
 	} else {
 		if err := r.DB.Reset(ctx); err != nil {
-			return report.Report{}, fmt.Errorf("reset eval DB: %w", err)
+			return report.Report{}, errors.WrapFail(err, "reset eval DB")
 		}
 
 		sentCount, err := r.Traitex.SendProcessingSnapshot(ctx, fix.SnapshotID, r.Cfg.EvalQueueURL)
 		if err != nil {
-			return report.Report{}, fmt.Errorf("send processing snapshot: %w", err)
+			return report.Report{}, errors.WrapFail(err, "send processing snapshot")
 		}
 
 		fmt.Fprintf(os.Stderr, "replayed snapshot %s: sent %d events to eval queue\n", fix.SnapshotID, sentCount)
@@ -98,7 +99,7 @@ func (r *Runner) Run(ctx context.Context, fix fixture.Fixture, fixtureName strin
 
 	clusterDiagnostics, err := r.Tasker.ListClusterDiagnostics(ctx, fix.UserID)
 	if err != nil {
-		return report.Report{}, fmt.Errorf("list cluster diagnostics: %w", err)
+		return report.Report{}, errors.WrapFail(err, "list cluster diagnostics")
 	}
 
 	return r.buildReport(ctx, fix, fixtureName, generated, clusterDiagnostics), nil
@@ -108,16 +109,13 @@ func (r *Runner) poll(ctx context.Context, userID string) ([]domain.Task, error)
 	if r.Cfg.ReportOnly {
 		tasks, err := r.Tasker.ListTasks(ctx, userID)
 		if err != nil {
-			return nil, fmt.Errorf("list tasks: %w", err)
+			return nil, errors.WrapFail(err, "list tasks")
 		}
 		fmt.Fprintf(os.Stderr, "report-only poll: generated=%d\n", len(tasks))
 		return tasks, nil
 	}
 
-	waitTimeout := r.Cfg.OverallTimeout
-	if waitTimeout < minTaskWaitTimeout {
-		waitTimeout = minTaskWaitTimeout
-	}
+	waitTimeout := max(r.Cfg.OverallTimeout, minTaskWaitTimeout)
 
 	ticker := time.NewTicker(r.Cfg.PollInterval)
 	defer ticker.Stop()
@@ -134,14 +132,11 @@ func (r *Runner) poll(ctx context.Context, userID string) ([]domain.Task, error)
 	pollOnce := func() error {
 		tasks, err := r.Tasker.ListTasks(ctx, userID)
 		if err != nil {
-			return fmt.Errorf("list tasks: %w", err)
+			return errors.WrapFail(err, "list tasks")
 		}
 
 		lastTasks = tasks
-		remaining := time.Until(deadline)
-		if remaining < 0 {
-			remaining = 0
-		}
+		remaining := max(time.Until(deadline), 0)
 
 		fmt.Fprintf(
 			os.Stderr,
@@ -162,7 +157,7 @@ loop:
 	for {
 		select {
 		case <-ctx.Done():
-			return nil, fmt.Errorf("wait for tasks: %w", ctx.Err())
+			return nil, errors.WrapFail(ctx.Err(), "wait for tasks")
 		case <-timer.C:
 			break loop
 		case <-ticker.C:

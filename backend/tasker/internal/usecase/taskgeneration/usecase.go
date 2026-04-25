@@ -21,6 +21,7 @@ func NewUseCase(
 	logger log.Logger,
 	maxEventCount int,
 	inactivityTimeout time.Duration,
+	clock func() time.Time,
 ) *UseCase {
 	return &UseCase{
 		clusterRepo:                 clusterRepo,
@@ -32,6 +33,7 @@ func NewUseCase(
 		logger:                      logger,
 		maxEventCount:               maxEventCount,
 		inactivityTimeout:           inactivityTimeout,
+		clock:                       clock,
 	}
 }
 
@@ -45,6 +47,7 @@ type UseCase struct {
 	logger                      log.Logger
 	maxEventCount               int
 	inactivityTimeout           time.Duration
+	clock                       func() time.Time
 }
 
 func (uc *UseCase) ProcessClosableClusters(ctx context.Context, batchSize int) error {
@@ -134,7 +137,7 @@ func (uc *UseCase) processCluster(ctx context.Context, cluster domain.Cluster) e
 		return errors.WrapFail(err, "generate task")
 	}
 
-	now := time.Now()
+	now := uc.clock()
 	task := domain.Task{
 		ID:               domain.TaskID(uuid.New().String()),
 		UserID:           cluster.UserID,

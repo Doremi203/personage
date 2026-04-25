@@ -77,9 +77,9 @@ type MatchedPair struct {
 type FieldScore struct {
 	Passed int `json:"passed"`
 	Total  int `json:"total"`
-	TP     int `json:"tp,omitempty"`
-	FP     int `json:"fp,omitempty"`
-	FN     int `json:"fn,omitempty"`
+	TP     int `json:"tp,omitzero"`
+	FP     int `json:"fp,omitzero"`
+	FN     int `json:"fn,omitzero"`
 }
 
 func (fs FieldScore) Accuracy() float64 {
@@ -104,7 +104,7 @@ func (fs FieldScore) F1() float64 {
 // TitleQuality holds title similarity metrics.
 type TitleQuality struct {
 	TokenF1Mean      float64 `json:"token_f1_mean"`
-	EmbeddingSimMean float64 `json:"embedding_sim_mean,omitempty"`
+	EmbeddingSimMean float64 `json:"embedding_sim_mean,omitzero"`
 }
 
 // TextQuality holds text field similarity metrics.
@@ -144,9 +144,9 @@ type CategoryQuality struct {
 // TimeFieldQuality holds optional-time-field metrics.
 type TimeFieldQuality struct {
 	PresenceAcc     float64 `json:"presence_acc"`
-	ValueMAEMinutes float64 `json:"value_mae_minutes,omitempty"`
-	Tol1hAcc        float64 `json:"tol_1h_acc,omitempty"`
-	Tol24hAcc       float64 `json:"tol_24h_acc,omitempty"`
+	ValueMAEMinutes float64 `json:"value_mae_minutes,omitzero"`
+	Tol1hAcc        float64 `json:"tol_1h_acc,omitzero"`
+	Tol24hAcc       float64 `json:"tol_24h_acc,omitzero"`
 }
 
 // FieldQuality is the full per-field quality report over matched pairs.

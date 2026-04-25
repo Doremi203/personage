@@ -5,19 +5,16 @@ import (
 
 	"github.com/Doremi203/personage/backend/libs/go/errors"
 	"github.com/Doremi203/personage/backend/libs/go/log"
+	"github.com/Doremi203/personage/backend/tasker/internal/usecase/taskgeneration"
 )
 
-type taskGenerationUseCase interface {
-	ProcessClosableClusters(ctx context.Context, batchSize int) error
-}
-
 type Worker struct {
-	useCase   taskGenerationUseCase
+	useCase   *taskgeneration.UseCase
 	batchSize int
 	logger    log.Logger
 }
 
-func NewWorker(useCase taskGenerationUseCase, batchSize int, logger log.Logger) *Worker {
+func NewWorker(useCase *taskgeneration.UseCase, batchSize int, logger log.Logger) *Worker {
 	return &Worker{
 		useCase:   useCase,
 		batchSize: batchSize,

@@ -3,7 +3,6 @@ package eventpostgres
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"time"
 
 	"github.com/Doremi203/personage/backend/libs/go/errors"
@@ -15,14 +14,16 @@ import (
 	"github.com/pgvector/pgvector-go"
 )
 
-func NewRepo(client postgres.Client) *repo {
+func NewRepo(client postgres.Client, clock func() time.Time) *repo {
 	return &repo{
 		client: client,
+		clock:  clock,
 	}
 }
 
 type repo struct {
 	client postgres.Client
+	clock  func() time.Time
 }
 
 func (r *repo) UpsertEvent(ctx context.Context, event domain.EventWithEmbedding) error {
@@ -57,11 +58,11 @@ func (r *repo) UpsertEvent(ctx context.Context, event domain.EventWithEmbedding)
 		event.Context,
 		pgvector.NewVector(event.Embedding),
 		event.ClusterID,
-		time.Now(),
+		r.clock(),
 	)
 
 	if err != nil {
-		return fmt.Errorf("upsert event: %w", err)
+		return errors.WrapFail(err, "upsert event")
 	}
 
 	return nil
@@ -83,7 +84,7 @@ func (r *repo) GetEventsByClusterID(ctx context.Context, clusterID domain.Cluste
 
 	rows, err := r.client.Query(ctx, query, clusterID)
 	if err != nil {
-		return nil, fmt.Errorf("get events by cluster id: %w", err)
+		return nil, errors.WrapFail(err, "get events by cluster id")
 	}
 	defer rows.Close()
 

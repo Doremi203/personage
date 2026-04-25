@@ -19,6 +19,7 @@ func NewUseCase(
 	clusterRepo domain.ClusterRepo,
 	minSimilarity float64,
 	topK int,
+	clock func() time.Time,
 ) *UseCase {
 	return &UseCase{
 		txProvider:    txProvider,
@@ -28,6 +29,7 @@ func NewUseCase(
 		clusterRepo:   clusterRepo,
 		minSimilarity: minSimilarity,
 		topK:          topK,
+		clock:         clock,
 	}
 }
 
@@ -40,6 +42,7 @@ type UseCase struct {
 
 	txProvider tx.Provider
 	logger     log.Logger
+	clock      func() time.Time
 }
 
 func (uc *UseCase) ProcessEvent(ctx context.Context, e domain.Event) error {
@@ -53,8 +56,7 @@ func (uc *UseCase) ProcessEvent(ctx context.Context, e domain.Event) error {
 		)
 	}
 	if len(embeddings) == 0 {
-		return errors.WrapFailf(
-			err,
+		return errors.Errorf(
 			"generated embeddings are empty for event %s",
 			errors.Token("id", e.ID.String()),
 		)
@@ -85,10 +87,10 @@ func (uc *UseCase) ProcessEvent(ctx context.Context, e domain.Event) error {
 	var chosenCluster domain.Cluster
 	if len(similarClusters) > 0 && similarClusters[0].Similarity >= uc.minSimilarity {
 		chosenCluster = similarClusters[0].Cluster
-		chosenCluster.AddEvent(eventWithEmbedding)
+		chosenCluster.AddEvent(eventWithEmbedding, uc.clock())
 	} else {
 		clusterID := domain.ClusterID(uuid.New().String())
-		now := time.Now()
+		now := uc.clock()
 		chosenCluster = domain.Cluster{
 			ID:         clusterID,
 			UserID:     e.UserID,

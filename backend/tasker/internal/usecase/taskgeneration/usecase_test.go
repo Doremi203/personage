@@ -23,6 +23,7 @@ func TestProcessClusterFinalizesNonActionableCluster(t *testing.T) {
 		log.Stub{},
 		5,
 		time.Minute,
+		time.Now,
 	)
 
 	err := uc.processCluster(t.Context(), domain.Cluster{ID: "cluster-1", UserID: "user-1"})
@@ -73,6 +74,7 @@ func TestProcessClusterStoresGeneratedEvidenceEventIDs(t *testing.T) {
 		log.Stub{},
 		5,
 		time.Minute,
+		time.Now,
 	)
 
 	err := uc.processCluster(t.Context(), domain.Cluster{ID: "cluster-1", UserID: "user-1"})

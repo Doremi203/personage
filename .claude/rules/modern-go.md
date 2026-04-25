@@ -1,12 +1,6 @@
 ---
-name: writing-go-code
-description: >
-  ALWAYS load this skill when doing anything with Go code, no exceptions.
-  This means: writing new functions, methods, structs, or interfaces; adding or editing .go files;
-  writing tests; implementing repos, handlers, use cases, or
-  services; reviewing or reading Go code to suggest changes; and any other work that produces or
-  modifies Go code. If the user mentions Go, shows a .go file, or asks to write any Go code, load this skill immediately.
-user-invocable: false
+paths:
+  - "**/*.go"
 ---
 
 # Modern Go Guidelines
@@ -14,7 +8,7 @@ user-invocable: false
 ## Target Go Version
 Your target go version is 1.26.1
 
-## How to Use This Skill
+## How to Use This Rule
 
 **When writing Go code**, use ALL features from this document up to the target version:
 - Prefer modern built-ins and packages (`slices`, `maps`, `cmp`) over legacy patterns

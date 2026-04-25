@@ -65,7 +65,7 @@ func (s *clusterActionabilityService) GetTaskGenerationDecision(
 func parseActionabilityResponse(responseText string) (domain.TaskGenerationDecision, error) {
 	jsonText := extractJSON(responseText)
 	if jsonText == "" {
-		return domain.TaskGenerationDecision{}, errors.Errorf("no valid JSON found in response: %s", responseText)
+		return domain.TaskGenerationDecision{}, errors.Errorf("no valid JSON found in response %v", errors.Token("response", responseText))
 	}
 
 	var llmResp llmActionabilityResponse

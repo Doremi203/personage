@@ -15,12 +15,14 @@ func NewUseCase(
 	taskRepo domain.TaskRepo,
 	notifier domain.NotificationsService,
 	windowDuration time.Duration,
+	clock func() time.Time,
 ) *UseCase {
 	return &UseCase{
 		taskRepo:       taskRepo,
 		notifier:       notifier,
 		windowDuration: windowDuration,
 		logger:         logger,
+		clock:          clock,
 	}
 }
 
@@ -29,6 +31,7 @@ type UseCase struct {
 	notifier       domain.NotificationsService
 	windowDuration time.Duration
 	logger         log.Logger
+	clock          func() time.Time
 }
 
 func (uc *UseCase) SchedulePendingTasks(ctx context.Context) error {
@@ -71,7 +74,7 @@ func (uc *UseCase) scheduleForUser(ctx context.Context, userID domain.UserID) er
 		errors.Token("user_id", userID.String()),
 	)
 
-	now := time.Now().Truncate(domain.TimeSlotSize)
+	now := uc.clock().Truncate(domain.TimeSlotSize)
 	schedule := scheduler.CalculateSchedule(pendingTasks, now, uc.windowDuration)
 
 	for _, planned := range schedule.Planned {

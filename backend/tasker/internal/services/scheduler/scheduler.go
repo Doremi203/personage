@@ -8,9 +8,6 @@ import (
 	"github.com/Doremi203/personage/backend/tasker/internal/domain"
 )
 
-// CalculateSchedule takes a list of tasks and a planning window.
-// It returns a Schedule containing both scheduled and unscheduled tasks.
-// Tasks with fixed StartTime are included in the output as-is but occupy space in the grid.
 func CalculateSchedule(tasks []domain.Task, planningStart time.Time, windowDuration time.Duration) domain.Schedule {
 	totalSlots := int(math.Ceil(float64(windowDuration) / float64(domain.TimeSlotSize)))
 
@@ -114,16 +111,9 @@ func CalculateSchedule(tasks []domain.Task, planningStart time.Time, windowDurat
 	for _, task := range flexibleTasks {
 		slotsNeeded := durationToSlots(task.Duration)
 
-		// Calculate deadline index if deadline exists
-		var deadlineIdx int
+		deadlineIdx := totalSlots
 		if task.Deadline != nil {
-			deadlineIdx = timeToIndex(*task.Deadline)
-			// If deadline is beyond window, treat as no constraint
-			if deadlineIdx > totalSlots {
-				deadlineIdx = totalSlots
-			}
-		} else {
-			deadlineIdx = totalSlots
+			deadlineIdx = min(timeToIndex(*task.Deadline), totalSlots)
 		}
 
 		// Find first continuous gap that fits the task

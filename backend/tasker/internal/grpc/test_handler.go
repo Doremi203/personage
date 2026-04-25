@@ -17,17 +17,17 @@ type testTaskLister interface {
 type testListTaskItem struct {
 	ID               string     `json:"id"`
 	UserID           string     `json:"user_id"`
-	ClusterID        *string    `json:"cluster_id,omitempty"`
+	ClusterID        *string    `json:"cluster_id,omitzero"`
 	Title            string     `json:"title"`
 	Description      string     `json:"description"`
 	DurationMinutes  int        `json:"duration_minutes"`
 	Priority         int        `json:"priority"`
-	Deadline         *time.Time `json:"deadline,omitempty"`
-	StartTime        *time.Time `json:"start_time,omitempty"`
-	EndTime          *time.Time `json:"end_time,omitempty"`
+	Deadline         *time.Time `json:"deadline,omitzero"`
+	StartTime        *time.Time `json:"start_time,omitzero"`
+	EndTime          *time.Time `json:"end_time,omitzero"`
 	Status           string     `json:"status"`
 	Category         string     `json:"category"`
-	EvidenceEventIDs []string   `json:"evidence_event_ids,omitempty"`
+	EvidenceEventIDs []string   `json:"evidence_event_ids,omitzero"`
 	CreatedAt        time.Time  `json:"created_at"`
 	UpdatedAt        time.Time  `json:"updated_at"`
 }
@@ -41,8 +41,8 @@ type testClusterGenerationDiagnosticItem struct {
 	UserID             string    `json:"user_id"`
 	Status             string    `json:"status"`
 	EventCount         int       `json:"event_count"`
-	GenerationOutcome  *string   `json:"generation_outcome,omitempty"`
-	GenerationReason   *string   `json:"generation_reason,omitempty"`
+	GenerationOutcome  *string   `json:"generation_outcome,omitzero"`
+	GenerationReason   *string   `json:"generation_reason,omitzero"`
 	GeneratedTaskCount int       `json:"generated_task_count"`
 	CreatedAt          time.Time `json:"created_at"`
 	UpdatedAt          time.Time `json:"updated_at"`
@@ -74,9 +74,6 @@ func evidenceEventIDs(ids []domain.EventID) []string {
 	return values
 }
 
-// NewTestListTasksHandler returns an HTTP handler for GET /v1/test/tasks/list.
-// It lists tasks for a given user_id directly from the repo, bypassing auth.
-// Must only be registered in non-production environments.
 func NewTestListTasksHandler(repo testTaskLister) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
@@ -122,10 +119,6 @@ func NewTestListTasksHandler(repo testTaskLister) http.HandlerFunc {
 	}
 }
 
-// NewTestListClusterGenerationDiagnosticsHandler returns an HTTP handler for
-// GET /v1/test/clusters/list. It lists cluster generation outcomes for a given
-// user_id directly from the repo, bypassing auth. Must only be registered in
-// non-production environments.
 func NewTestListClusterGenerationDiagnosticsHandler(repo testClusterGenerationDiagnosticsLister) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
@@ -182,11 +175,7 @@ type testCreateTaskResponse struct {
 	ID string `json:"id"`
 }
 
-// NewTestCreateTaskHandler returns an HTTP handler for POST /v1/test/tasks.
-// It inserts a task directly via the repo, bypassing the AI pipeline.
-// cluster_id is left nil (allowed after migration 00004).
-// Must only be registered in non-production environments.
-func NewTestCreateTaskHandler(repo testTaskCreator) http.HandlerFunc {
+func NewTestCreateTaskHandler(repo testTaskCreator, clock func() time.Time) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -237,7 +226,7 @@ func NewTestCreateTaskHandler(repo testTaskCreator) http.HandlerFunc {
 			}
 		}
 
-		now := time.Now()
+		now := clock()
 		task := domain.Task{
 			ID:          domain.TaskID(uuid.New().String()),
 			UserID:      domain.UserID(req.UserID),

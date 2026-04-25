@@ -25,7 +25,6 @@ func NewTaskCategory(s string) TaskCategory {
 	case "personal":
 		return TaskCategoryPersonal
 	default:
-		// Default to "personal" if the input is unrecognized
 		return TaskCategoryPersonal
 	}
 }

@@ -95,7 +95,7 @@ type llmTaskResponse struct {
 func (s *taskGenerationService) parseResponse(responseText string, events []domain.Event) (domain.GeneratedTask, error) {
 	jsonText := extractJSON(responseText)
 	if jsonText == "" {
-		return domain.GeneratedTask{}, errors.Errorf("no valid JSON found in response: %s", responseText)
+		return domain.GeneratedTask{}, errors.Errorf("no valid JSON found in response %v", errors.Token("response", responseText))
 	}
 
 	var llmResp llmTaskResponse
@@ -196,7 +196,10 @@ func parseEvidenceEventIDs(ids []string, events []domain.Event) ([]domain.EventI
 			invalidIDStrings[i] = id.String()
 		}
 
-		return nil, errors.Errorf("evidence_event_ids reference unknown cluster events: %s", strings.Join(invalidIDStrings, ", "))
+		return nil, errors.Errorf(
+			"evidence_event_ids reference unknown cluster events %v",
+			errors.Token("invalid_ids", strings.Join(invalidIDStrings, ", ")),
+		)
 	}
 
 	return validated, nil
@@ -226,22 +229,21 @@ func validateCategory(category string) (string, error) {
 	case string(domain.TaskCategoryWork), string(domain.TaskCategoryStudy), string(domain.TaskCategoryPersonal):
 		return trimmedCategory, nil
 	default:
-		return "", errors.Errorf("invalid category: %s", category)
+		return "", errors.Errorf("invalid category %v", errors.Token("category", category))
 	}
 }
 
 func extractJSON(text string) string {
 	text = strings.TrimSpace(text)
 
-	if strings.HasPrefix(text, "```json") {
-		text = strings.TrimPrefix(text, "```json")
-		text = strings.TrimPrefix(text, "```")
+	if rest, ok := strings.CutPrefix(text, "```json"); ok {
+		text = strings.TrimPrefix(rest, "```")
 		if idx := strings.Index(text, "```"); idx != -1 {
 			text = text[:idx]
 		}
 		text = strings.TrimSpace(text)
-	} else if strings.HasPrefix(text, "```") {
-		text = strings.TrimPrefix(text, "```")
+	} else if rest, ok := strings.CutPrefix(text, "```"); ok {
+		text = rest
 		if idx := strings.Index(text, "```"); idx != -1 {
 			text = text[:idx]
 		}
