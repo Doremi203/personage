@@ -1,0 +1,25 @@
+http:
+  port: 9090
+
+database:
+  host: db
+  port: 5432
+  user: user
+  password: pass
+  database: notificator
+  options: sslmode=disable
+
+sqs:
+  endpoint: http://localhost:4566
+  region: us-east-1
+  accessKey: test
+  secretKey: test
+  queueUrl: http://localhost:4566/000000000000/notificator-commands
+
+web-push:
+  vapidPublicKey: dummy-public-key
+  vapidPrivateKey: dummy-private-key
+  subscriber: test@example.com
+
+x-api-key:
+  secretKey: test-api-key

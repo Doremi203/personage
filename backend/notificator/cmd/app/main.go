@@ -140,6 +140,9 @@ func main() {
 		notificationsService := grpc.NewNotificationsService(notificationsUseCase, app.Log)
 
 		app.AddAPIKeyProtectedEndpoints(pushpb.Admin_SendPushV1_FullMethodName)
+		if app.Env == webapp.DevEnvironment || app.Env == webapp.TestsEnvironment {
+			app.AddHTTPHandler("/v1/test/notifications", grpc.NewTestCreateNotificationHandler(notificationRepo))
+		}
 		if app.Env == webapp.TestsEnvironment {
 			app.AddGRPCUnaryInterceptor(
 				token.NewUnaryTokenInterceptor(
