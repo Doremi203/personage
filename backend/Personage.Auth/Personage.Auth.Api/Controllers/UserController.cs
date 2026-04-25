@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Personage.Auth.Api.Contracts.Common;
 using Personage.Auth.Api.Contracts.User.Integrations;
+using Personage.Auth.Api.Contracts.User.Requests;
 using Personage.Auth.Api.Contracts.User.Responses;
 using Personage.Auth.Domain.Interfaces;
 
@@ -40,5 +41,17 @@ public class UserController(IUserService userService) : ControllerBase
                 Gmail = user.GoogleCalendarIntegration.Gmail
             }
         };
+    }
+    
+    [HttpPut]
+    [Authorize]
+    [ProducesResponseType(typeof(UserInfo), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult> UpdateUserInfo(
+        [FromBody] UpdateUserInfoRequest request,
+        CancellationToken ct)
+    {
+        await userService.UpdateUserInfo(request.Name, ct);
+        return Ok();
     }
 }

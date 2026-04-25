@@ -1,3 +1,4 @@
+using Personage.Auth.Bll.Helpers.Validation;
 using Personage.Auth.DataAccess.Interfaces.Repositories;
 using Personage.Auth.Domain.Exceptions.Base;
 using Personage.Auth.Domain.Interfaces;
@@ -46,5 +47,17 @@ public class UserService(
                 Gmail = googleCalendarInfo?.GmailEmail
             }
         };
+    }
+
+    public async Task UpdateUserInfo(string name, CancellationToken ct)
+    {
+        UserValidator.ValidateName(name);
+        
+        var userId = claimValues.GetUserId();
+        var userInfo = await userRepository.GetUserById(userId, ct);
+        if(userInfo is null)
+            throw new NotFoundException(ErrorCode.UserNotFound, "User with specified id not found");
+        
+        await userRepository.UpdateName(userId, name, ct);
     }
 }

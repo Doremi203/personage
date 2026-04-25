@@ -13,4 +13,5 @@ public interface IUserRepository
     Task<UserWithTelegramSession[]> GetUsersTelegramProcessedBeforeMoment(DateTime processedBeforeMoment, int limit, CancellationToken ct);
     Task<UserWithToken[]> GetUsersGoogleCalendarProcessedBeforeMoment(DateTime processedBeforeMoment, int limit, CancellationToken ct);
     Task UpdatePassword(Guid userId, string passwordHash, CancellationToken ct);
+    Task UpdateName(Guid userId, string name, CancellationToken ct);
 }

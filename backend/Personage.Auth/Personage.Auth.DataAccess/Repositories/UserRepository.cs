@@ -224,4 +224,22 @@ public class UserRepository(IDbConnectionFactory connectionFactory) : IUserRepos
                 passwordHash
             });
     }
+
+    public async Task UpdateName(Guid userId, string name, CancellationToken ct)
+    {
+        using var connection = await connectionFactory.CreateConnection(ct);
+        
+        await connection.ExecuteAsync(
+            """
+            --UserRepository.UpdateName
+            UPDATE "user"
+            SET name = @name
+            WHERE id = @userId;
+            """,
+            new
+            {
+                userId,
+                name
+            });
+    }
 }
