@@ -111,8 +111,15 @@ jobs:
           name: codegen-output
           path: backend
 
-      - name: Run tests
-        run: BASE_MIGRATIONS_PATH=${{ github.workspace }}/backend go test ./... -race
+      - name: Run tests with coverage
+        run: BASE_MIGRATIONS_PATH=${{ github.workspace }}/backend go test ./... -race -coverprofile=cover.out -covermode=atomic -coverpkg=./...
+
+      - name: Install go-test-coverage
+        run: go install github.com/vladopajic/go-test-coverage/v2@latest
+
+      - name: Check coverage threshold
+        working-directory: backend
+        run: go-test-coverage --config=${{ inputs.service_name }}/.testcoverage.yml --profile=${{ inputs.service_name }}/cover.out
 
   build:
     needs: codegen

@@ -154,3 +154,13 @@ tasker-eval/run:
 
 tests:
 	go test ./... -race
+
+tasker/check-coverage:
+	cd tasker && go test ./... -race -coverprofile=cover.out -covermode=atomic -coverpkg=./...
+	go-test-coverage --config=tasker/.testcoverage.yml --profile=tasker/cover.out
+	@rm -f tasker/cover.out
+
+notificator/check-coverage:
+	cd notificator && go test ./... -race -coverprofile=cover.out -covermode=atomic -coverpkg=./...
+	go-test-coverage --config=notificator/.testcoverage.yml --profile=notificator/cover.out
+	@rm -f notificator/cover.out

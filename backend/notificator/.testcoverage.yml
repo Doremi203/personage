@@ -1,0 +1,11 @@
+profile: cover.out
+threshold:
+  total: 25
+exclude:
+  paths:
+    - \.pb\.go$
+    - \.pb\.gw\.go$
+    - \.pb\.validate\.go$
+    - _mock\.go$
+    - /mock/
+    - /cmd/
