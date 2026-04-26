@@ -25,13 +25,20 @@ import (
 type SetupOption func(*setupConfig)
 
 type setupConfig struct {
-	afterConnect func(ctx context.Context, conn *pgx.Conn) error
-	image        string
+	afterConnect  func(ctx context.Context, conn *pgx.Conn) error
+	beforeMigrate func(ctx context.Context, db *sql.DB) error
+	image         string
 }
 
 func WithAfterConnect(fn func(ctx context.Context, conn *pgx.Conn) error) SetupOption {
 	return func(c *setupConfig) {
 		c.afterConnect = fn
+	}
+}
+
+func WithBeforeMigrate(fn func(ctx context.Context, db *sql.DB) error) SetupOption {
+	return func(c *setupConfig) {
+		c.beforeMigrate = fn
 	}
 }
 
@@ -130,6 +137,12 @@ func SetupTests(
 		log.Fatalf("env variable BASE_MIGRATIONS_PATH not set")
 	}
 	baseDir := filepath.Join(baseMigrationsPath, serviceDir)
+
+	if sCfg.beforeMigrate != nil {
+		if err = sCfg.beforeMigrate(ctx, sqlDB); err != nil {
+			log.Fatalf("couldn't run before-migrate hook: %v", err)
+		}
+	}
 
 	migrator, err := goose.NewProvider(
 		goose.DialectPostgres,
