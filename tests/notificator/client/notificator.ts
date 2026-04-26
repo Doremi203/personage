@@ -45,6 +45,21 @@ export class NotificatorClient {
     });
   }
 
+  markNotificationAsRead(id: string): Promise<Response> {
+    return fetch(`${this.baseUrl}/notifications/read/${encodeURIComponent(id)}`, {
+      method: 'POST',
+      headers: this.headers(),
+    });
+  }
+
+  markAllNotificationsAsRead(): Promise<Response> {
+    return fetch(`${this.baseUrl}/notifications/read`, {
+      method: 'POST',
+      headers: this.headers(),
+      body: '{}',
+    });
+  }
+
   subscribe(endpoint: string, p256dh: string, authKey: string): Promise<Response> {
     return fetch(`${this.baseUrl}/v1/push/subscribe`, {
       method: 'POST',
