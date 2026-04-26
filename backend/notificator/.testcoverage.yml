@@ -1,6 +1,6 @@
 profile: cover.out
 threshold:
-  total: 25
+  total: 50
 exclude:
   paths:
     - \.pb\.go$
@@ -9,3 +9,4 @@ exclude:
     - _mock\.go$
     - /mock/
     - /cmd/
+    - test_handler\.go$

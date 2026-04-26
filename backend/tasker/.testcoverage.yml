@@ -1,6 +1,6 @@
 profile: cover.out
 threshold:
-  total: 40
+  total: 50
 exclude:
   paths:
     - \.pb\.go$
@@ -11,3 +11,4 @@ exclude:
     - /cmd/
     - /scripts/
     - /eval/
+    - test_handler\.go$
