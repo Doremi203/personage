@@ -143,8 +143,12 @@ const SettingsScreen = ({ onLogout }: SettingsScreenProps) => {
     setCalendarError(null);
     setCalendarLoading(true);
     try {
+      if (!user?.email) {
+        setCalendarError('Не удалось определить email пользователя');
+        return;
+      }
       sessionStorage.setItem(OAUTH_PROVIDER_STORAGE_KEY, 'google-calendar');
-      const { authorizationUrl } = await startGoogleCalendarAuth(window.location.origin);
+      const { authorizationUrl } = await startGoogleCalendarAuth(user.email, window.location.origin);
       window.location.href = authorizationUrl;
     } catch (err) {
       setCalendarError(err instanceof Error ? err.message : 'Не удалось запустить авторизацию Google Calendar');

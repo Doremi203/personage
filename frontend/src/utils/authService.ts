@@ -275,6 +275,7 @@ export async function handleGmailCallback(
 }
 
 export async function startGoogleCalendarAuth(
+  userEmail: string,
   redirectUri: string,
 ): Promise<{ authorizationUrl: string; state: string }> {
   const response = await fetchWithTokenRefresh((accessToken) =>
@@ -284,7 +285,7 @@ export async function startGoogleCalendarAuth(
         'Content-Type': 'application/json',
         Authorization: `Bearer ${accessToken}`,
       },
-      body: JSON.stringify({ redirectUri }),
+      body: JSON.stringify({ userEmail, redirectUri }),
     }),
   );
 
