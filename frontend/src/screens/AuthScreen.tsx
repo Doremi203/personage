@@ -31,6 +31,7 @@ const AuthScreen = ({ onAuthSuccess }: AuthScreenProps) => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPwd, setShowPwd] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,6 +46,7 @@ const AuthScreen = ({ onAuthSuccess }: AuthScreenProps) => {
     if (mode === 'register') {
       if (!name) { setError('Введите имя'); return; }
       if (password.length < 8) { setError('Пароль должен содержать не менее 8 символов'); return; }
+      if (password !== confirmPassword) { setError('Пароли не совпадают'); return; }
     }
     if (localStorage.getItem(CONSENT_KEY) === 'true') {
       void runAuth();
@@ -189,8 +191,19 @@ const AuthScreen = ({ onAuthSuccess }: AuthScreenProps) => {
                 {showPwd ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             }
-            last
+            last={mode !== 'register'}
           />
+          {mode === 'register' && (
+            <Field
+              icon={Lock}
+              placeholder="Повторите пароль"
+              type={showPwd ? 'text' : 'password'}
+              autoComplete="new-password"
+              value={confirmPassword}
+              onChange={setConfirmPassword}
+              last
+            />
+          )}
         </div>
 
         {mode === 'login' && (
