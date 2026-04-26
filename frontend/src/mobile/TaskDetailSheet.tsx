@@ -8,7 +8,8 @@ import {
   Clock4,
   Flag,
   Loader2,
-  MoreHorizontal,
+  Pencil,
+  Tag,
 } from 'lucide-react';
 import { Pill } from './Chrome';
 import {
@@ -20,6 +21,10 @@ import {
   type Category,
   type Priority,
 } from './tokens';
+import {
+  ApiTaskCategory,
+  type UpdateTaskPatch,
+} from '../utils/taskerService';
 
 export interface DetailTask {
   id: string;
@@ -30,6 +35,8 @@ export interface DetailTask {
   category: Category;
   startLabel: string;
   endLabel: string;
+  startISO?: string;
+  endISO?: string;
 }
 
 interface TaskDetailSheetProps {
@@ -38,9 +45,34 @@ interface TaskDetailSheetProps {
   onComplete: () => Promise<void>;
   onPostpone: () => Promise<void>;
   onDelete:   () => Promise<void>;
+  onSave:     (patch: UpdateTaskPatch) => Promise<void>;
 }
 
-type Action = 'complete' | 'postpone' | 'delete' | null;
+type Action = 'complete' | 'postpone' | 'delete' | 'save' | null;
+
+const CATEGORY_TO_API: Record<Category, string> = {
+  work:     ApiTaskCategory.WORK,
+  study:    ApiTaskCategory.STUDY,
+  personal: ApiTaskCategory.PERSONAL,
+};
+
+function pad2(n: number): string {
+  return String(n).padStart(2, '0');
+}
+
+function isoToLocalInput(iso?: string): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+
+function localInputToISO(s: string): string | undefined {
+  if (!s) return undefined;
+  const d = new Date(s);
+  if (Number.isNaN(d.getTime())) return undefined;
+  return d.toISOString();
+}
 
 export function TaskDetailSheet({
   task,
@@ -48,6 +80,7 @@ export function TaskDetailSheet({
   onComplete,
   onPostpone,
   onDelete,
+  onSave,
 }: TaskDetailSheetProps) {
   const pal = T[task.priority];
   const catPal = T[task.category];
@@ -60,6 +93,13 @@ export function TaskDetailSheet({
   const [running, setRunning] = useState<Action>(null);
   const [mountTarget, setMountTarget] = useState<HTMLElement | null>(null);
 
+  const [editing, setEditing] = useState(false);
+  const [title, setTitle] = useState(task.title);
+  const [description, setDescription] = useState(task.description);
+  const [startLocal, setStartLocal] = useState(isoToLocalInput(task.startISO));
+  const [endLocal, setEndLocal] = useState(isoToLocalInput(task.endISO));
+  const [category, setCategory] = useState<Category>(task.category);
+
   useEffect(() => {
     setMountTarget(document.getElementById('mobile-frame'));
   }, []);
@@ -68,6 +108,34 @@ export function TaskDetailSheet({
     if (running) return;
     setRunning(kind);
     try { await fn(); } finally { setRunning(null); }
+  };
+
+  const handleEditToggle = async () => {
+    if (running) return;
+    if (!editing) {
+      setEditing(true);
+      return;
+    }
+    const patch: UpdateTaskPatch = {};
+    if (title !== task.title) patch.title = title;
+    if (description !== task.description) patch.description = description;
+    const initialStart = isoToLocalInput(task.startISO);
+    const initialEnd = isoToLocalInput(task.endISO);
+    if (startLocal !== initialStart) patch.startTime = localInputToISO(startLocal);
+    if (endLocal !== initialEnd) patch.endTime = localInputToISO(endLocal);
+    if (category !== task.category) patch.category = CATEGORY_TO_API[category];
+
+    if (Object.keys(patch).length === 0) {
+      setEditing(false);
+      return;
+    }
+    setRunning('save');
+    try {
+      await onSave(patch);
+      setEditing(false);
+    } finally {
+      setRunning(null);
+    }
   };
 
   if (!mountTarget) return null;
@@ -112,13 +180,24 @@ export function TaskDetailSheet({
         </button>
         <button
           type="button"
-          aria-label="Ещё"
+          aria-label={editing ? 'Сохранить' : 'Редактировать'}
+          onClick={() => void handleEditToggle()}
+          disabled={running !== null}
           style={{
-            background: 'transparent', border: 'none', cursor: 'pointer',
-            padding: 8, color: T.ink2,
+            background: editing ? T.amberFill : 'transparent',
+            border: 'none',
+            cursor: running ? 'default' : 'pointer',
+            padding: 8, color: editing ? T.amberDp : T.ink2,
+            borderRadius: 8,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            opacity: running && running !== 'save' ? 0.5 : 1,
           }}
         >
-          <MoreHorizontal size={20} strokeWidth={1.8} />
+          {running === 'save'
+            ? <Loader2 size={17} className="animate-spin" />
+            : editing
+              ? <Check size={18} strokeWidth={2.2} />
+              : <Pencil size={17} strokeWidth={1.9} />}
         </button>
       </div>
 
@@ -129,36 +208,66 @@ export function TaskDetailSheet({
         }} />
 
         {/* Title */}
-        <div style={{
-          fontFamily: SERIF, fontSize: 30, lineHeight: 1.12, letterSpacing: -0.5,
-          color: T.ink, marginBottom: 10,
-          textDecoration: isDone ? 'line-through' : 'none',
-          textDecorationColor: T.ink4,
-          wordBreak: 'break-word',
-        }}>{task.title}</div>
+        {editing ? (
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            style={{
+              width: '100%', boxSizing: 'border-box',
+              fontFamily: SERIF, fontSize: 30, lineHeight: 1.12, letterSpacing: -0.5,
+              color: T.ink, marginBottom: 10,
+              background: T.subtle, border: `1px solid ${T.amberDp}`,
+              borderRadius: 10, padding: '8px 10px', outline: 'none',
+            }}
+          />
+        ) : (
+          <div style={{
+            fontFamily: SERIF, fontSize: 30, lineHeight: 1.12, letterSpacing: -0.5,
+            color: T.ink, marginBottom: 10,
+            textDecoration: isDone ? 'line-through' : 'none',
+            textDecorationColor: T.ink4,
+            wordBreak: 'break-word',
+          }}>{task.title}</div>
+        )}
 
-        {task.description && (
+        {editing ? (
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Описание"
+            rows={3}
+            style={{
+              width: '100%', boxSizing: 'border-box', resize: 'none',
+              fontSize: 15, color: T.ink2, lineHeight: 1.5, marginBottom: 18,
+              fontFamily: SANS,
+              background: T.subtle, border: `1px solid ${T.hairline}`,
+              borderRadius: 10, padding: '10px 12px', outline: 'none',
+            }}
+          />
+        ) : task.description ? (
           <div style={{
             fontSize: 15, color: T.ink2, lineHeight: 1.5, marginBottom: 22,
             wordBreak: 'break-word',
           }}>{task.description}</div>
+        ) : null}
+
+        {/* Pills (view only) */}
+        {!editing && (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 22 }}>
+            <Pill fill={pal.fill} ink={pal.ink} dot={pal.rail}>
+              Приоритет: {PRIORITY_LABELS[task.priority]}
+            </Pill>
+            <Pill fill={catPal.fill} ink={catPal.ink} dot={catPal.rail}>
+              {CATEGORY_LABELS[task.category]}
+            </Pill>
+            <Pill fill={isDone ? T.okFill : T.amberFill} ink={isDone ? T.ok : T.amberInk}>
+              {statusLabel}
+            </Pill>
+          </div>
         )}
 
-        {/* Pills */}
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 22 }}>
-          <Pill fill={pal.fill} ink={pal.ink} dot={pal.rail}>
-            Приоритет: {PRIORITY_LABELS[task.priority]}
-          </Pill>
-          <Pill fill={catPal.fill} ink={catPal.ink} dot={catPal.rail}>
-            {CATEGORY_LABELS[task.category]}
-          </Pill>
-          <Pill fill={isDone ? T.okFill : T.amberFill} ink={isDone ? T.ok : T.amberInk}>
-            {statusLabel}
-          </Pill>
-        </div>
-
-        {/* Action row */}
-        {!isDone && (
+        {/* Action row (view only, not done) */}
+        {!editing && !isDone && (
           <div style={{ display: 'flex', gap: 8, marginBottom: 18 }}>
             <button
               type="button"
@@ -198,15 +307,25 @@ export function TaskDetailSheet({
           </div>
         )}
 
-        {/* Properties */}
-        <Section>
-          <Row icon={CalendarIcon} iconBg={T.amberFill} iconInk={T.amberDp}
-            label="Начало" value={task.startLabel} />
-          <Row icon={Clock} iconBg={T.infoFill} iconInk={T.info}
-            label="Конец" value={task.endLabel} />
-          <Row icon={Flag} iconBg={pal.fill} iconInk={pal.ink}
-            label="Приоритет" value={PRIORITY_LABELS[task.priority]} dot={pal.rail} last />
-        </Section>
+        {/* Properties / Editor */}
+        {editing ? (
+          <Section>
+            <EditDateRow icon={CalendarIcon} iconBg={T.amberFill} iconInk={T.amberDp}
+              label="Начало" value={startLocal} onChange={setStartLocal} />
+            <EditDateRow icon={Clock} iconBg={T.infoFill} iconInk={T.info}
+              label="Конец" value={endLocal} onChange={setEndLocal} />
+            <CategoryPicker icon={Tag} value={category} onChange={setCategory} last />
+          </Section>
+        ) : (
+          <Section>
+            <Row icon={CalendarIcon} iconBg={T.amberFill} iconInk={T.amberDp}
+              label="Начало" value={task.startLabel} />
+            <Row icon={Clock} iconBg={T.infoFill} iconInk={T.info}
+              label="Конец" value={task.endLabel} />
+            <Row icon={Flag} iconBg={pal.fill} iconInk={pal.ink}
+              label="Приоритет" value={PRIORITY_LABELS[task.priority]} dot={pal.rail} last />
+          </Section>
+        )}
 
         {/* Delete */}
         <button
@@ -272,6 +391,95 @@ function Row({ icon: Icon, iconBg, iconInk, label, value, dot, last }: RowProps)
       }}>
         {dot && <span style={{ width: 7, height: 7, borderRadius: '50%', background: dot }} />}
         {value}
+      </div>
+    </div>
+  );
+}
+
+interface EditDateRowProps {
+  icon: typeof CalendarIcon;
+  iconBg: string;
+  iconInk: string;
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  last?: boolean;
+}
+
+function EditDateRow({ icon: Icon, iconBg, iconInk, label, value, onChange, last }: EditDateRowProps) {
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 12,
+      padding: '10px 16px',
+      borderBottom: last ? 'none' : `0.5px solid ${T.hairline}`,
+    }}>
+      <div style={{
+        width: 30, height: 30, borderRadius: 8, background: iconBg, color: iconInk,
+        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+      }}>
+        <Icon size={15} strokeWidth={1.8} />
+      </div>
+      <div style={{ flex: '0 0 auto', fontSize: 14, color: T.ink, fontWeight: 500 }}>{label}</div>
+      <input
+        type="datetime-local"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        style={{
+          flex: 1, minWidth: 0, textAlign: 'right',
+          background: 'transparent', border: 'none', outline: 'none',
+          fontFamily: SANS, fontSize: 14, color: T.amberDp, fontWeight: 500,
+        }}
+      />
+    </div>
+  );
+}
+
+interface CategoryPickerProps {
+  icon: typeof CalendarIcon;
+  value: Category;
+  onChange: (v: Category) => void;
+  last?: boolean;
+}
+
+function CategoryPicker({ icon: Icon, value, onChange, last }: CategoryPickerProps) {
+  const cats: { id: Category; label: string }[] = [
+    { id: 'work',     label: 'Работа' },
+    { id: 'study',    label: 'Учёба' },
+    { id: 'personal', label: 'Личное' },
+  ];
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 12,
+      padding: '10px 16px',
+      borderBottom: last ? 'none' : `0.5px solid ${T.hairline}`,
+    }}>
+      <div style={{
+        width: 30, height: 30, borderRadius: 8, background: T.subtle, color: T.ink2,
+        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+      }}>
+        <Icon size={15} strokeWidth={1.8} />
+      </div>
+      <div style={{ fontSize: 14, color: T.ink, fontWeight: 500, marginRight: 'auto' }}>Категория</div>
+      <div style={{ display: 'flex', gap: 4 }}>
+        {cats.map((c) => {
+          const sel = value === c.id;
+          const pal = T[c.id];
+          return (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => onChange(c.id)}
+              style={{
+                padding: '5px 10px', borderRadius: 999,
+                background: sel ? pal.fill : 'transparent',
+                color: sel ? pal.ink : T.ink3,
+                border: `1px solid ${sel ? pal.rail : T.hairline}`,
+                cursor: 'pointer',
+                fontFamily: SANS, fontSize: 12, fontWeight: 500,
+              }}
+            >{c.label}</button>
+          );
+        })}
       </div>
     </div>
   );

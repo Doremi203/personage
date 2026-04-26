@@ -18,7 +18,9 @@ import {
   deleteTask,
   listTasks,
   postponeTask,
+  updateTask,
   type ApiTaskItem,
+  type UpdateTaskPatch,
 } from '../utils/taskerService';
 import {
   RU_MONTHS_GEN,
@@ -189,6 +191,14 @@ const ScheduleScreen = () => {
     [fetchEvents],
   );
 
+  const handleSave = useCallback(
+    async (id: string, patch: UpdateTaskPatch) => {
+      await updateTask(id, patch);
+      await fetchEvents();
+    },
+    [fetchEvents],
+  );
+
   return (
     <>
       {/* Header — title + week nav on same line */}
@@ -333,11 +343,13 @@ const ScheduleScreen = () => {
 
       {selectedEvent && (
         <TaskDetailSheet
+          key={selectedEvent.id}
           task={toDetailTask(selectedEvent)}
           onClose={() => setSelectedEvent(null)}
           onComplete={() => handleAction(selectedEvent.id, completeTask)}
           onPostpone={() => handleAction(selectedEvent.id, postponeTask)}
           onDelete={()   => handleAction(selectedEvent.id, deleteTask)}
+          onSave={(patch) => handleSave(selectedEvent.id, patch)}
         />
       )}
     </>
@@ -354,6 +366,8 @@ function toDetailTask(e: ScheduleEvent): DetailTask {
     category: e.category,
     startLabel: formatDateTime(e.startTime),
     endLabel: formatDateTime(e.endTime),
+    startISO: e.raw.startTime,
+    endISO:   e.raw.endTime,
   };
 }
 

@@ -97,6 +97,29 @@ export async function getTask(id: string): Promise<ApiTaskItem> {
   return data.task;
 }
 
+export interface UpdateTaskPatch {
+  title?: string;
+  description?: string;
+  startTime?: string; // ISO 8601 — omit to leave unchanged
+  endTime?: string;   // ISO 8601 — omit to leave unchanged
+  category?: string;  // ApiTaskCategory enum value
+}
+
+export async function updateTask(
+  id: string,
+  patch: UpdateTaskPatch,
+): Promise<ApiTaskItem> {
+  const data = await fetchWithAuth<{ task: ApiTaskItem }>(
+    `${TASKER_API_URL}/v1/tasks/${encodeURIComponent(id)}`,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch),
+    },
+  );
+  return data.task;
+}
+
 export async function completeTask(id: string): Promise<ApiTaskItem> {
   const data = await fetchWithAuth<{ task: ApiTaskItem }>(
     `${TASKER_API_URL}/v1/tasks/${encodeURIComponent(id)}/complete`,
