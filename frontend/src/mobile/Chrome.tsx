@@ -209,6 +209,59 @@ export function Segmented<T extends string>({ items, value, onChange }: Segmente
   );
 }
 
+// ─── Category chip row ────────────────────────────────────────
+export interface CategoryChipItem<T extends string> {
+  id: T;
+  label: string;
+  icon?: LucideIcon;
+}
+
+interface CategoryChipsProps<T extends string> {
+  items: CategoryChipItem<T>[];
+  value: T;
+  onChange: (v: T) => void;
+}
+
+export function CategoryChips<T extends string>({ items, value, onChange }: CategoryChipsProps<T>) {
+  return (
+    <div style={{
+      display: 'flex',
+      gap: 8,
+      padding: '0 16px 12px',
+      overflowX: 'auto',
+      scrollbarWidth: 'none',
+    }}>
+      {items.map((it) => {
+        const active = it.id === value;
+        const Icon = it.icon;
+        return (
+          <button
+            type="button"
+            key={it.id}
+            onClick={() => onChange(it.id)}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              flexShrink: 0,
+              padding: '7px 14px',
+              borderRadius: 999,
+              cursor: 'pointer',
+              fontFamily: SANS, fontSize: 13, fontWeight: active ? 600 : 500,
+              background: active ? T.ink : T.surface,
+              color: active ? T.surface : T.ink,
+              border: active ? 'none' : `0.5px solid ${T.hairline}`,
+              transition: 'background .15s, color .15s',
+              letterSpacing: -0.05,
+            }}
+          >
+            {Icon && <Icon size={14} strokeWidth={1.8} />}
+            <span>{it.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 // ─── Bottom tab bar ────────────────────────────────────────────
 export type Tab = 'tasks' | 'schedule' | 'notifications' | 'settings';
 
