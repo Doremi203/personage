@@ -156,6 +156,8 @@ func main() {
 					pushpb.Notifications_ListNotificationsV1_FullMethodName,
 					pushpb.Notifications_ToggleNotificationV1_FullMethodName,
 					pushpb.Notifications_GetNotificationSettingsV1_FullMethodName,
+					pushpb.Notifications_MarkNotificationAsReadV1_FullMethodName,
+					pushpb.Notifications_MarkAllNotificationsAsReadV1_FullMethodName,
 				),
 			)
 		} else {
@@ -186,6 +188,8 @@ func main() {
 					pushpb.Notifications_ListNotificationsV1_FullMethodName,
 					pushpb.Notifications_ToggleNotificationV1_FullMethodName,
 					pushpb.Notifications_GetNotificationSettingsV1_FullMethodName,
+					pushpb.Notifications_MarkNotificationAsReadV1_FullMethodName,
+					pushpb.Notifications_MarkAllNotificationsAsReadV1_FullMethodName,
 				),
 			)
 		}

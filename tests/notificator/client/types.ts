@@ -4,6 +4,7 @@ export interface NotificationItem {
   type: string;
   text: string;
   sentAt: string;
+  readAt: string | null;
 }
 
 export interface ListNotificationsResponse {
