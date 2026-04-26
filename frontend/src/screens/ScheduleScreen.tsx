@@ -193,7 +193,9 @@ const ScheduleScreen = () => {
 
   const handleSave = useCallback(
     async (id: string, patch: UpdateTaskPatch) => {
-      await updateTask(id, patch);
+      const updated = await updateTask(id, patch);
+      const newEvent = mapApiTaskToEvent(updated);
+      if (newEvent) setSelectedEvent(newEvent);
       await fetchEvents();
     },
     [fetchEvents],

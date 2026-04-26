@@ -208,7 +208,8 @@ const TasksScreen = () => {
 
   const handleSave = useCallback(
     async (id: string, patch: UpdateTaskPatch) => {
-      await updateTask(id, patch);
+      const updated = await updateTask(id, patch);
+      setSelectedTask(mapApiTask(updated));
       await fetchAll();
     },
     [fetchAll],
