@@ -1,3 +1,4 @@
+import { clearNotificationsCache } from './notificationsCache';
 import { clearUserCache } from './userCache';
 
 const AUTH_API_URL =
@@ -46,6 +47,7 @@ function setTokens(tokens: AuthTokens): void {
 function clearTokens(): void {
   localStorage.removeItem(TOKENS_KEY);
   clearUserCache();
+  clearNotificationsCache();
   notifyAuthStateChanged();
 }
 

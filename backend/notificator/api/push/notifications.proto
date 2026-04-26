@@ -63,6 +63,43 @@ service Notifications {
       }
     };
   }
+
+  rpc MarkNotificationAsReadV1(MarkNotificationAsReadV1Request) returns (MarkNotificationAsReadV1Response) {
+    option (google.api.http) = {
+      post: "/notifications/read/{id}"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Mark notification as read";
+      description: "Marks a single notification as read for the authenticated user. Idempotent.";
+      parameters: {
+        headers: {
+          name: "User-Token"
+          description: "User authentication token"
+          type: STRING
+          required: true
+        }
+      }
+    };
+  }
+
+  rpc MarkAllNotificationsAsReadV1(MarkAllNotificationsAsReadV1Request) returns (MarkAllNotificationsAsReadV1Response) {
+    option (google.api.http) = {
+      post: "/notifications/read"
+      body: "*"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Mark all notifications as read";
+      description: "Marks every unread notification as read for the authenticated user.";
+      parameters: {
+        headers: {
+          name: "User-Token"
+          description: "User authentication token"
+          type: STRING
+          required: true
+        }
+      }
+    };
+  }
 }
 
 message NotificationItem {
@@ -71,6 +108,7 @@ message NotificationItem {
   string type = 3;
   string text = 4;
   google.protobuf.Timestamp sent_at = 5;
+  google.protobuf.Timestamp read_at = 6;
 }
 
 message ListNotificationsV1Request {
@@ -106,3 +144,15 @@ message GetNotificationSettingsV1Request {}
 message GetNotificationSettingsV1Response {
   repeated NotificationSetting settings = 1;
 }
+
+message MarkNotificationAsReadV1Request {
+  string id = 1 [
+    (validate.rules).string.uuid = true
+  ];
+}
+
+message MarkNotificationAsReadV1Response {}
+
+message MarkAllNotificationsAsReadV1Request {}
+
+message MarkAllNotificationsAsReadV1Response {}

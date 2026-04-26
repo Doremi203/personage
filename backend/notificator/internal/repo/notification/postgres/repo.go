@@ -73,7 +73,7 @@ func (r *repo) CreateIfAbsent(ctx context.Context, n notification.Notification) 
 
 func (r *repo) ListByUserID(ctx context.Context, userID uuid.UUID, limit, offset int) ([]notification.Notification, error) {
 	const query = `
-		SELECT id, recipient_id, title, type, text, status, sent_at, retry_after, expires_at, push_payload, idempotency_key
+		SELECT id, recipient_id, title, type, text, status, sent_at, retry_after, expires_at, read_at, push_payload, idempotency_key
 		FROM notifications
 		WHERE recipient_id = $1 AND status = 'sent'
 		ORDER BY sent_at DESC
@@ -139,6 +139,35 @@ func (r *repo) CreateAndReturnID(ctx context.Context, n notification.Notificatio
 	return id, nil
 }
 
+func (r *repo) MarkAsRead(ctx context.Context, id, userID uuid.UUID, readAt time.Time) error {
+	const query = `
+		UPDATE notifications
+		SET read_at = COALESCE(read_at, $1)
+		WHERE id = $2 AND recipient_id = $3 AND status = 'sent'
+	`
+	tag, err := r.db.Exec(ctx, query, readAt, id, userID)
+	if err != nil {
+		return errors.WrapFail(err, "exec mark notification read query")
+	}
+	if tag.RowsAffected() == 0 {
+		return notification.ErrNotificationNotFound
+	}
+	return nil
+}
+
+func (r *repo) MarkAllAsRead(ctx context.Context, userID uuid.UUID, readAt time.Time) error {
+	const query = `
+		UPDATE notifications
+		SET read_at = $1
+		WHERE recipient_id = $2 AND status = 'sent' AND read_at IS NULL
+	`
+	_, err := r.db.Exec(ctx, query, readAt, userID)
+	if err != nil {
+		return errors.WrapFail(err, "exec mark all notifications read query")
+	}
+	return nil
+}
+
 func (r *repo) ToggleSetting(ctx context.Context, userID uuid.UUID, notificationType string) (notification.Setting, error) {
 	const query = `
 		INSERT INTO notification_settings (recipient_id, type, enabled)
@@ -163,7 +192,7 @@ func (r *repo) ToggleSetting(ctx context.Context, userID uuid.UUID, notification
 
 func (r *repo) ListPending(ctx context.Context) ([]notification.Notification, error) {
 	const query = `
-		SELECT id, recipient_id, title, type, text, status, sent_at, retry_after, expires_at, push_payload, idempotency_key
+		SELECT id, recipient_id, title, type, text, status, sent_at, retry_after, expires_at, read_at, push_payload, idempotency_key
 		FROM notifications
 		WHERE status = 'pending'
 	`

@@ -89,7 +89,7 @@ const NotificationsScreen = () => {
             ? (
               <button
                 type="button"
-                onClick={markAllRead}
+                onClick={() => { void markAllRead(); }}
                 style={{
                   padding: '6px 12px', borderRadius: 999,
                   background: T.subtle, border: 'none', cursor: 'pointer',
@@ -171,7 +171,7 @@ function NotifCard({ n, unread }: NotifCardProps) {
   return (
     <button
       type="button"
-      onClick={() => unread && markRead(n.id)}
+      onClick={() => { if (unread) void markRead(n.id); }}
       style={{
         width: '100%', textAlign: 'left',
         background: T.surface,

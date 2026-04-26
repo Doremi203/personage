@@ -10,16 +10,25 @@ cleanupOutdatedCaches();
 precacheAndRoute(self.__WB_MANIFEST);
 
 const USER_CACHE = 'personage-user-v1';
+const NOTIFICATIONS_CACHE = 'personage-notifications-v1';
 
 registerRoute(
     ({url, request}) => request.method === 'GET' && url.pathname === '/user',
     new StaleWhileRevalidate({cacheName: USER_CACHE}),
 );
 
+registerRoute(
+    ({url, request}) => request.method === 'GET' && url.pathname === '/notifications',
+    new StaleWhileRevalidate({cacheName: NOTIFICATIONS_CACHE}),
+);
+
 self.addEventListener('message', (event: ExtendableMessageEvent) => {
     const data = event.data as {type?: string} | undefined;
     if (data?.type === 'CLEAR_USER_CACHE') {
         event.waitUntil(caches.delete(USER_CACHE));
+    }
+    if (data?.type === 'CLEAR_NOTIFICATIONS_CACHE') {
+        event.waitUntil(caches.delete(NOTIFICATIONS_CACHE));
     }
 });
 
