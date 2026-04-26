@@ -368,3 +368,19 @@ export async function fetchCurrentUser(): Promise<UserApiResponse> {
 
   return (await response.json()) as UserApiResponse;
 }
+
+export function getCurrentUserId(): string | null {
+  const tokens = getTokens();
+  if (!tokens?.accessToken) return null;
+  const parts = tokens.accessToken.split('.');
+  if (parts.length < 2) return null;
+  const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+  const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), '=');
+  try {
+    const bytes = Uint8Array.from(atob(padded), (c) => c.charCodeAt(0));
+    const payload = JSON.parse(new TextDecoder().decode(bytes)) as { user_id?: string };
+    return payload.user_id ?? null;
+  } catch {
+    return null;
+  }
+}
