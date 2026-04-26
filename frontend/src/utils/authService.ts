@@ -7,6 +7,9 @@ const AUTH_API_URL =
 const TOKENS_KEY = 'personage_auth_tokens';
 export const AUTH_STATE_CHANGE_EVENT = 'personage-auth-state-change';
 
+export const OAUTH_PROVIDER_STORAGE_KEY = 'personage_oauth_provider';
+export type OAuthProvider = 'gmail' | 'google-calendar';
+
 export interface AuthTokens {
   accessToken: string;
   refreshToken?: string | null;
@@ -21,6 +24,10 @@ export interface UserApiResponse {
   };
   telegramIntegration: {
     enabled: boolean;
+  };
+  googleCalendarIntegration: {
+    enabled: boolean;
+    gmail?: string | null;
   };
 }
 
@@ -260,6 +267,56 @@ export async function handleGmailCallback(
     throw new Error(
       (error as { message?: string }).message ??
         `Ошибка подключения Gmail: ${response.status}`,
+    );
+  }
+
+  const data = (await response.json()) as { gmailEmail: string };
+  return data.gmailEmail;
+}
+
+export async function startGoogleCalendarAuth(
+  userEmail: string,
+  redirectUri: string,
+): Promise<{ authorizationUrl: string; state: string }> {
+  const response = await fetchWithTokenRefresh((accessToken) =>
+    fetch(`${AUTH_API_URL}/auth/google-calendar/authorize`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ userEmail, redirectUri }),
+    }),
+  );
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(
+      (error as { message?: string }).message ??
+        `Ошибка запуска авторизации Google Calendar: ${response.status}`,
+    );
+  }
+
+  return (await response.json()) as { authorizationUrl: string; state: string };
+}
+
+export async function handleGoogleCalendarCallback(
+  userEmail: string,
+  code: string,
+  state: string,
+  redirectUri: string,
+): Promise<string> {
+  const response = await fetch(`${AUTH_API_URL}/auth/google-calendar/callback`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userEmail, code, state, redirectUri }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(
+      (error as { message?: string }).message ??
+        `Ошибка подключения Google Calendar: ${response.status}`,
     );
   }
 
