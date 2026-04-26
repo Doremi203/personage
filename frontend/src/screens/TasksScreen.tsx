@@ -33,7 +33,9 @@ import {
   deleteTask,
   listTasks,
   postponeTask,
+  updateTask,
   type ApiTaskItem,
+  type UpdateTaskPatch,
 } from '../utils/taskerService';
 import { RU_MONTHS_GEN, startOfDay, toApiDateParam } from '../utils/dateFormat';
 
@@ -114,6 +116,8 @@ function toDetailTask(task: Task): DetailTask {
     category: task.category,
     startLabel: start ? formatDeadline(start) : '—',
     endLabel:   end   ? formatDeadline(end)   : '—',
+    startISO: task.raw.startTime,
+    endISO:   task.raw.endTime,
   };
 }
 
@@ -202,6 +206,14 @@ const TasksScreen = () => {
     [fetchAll],
   );
 
+  const handleSave = useCallback(
+    async (id: string, patch: UpdateTaskPatch) => {
+      await updateTask(id, patch);
+      await fetchAll();
+    },
+    [fetchAll],
+  );
+
   const items: SegmentedItem<Filter>[] = useMemo(() => [
     { id: 'today',    label: 'Сегодня',  count: counts.today },
     { id: 'upcoming', label: 'Скоро',    count: counts.upcoming },
@@ -247,11 +259,13 @@ const TasksScreen = () => {
 
       {selectedTask && (
         <TaskDetailSheet
+          key={selectedTask.id}
           task={toDetailTask(selectedTask)}
           onClose={() => setSelectedTask(null)}
           onComplete={() => runAction(selectedTask.id, completeTask)}
           onPostpone={() => runAction(selectedTask.id, postponeTask)}
           onDelete={()   => runAction(selectedTask.id, deleteTask)}
+          onSave={(patch) => handleSave(selectedTask.id, patch)}
         />
       )}
     </>
