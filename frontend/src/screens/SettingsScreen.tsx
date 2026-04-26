@@ -3,7 +3,6 @@ import {
   BarChart2,
   Bell,
   CalendarClock,
-  CheckCircle2,
   ChevronRight,
   Loader2,
   Mail,
@@ -15,6 +14,7 @@ import { SANS, SERIF, T } from '../mobile/tokens';
 import {
   OAUTH_PROVIDER_STORAGE_KEY,
   fetchCurrentUser,
+  getCurrentUserId,
   revokeIntegrationAccess,
   startGmailAuth,
   startGoogleCalendarAuth,
@@ -25,6 +25,7 @@ import {
   getNotificationSettings,
   toggleNotification,
 } from '../utils/notificatorService';
+import { TelegramConnectModal } from '../components/TelegramConnectModal';
 
 interface SettingsScreenProps {
   onLogout: () => void;
@@ -80,6 +81,7 @@ const SettingsScreen = ({ onLogout }: SettingsScreenProps) => {
   const [calendarLoading, setCalendarLoading] = useState(false);
   const [calendarError, setCalendarError] = useState<string | null>(null);
   const [telegramLoading, setTelegramLoading] = useState(false);
+  const [telegramModalOpen, setTelegramModalOpen] = useState(false);
   const [telegramError, setTelegramError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -206,6 +208,25 @@ const SettingsScreen = ({ onLogout }: SettingsScreenProps) => {
     }
   };
 
+  const handleConnectTelegram = () => {
+    setTelegramError(null);
+    if (!getCurrentUserId()) {
+      setTelegramError('Не удалось определить пользователя');
+      return;
+    }
+    setTelegramModalOpen(true);
+  };
+
+  const handleTelegramConnected = () => {
+    setTelegramModalOpen(false);
+    setTelegramError(null);
+    clearUserCache();
+    setUser((prev) => prev ? {
+      ...prev,
+      telegramIntegration: { enabled: true },
+    } : prev);
+  };
+
   const handleToggle = (type: string) => {
     setSettings((prev) => prev.map((s) => s.type === type ? { ...s, toggling: true } : s));
     void toggleNotification(type)
@@ -224,8 +245,6 @@ const SettingsScreen = ({ onLogout }: SettingsScreenProps) => {
 
   const displayName  = userLoading ? 'Загрузка…' : (user?.name  ?? 'Пользователь');
   const displayEmail = userLoading ? ''           : (user?.email ?? '');
-
-  const telegramConnected = user?.telegramIntegration.enabled ?? false;
 
   return (
     <>
@@ -358,7 +377,7 @@ const SettingsScreen = ({ onLogout }: SettingsScreenProps) => {
             borderBottom: `0.5px solid ${T.hairline}`,
           }}>{telegramError}</div>
         )}
-        {telegramConnected ? (
+        {user?.telegramIntegration.enabled ? (
           <NavRow
             icon={Send}
             iconBg={T.infoFill}
@@ -371,16 +390,31 @@ const SettingsScreen = ({ onLogout }: SettingsScreenProps) => {
             last
           />
         ) : (
-          <ReadonlyRow
+          <ActionRow
             icon={Send}
             iconBg={T.infoFill}
             iconInk={T.info}
             title="Telegram"
-            value={userLoading ? 'Загрузка…' : 'Не подключён'}
+            subtitle={userLoading ? 'Загрузка…' : 'Подключить чат'}
+            actionLabel="Подключить"
+            disabled={userLoading}
+            onAction={handleConnectTelegram}
             last
           />
         )}
       </SetGroup>
+
+      {telegramModalOpen && (() => {
+        const userId = getCurrentUserId();
+        if (!userId) return null;
+        return (
+          <TelegramConnectModal
+            userId={userId}
+            onClose={() => setTelegramModalOpen(false)}
+            onSuccess={handleTelegramConnected}
+          />
+        );
+      })()}
 
       {/* Logout */}
       <div style={{ padding: '0 16px 24px' }}>
@@ -509,21 +543,6 @@ function NavRow({ value, actionLabel, actionDisabled, onAction, ...rest }: NavRo
       ) : (
         <ChevronRight size={16} strokeWidth={1.8} style={{ color: T.ink4 }} />
       )}
-    </RowFrame>
-  );
-}
-
-interface ReadonlyRowProps extends Omit<RowFrameProps, 'children'> {
-  value: string;
-}
-
-function ReadonlyRow({ value, ...rest }: ReadonlyRowProps) {
-  return (
-    <RowFrame {...rest}>
-      {value === 'Подключён' && (
-        <CheckCircle2 size={16} strokeWidth={1.8} style={{ color: T.ok, marginRight: 6 }} />
-      )}
-      <span style={{ fontSize: 13, color: T.ink3 }}>{value}</span>
     </RowFrame>
   );
 }
