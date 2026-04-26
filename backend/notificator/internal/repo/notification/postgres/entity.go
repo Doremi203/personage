@@ -19,6 +19,7 @@ type notificationEntity struct {
 	SentAt         *time.Time     `db:"sent_at"`
 	RetryAfter     *time.Time     `db:"retry_after"`
 	ExpiresAt      *time.Time     `db:"expires_at"`
+	ReadAt         *time.Time     `db:"read_at"`
 	PushPayload    *string        `db:"push_payload"`
 	IdempotencyKey sql.NullString `db:"idempotency_key"`
 }
@@ -34,6 +35,7 @@ func entityToDomain(e notificationEntity) notification.Notification {
 		SentAt:         e.SentAt,
 		RetryAfter:     e.RetryAfter,
 		ExpiresAt:      e.ExpiresAt,
+		ReadAt:         e.ReadAt,
 		IdempotencyKey: e.IdempotencyKey.String,
 	}
 	if e.PushPayload != nil {

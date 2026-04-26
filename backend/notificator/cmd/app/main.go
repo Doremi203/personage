@@ -139,7 +139,7 @@ func main() {
 			notificationRetrier.Run,
 		))
 
-		notificationsUseCase := notifications.New(notificationRepo)
+		notificationsUseCase := notifications.New(notificationRepo, time.Now)
 		notificationsService := grpc.NewNotificationsService(notificationsUseCase, app.Log)
 
 		app.AddAPIKeyProtectedEndpoints(pushpb.Admin_SendPushV1_FullMethodName)

@@ -38,6 +38,7 @@ type Notification struct {
 	SentAt      *time.Time
 	RetryAfter  *time.Time
 	ExpiresAt   *time.Time
+	ReadAt      *time.Time // nil when the recipient has not opened the notification yet
 	PushPayload *PushPayload
 	// IdempotencyKey dedupes writes. Empty means "no dedup, always insert".
 	IdempotencyKey string

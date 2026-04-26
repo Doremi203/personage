@@ -34,4 +34,6 @@ type Notifications interface {
 	List(ctx context.Context, params ListNotificationsParams) ([]notification.Notification, error)
 	GetSettings(ctx context.Context, userID uuid.UUID) ([]notification.Setting, error)
 	Toggle(ctx context.Context, userID uuid.UUID, notificationType string) (notification.Setting, error)
+	MarkAsRead(ctx context.Context, userID, notificationID uuid.UUID) error
+	MarkAllAsRead(ctx context.Context, userID uuid.UUID) error
 }

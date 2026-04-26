@@ -9,6 +9,7 @@ import (
 	pushpb "github.com/Doremi203/personage/backend/notificator/gen/api/push"
 	"github.com/Doremi203/personage/backend/notificator/internal/domain/notification"
 	"github.com/Doremi203/personage/backend/notificator/internal/usecase"
+	"github.com/google/uuid"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -70,13 +71,17 @@ func (s *notificationsService) ListNotificationsV1(
 
 	protoNotifications := make([]*pushpb.NotificationItem, 0, len(notifications))
 	for _, n := range notifications {
-		protoNotifications = append(protoNotifications, &pushpb.NotificationItem{
+		item := &pushpb.NotificationItem{
 			Id:     n.ID.String(),
 			Title:  n.Title,
 			Type:   n.Type,
 			Text:   n.Text,
 			SentAt: timestamppb.New(*n.SentAt),
-		})
+		}
+		if n.ReadAt != nil {
+			item.ReadAt = timestamppb.New(*n.ReadAt)
+		}
+		protoNotifications = append(protoNotifications, item)
 	}
 
 	return &pushpb.ListNotificationsV1Response{
@@ -139,4 +144,48 @@ func (s *notificationsService) ToggleNotificationV1(
 	return &pushpb.ToggleNotificationV1Response{
 		Enabled: setting.Enabled,
 	}, nil
+}
+
+func (s *notificationsService) MarkNotificationAsReadV1(
+	ctx context.Context,
+	req *pushpb.MarkNotificationAsReadV1Request,
+) (*pushpb.MarkNotificationAsReadV1Response, error) {
+	t, ok := token.FromContext(ctx)
+	if !ok {
+		return nil, status.Error(codes.Unauthenticated, "missing token")
+	}
+
+	if err := req.ValidateAll(); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	notificationID, err := uuid.Parse(req.GetId())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "invalid notification id")
+	}
+
+	if err := s.notificationsUseCase.MarkAsRead(ctx, t.GetUserID(), notificationID); err != nil {
+		if errors.Is(err, notification.ErrNotificationNotFound) {
+			return nil, status.Error(codes.NotFound, "notification not found")
+		}
+		return nil, errors.WrapFail(err, "mark notification as read")
+	}
+
+	return &pushpb.MarkNotificationAsReadV1Response{}, nil
+}
+
+func (s *notificationsService) MarkAllNotificationsAsReadV1(
+	ctx context.Context,
+	_ *pushpb.MarkAllNotificationsAsReadV1Request,
+) (*pushpb.MarkAllNotificationsAsReadV1Response, error) {
+	t, ok := token.FromContext(ctx)
+	if !ok {
+		return nil, status.Error(codes.Unauthenticated, "missing token")
+	}
+
+	if err := s.notificationsUseCase.MarkAllAsRead(ctx, t.GetUserID()); err != nil {
+		return nil, errors.WrapFail(err, "mark all notifications as read")
+	}
+
+	return &pushpb.MarkAllNotificationsAsReadV1Response{}, nil
 }

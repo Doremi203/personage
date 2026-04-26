@@ -1,40 +1,27 @@
 import { useEffect, useState } from 'react';
-import { listNotifications, type ApiNotificationItem } from '../utils/notificatorService';
+import {
+  listNotifications,
+  markAllNotificationsRead,
+  markNotificationRead,
+  type ApiNotificationItem,
+} from '../utils/notificatorService';
+import { clearNotificationsCache } from '../utils/notificationsCache';
 
-const READ_KEY = 'personage_notifications_read';
+const LEGACY_READ_KEY = 'personage_notifications_read';
 const PAGE_SIZE = 10;
 const MAX_PAGES = 10;
 const BACKOFF_BASE_MS = 1_000;
 const BACKOFF_MAX_MS = 60_000;
 
+try { localStorage.removeItem(LEGACY_READ_KEY); } catch { /* best-effort */ }
+
 let items: ApiNotificationItem[] = [];
-let read: Set<string> = loadReadSet();
 let loading = false;
 let loaded = false;
 let error: string | null = null;
 let failures = 0;
 let nextRetryAt = 0;
 const listeners = new Set<() => void>();
-
-function loadReadSet(): Set<string> {
-  try {
-    const raw = localStorage.getItem(READ_KEY);
-    if (!raw) return new Set();
-    const arr = JSON.parse(raw) as unknown;
-    if (!Array.isArray(arr)) return new Set();
-    return new Set(arr.filter((x): x is string => typeof x === 'string'));
-  } catch {
-    return new Set();
-  }
-}
-
-function persistReadSet(): void {
-  try {
-    localStorage.setItem(READ_KEY, JSON.stringify(Array.from(read)));
-  } catch {
-    // best-effort
-  }
-}
 
 function emit(): void {
   listeners.forEach((cb) => cb());
@@ -50,10 +37,11 @@ export interface NotificationsState {
 }
 
 function snapshot(): NotificationsState {
+  const read = new Set(items.filter((i) => i.readAt).map((i) => i.id));
   return {
     items,
     read,
-    unreadCount: items.reduce((acc, it) => acc + (read.has(it.id) ? 0 : 1), 0),
+    unreadCount: items.length - read.size,
     loading,
     loaded,
     error,
@@ -89,20 +77,35 @@ export async function refreshNotifications(opts: { force?: boolean } = {}): Prom
   }
 }
 
-export function markRead(id: string): void {
-  if (read.has(id)) return;
-  read = new Set(read).add(id);
-  persistReadSet();
+export async function markRead(id: string): Promise<void> {
+  const idx = items.findIndex((it) => it.id === id);
+  if (idx < 0 || items[idx].readAt) return;
+  const prev = items[idx];
+  const optimistic = { ...prev, readAt: new Date().toISOString() };
+  items = items.map((it, i) => (i === idx ? optimistic : it));
   emit();
+  try {
+    await markNotificationRead(id);
+    clearNotificationsCache();
+  } catch {
+    items = items.map((it, i) => (i === idx ? prev : it));
+    emit();
+  }
 }
 
-export function markAllRead(): void {
+export async function markAllRead(): Promise<void> {
   if (items.length === 0) return;
-  const next = new Set(read);
-  for (const it of items) next.add(it.id);
-  read = next;
-  persistReadSet();
+  const prev = items;
+  const now = new Date().toISOString();
+  items = items.map((it) => (it.readAt ? it : { ...it, readAt: now }));
   emit();
+  try {
+    await markAllNotificationsRead();
+    clearNotificationsCache();
+  } catch {
+    items = prev;
+    emit();
+  }
 }
 
 export function useNotifications(): NotificationsState {

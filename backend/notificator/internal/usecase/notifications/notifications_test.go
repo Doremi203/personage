@@ -2,6 +2,7 @@ package notifications_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/Doremi203/personage/backend/notificator/internal/domain/notification"
 	mock_notification "github.com/Doremi203/personage/backend/notificator/internal/domain/notification/mock"
@@ -105,7 +106,7 @@ func TestService_List(t *testing.T) {
 			m := mocks{repo: mock_notification.NewMockRepo(ctrl)}
 			tt.setup(m, tt.args)
 
-			s := notifications.New(m.repo)
+			s := notifications.New(m.repo, time.Now)
 			got, err := s.List(t.Context(), tt.args.params)
 
 			tt.wantErr(t, err)
@@ -166,13 +167,129 @@ func TestService_GetSettings(t *testing.T) {
 			m := mocks{repo: mock_notification.NewMockRepo(ctrl)}
 			tt.setup(m, tt.args)
 
-			s := notifications.New(m.repo)
+			s := notifications.New(m.repo, time.Now)
 			got, err := s.GetSettings(t.Context(), tt.args.userID)
 
 			tt.wantErr(t, err)
 			if err == nil {
 				assert.Equal(t, tt.want, got)
 			}
+		})
+	}
+}
+
+func TestService_MarkAsRead(t *testing.T) {
+	notifID := uuid.MustParse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+	now := time.Date(2026, 4, 26, 12, 0, 0, 0, time.UTC)
+	clock := func() time.Time { return now }
+
+	type mocks struct {
+		repo *mock_notification.MockRepo
+	}
+	type args struct {
+		userID  uuid.UUID
+		notifID uuid.UUID
+	}
+	tests := []struct {
+		name    string
+		args    args
+		setup   func(m mocks, a args)
+		wantErr require.ErrorAssertionFunc
+	}{
+		{
+			name: "success",
+			args: args{userID: notifUserID, notifID: notifID},
+			setup: func(m mocks, a args) {
+				m.repo.EXPECT().
+					MarkAsRead(gomock.Any(), a.notifID, a.userID, now).
+					Return(nil)
+			},
+			wantErr: require.NoError,
+		},
+		{
+			name: "not found passes through",
+			args: args{userID: notifUserID, notifID: notifID},
+			setup: func(m mocks, a args) {
+				m.repo.EXPECT().
+					MarkAsRead(gomock.Any(), a.notifID, a.userID, now).
+					Return(notification.ErrNotificationNotFound)
+			},
+			wantErr: func(t require.TestingT, err error, _ ...any) {
+				require.ErrorIs(t, err, notification.ErrNotificationNotFound)
+			},
+		},
+		{
+			name: "repo error wraps",
+			args: args{userID: notifUserID, notifID: notifID},
+			setup: func(m mocks, a args) {
+				m.repo.EXPECT().
+					MarkAsRead(gomock.Any(), a.notifID, a.userID, now).
+					Return(assert.AnError)
+			},
+			wantErr: require.Error,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			m := mocks{repo: mock_notification.NewMockRepo(ctrl)}
+			tt.setup(m, tt.args)
+
+			s := notifications.New(m.repo, clock)
+			err := s.MarkAsRead(t.Context(), tt.args.userID, tt.args.notifID)
+
+			tt.wantErr(t, err)
+		})
+	}
+}
+
+func TestService_MarkAllAsRead(t *testing.T) {
+	now := time.Date(2026, 4, 26, 12, 0, 0, 0, time.UTC)
+	clock := func() time.Time { return now }
+
+	type mocks struct {
+		repo *mock_notification.MockRepo
+	}
+	type args struct {
+		userID uuid.UUID
+	}
+	tests := []struct {
+		name    string
+		args    args
+		setup   func(m mocks, a args)
+		wantErr require.ErrorAssertionFunc
+	}{
+		{
+			name: "success",
+			args: args{userID: notifUserID},
+			setup: func(m mocks, a args) {
+				m.repo.EXPECT().
+					MarkAllAsRead(gomock.Any(), a.userID, now).
+					Return(nil)
+			},
+			wantErr: require.NoError,
+		},
+		{
+			name: "repo error wraps",
+			args: args{userID: notifUserID},
+			setup: func(m mocks, a args) {
+				m.repo.EXPECT().
+					MarkAllAsRead(gomock.Any(), a.userID, now).
+					Return(assert.AnError)
+			},
+			wantErr: require.Error,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			m := mocks{repo: mock_notification.NewMockRepo(ctrl)}
+			tt.setup(m, tt.args)
+
+			s := notifications.New(m.repo, clock)
+			err := s.MarkAllAsRead(t.Context(), tt.args.userID)
+
+			tt.wantErr(t, err)
 		})
 	}
 }
@@ -245,7 +362,7 @@ func TestService_Toggle(t *testing.T) {
 			m := mocks{repo: mock_notification.NewMockRepo(ctrl)}
 			tt.setup(m, tt.args)
 
-			s := notifications.New(m.repo)
+			s := notifications.New(m.repo, time.Now)
 			got, err := s.Toggle(t.Context(), tt.args.userID, tt.args.notificationType)
 
 			tt.wantErr(t, err)

@@ -2,6 +2,7 @@ package notifications
 
 import (
 	"context"
+	"time"
 
 	"github.com/Doremi203/personage/backend/libs/go/errors"
 	"github.com/Doremi203/personage/backend/notificator/internal/domain/notification"
@@ -11,12 +12,13 @@ import (
 
 const maxPageSize = 10
 
-func New(repo notification.Repo) *Service {
-	return &Service{repo: repo}
+func New(repo notification.Repo, clock func() time.Time) *Service {
+	return &Service{repo: repo, clock: clock}
 }
 
 type Service struct {
-	repo notification.Repo
+	repo  notification.Repo
+	clock func() time.Time
 }
 
 func (s *Service) List(ctx context.Context, params usecase.ListNotificationsParams) ([]notification.Notification, error) {
@@ -47,6 +49,29 @@ func (s *Service) GetSettings(ctx context.Context, userID uuid.UUID) ([]notifica
 	}
 
 	return settings, nil
+}
+
+func (s *Service) MarkAsRead(ctx context.Context, userID, notificationID uuid.UUID) error {
+	if err := s.repo.MarkAsRead(ctx, notificationID, userID, s.clock().UTC()); err != nil {
+		return errors.WrapFailf(
+			err,
+			"mark notification as read",
+			errors.Token("user_id", userID),
+			errors.Token("notification_id", notificationID),
+		)
+	}
+	return nil
+}
+
+func (s *Service) MarkAllAsRead(ctx context.Context, userID uuid.UUID) error {
+	if err := s.repo.MarkAllAsRead(ctx, userID, s.clock().UTC()); err != nil {
+		return errors.WrapFailf(
+			err,
+			"mark all notifications as read",
+			errors.Token("user_id", userID),
+		)
+	}
+	return nil
 }
 
 func (s *Service) Toggle(ctx context.Context, userID uuid.UUID, notificationType string) (notification.Setting, error) {

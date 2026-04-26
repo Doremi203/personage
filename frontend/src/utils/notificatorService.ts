@@ -11,6 +11,7 @@ export interface ApiNotificationItem {
   type: string;
   text: string;
   sentAt: string;
+  readAt?: string;
 }
 
 export interface ListNotificationsResponse {
@@ -50,5 +51,23 @@ export async function toggleNotification(type: string): Promise<boolean> {
 export async function getNotificationSettings(): Promise<GetNotificationSettingsResponse> {
   return fetchWithAuth<GetNotificationSettingsResponse>(
     `${NOTIFICATOR_API_URL}/notifications/settings`,
+  );
+}
+
+export async function markNotificationRead(id: string): Promise<void> {
+  await fetchWithAuth<Record<string, never>>(
+    `${NOTIFICATOR_API_URL}/notifications/read/${encodeURIComponent(id)}`,
+    { method: 'POST' },
+  );
+}
+
+export async function markAllNotificationsRead(): Promise<void> {
+  await fetchWithAuth<Record<string, never>>(
+    `${NOTIFICATOR_API_URL}/notifications/read`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    },
   );
 }
