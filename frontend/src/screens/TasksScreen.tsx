@@ -1,17 +1,23 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  BookOpen,
+  Briefcase,
   CalendarClock,
   CheckCheck,
   Calendar as CalendarIcon,
   Inbox,
+  Layers,
   RefreshCw,
   Sun,
+  User as UserIcon,
   type LucideIcon,
 } from 'lucide-react';
 import {
+  CategoryChips,
   LargeHeader,
   SearchBar,
   Segmented,
+  type CategoryChipItem,
   type SegmentedItem,
 } from '../mobile/Chrome';
 import {
@@ -26,6 +32,7 @@ import { TaskDetailSheet, type DetailTask } from '../mobile/TaskDetailSheet';
 import { ErrorState } from '../mobile/StateViews';
 import {
   ApiTaskCategory,
+  ApiTaskCategoryFilter,
   ApiTaskPriority,
   ApiTaskStatus,
   ApiTaskStatusFilter,
@@ -40,6 +47,21 @@ import {
 import { RU_MONTHS_GEN, startOfDay, toApiDateParam } from '../utils/dateFormat';
 
 type Filter = 'today' | 'upcoming' | 'inbox' | 'done';
+type CategoryFilter = 'all' | Category;
+
+const CATEGORY_FILTER_PARAM: Record<CategoryFilter, string | undefined> = {
+  all:      undefined,
+  work:     ApiTaskCategoryFilter.WORK,
+  personal: ApiTaskCategoryFilter.PERSONAL,
+  study:    ApiTaskCategoryFilter.STUDY,
+};
+
+const CATEGORY_CHIPS: CategoryChipItem<CategoryFilter>[] = [
+  { id: 'all',      label: 'Все',     icon: Layers },
+  { id: 'work',     label: 'Работа',  icon: Briefcase },
+  { id: 'personal', label: 'Личное',  icon: UserIcon },
+  { id: 'study',    label: 'Учёба',   icon: BookOpen },
+];
 
 interface Task {
   id: string;
@@ -148,6 +170,7 @@ const PAGE_SIZE = 50;
 
 const TasksScreen = () => {
   const [filter, setFilter] = useState<Filter>('today');
+  const [category, setCategory] = useState<CategoryFilter>('all');
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -166,18 +189,20 @@ const TasksScreen = () => {
   const fetchAll = useCallback(async () => {
     setLoading(true);
     setError(null);
+    const categoryParam = CATEGORY_FILTER_PARAM[category];
     try {
       const [list, c1, c2, c3, c4] = await Promise.all([
         listTasks({
           ...paramsForFilter(filter),
+          category: categoryParam,
           text: debouncedSearch || undefined,
           pageSize: PAGE_SIZE,
           page: 1,
         }),
-        listTasks({ ...paramsForFilter('today'),    pageSize: 1, page: 1 }),
-        listTasks({ ...paramsForFilter('upcoming'), pageSize: 1, page: 1 }),
-        listTasks({ ...paramsForFilter('inbox'),    pageSize: 1, page: 1 }),
-        listTasks({ ...paramsForFilter('done'),     pageSize: 1, page: 1 }),
+        listTasks({ ...paramsForFilter('today'),    category: categoryParam, pageSize: 1, page: 1 }),
+        listTasks({ ...paramsForFilter('upcoming'), category: categoryParam, pageSize: 1, page: 1 }),
+        listTasks({ ...paramsForFilter('inbox'),    category: categoryParam, pageSize: 1, page: 1 }),
+        listTasks({ ...paramsForFilter('done'),     category: categoryParam, pageSize: 1, page: 1 }),
       ]);
       setTasks((list.tasks ?? []).map(mapApiTask));
       setCounts({
@@ -191,7 +216,7 @@ const TasksScreen = () => {
     } finally {
       setLoading(false);
     }
-  }, [filter, debouncedSearch]);
+  }, [filter, category, debouncedSearch]);
 
   useEffect(() => {
     void fetchAll();
@@ -237,6 +262,8 @@ const TasksScreen = () => {
       />
 
       <Segmented value={filter} onChange={setFilter} items={items} />
+
+      <CategoryChips value={category} onChange={setCategory} items={CATEGORY_CHIPS} />
 
       {loading ? (
         <ListPlaceholder text="Загрузка…" />
