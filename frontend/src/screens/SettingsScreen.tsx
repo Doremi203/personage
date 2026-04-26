@@ -15,6 +15,7 @@ import { SANS, SERIF, T } from '../mobile/tokens';
 import {
   OAUTH_PROVIDER_STORAGE_KEY,
   fetchCurrentUser,
+  revokeIntegrationAccess,
   startGmailAuth,
   startGoogleCalendarAuth,
   type UserApiResponse,
@@ -78,6 +79,8 @@ const SettingsScreen = ({ onLogout }: SettingsScreenProps) => {
   const [calendar, setCalendar] = useState<string | null>(null);
   const [calendarLoading, setCalendarLoading] = useState(false);
   const [calendarError, setCalendarError] = useState<string | null>(null);
+  const [telegramLoading, setTelegramLoading] = useState(false);
+  const [telegramError, setTelegramError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -133,10 +136,22 @@ const SettingsScreen = ({ onLogout }: SettingsScreenProps) => {
     }
   };
 
-  const handleDisconnectGmail = () => {
-    clearUserCache();
-    setGmail(null);
+  const handleDisconnectGmail = async () => {
     setGmailError(null);
+    setGmailLoading(true);
+    try {
+      await revokeIntegrationAccess('Gmail');
+      clearUserCache();
+      setGmail(null);
+      setUser((prev) => prev ? {
+        ...prev,
+        gmailIntegration: { enabled: false, gmail: null },
+      } : prev);
+    } catch (err) {
+      setGmailError(err instanceof Error ? err.message : 'Не удалось отключить Gmail');
+    } finally {
+      setGmailLoading(false);
+    }
   };
 
   const handleConnectCalendar = async () => {
@@ -156,10 +171,39 @@ const SettingsScreen = ({ onLogout }: SettingsScreenProps) => {
     }
   };
 
-  const handleDisconnectCalendar = () => {
-    clearUserCache();
-    setCalendar(null);
+  const handleDisconnectCalendar = async () => {
     setCalendarError(null);
+    setCalendarLoading(true);
+    try {
+      await revokeIntegrationAccess('GoogleCalendar');
+      clearUserCache();
+      setCalendar(null);
+      setUser((prev) => prev ? {
+        ...prev,
+        googleCalendarIntegration: { enabled: false, gmail: null },
+      } : prev);
+    } catch (err) {
+      setCalendarError(err instanceof Error ? err.message : 'Не удалось отключить Google Calendar');
+    } finally {
+      setCalendarLoading(false);
+    }
+  };
+
+  const handleDisconnectTelegram = async () => {
+    setTelegramError(null);
+    setTelegramLoading(true);
+    try {
+      await revokeIntegrationAccess('Telegram');
+      clearUserCache();
+      setUser((prev) => prev ? {
+        ...prev,
+        telegramIntegration: { enabled: false },
+      } : prev);
+    } catch (err) {
+      setTelegramError(err instanceof Error ? err.message : 'Не удалось отключить Telegram');
+    } finally {
+      setTelegramLoading(false);
+    }
   };
 
   const handleToggle = (type: string) => {
@@ -259,8 +303,9 @@ const SettingsScreen = ({ onLogout }: SettingsScreenProps) => {
             iconInk={T.danger}
             title="Gmail"
             value={gmail}
-            actionLabel="Отключить"
-            onAction={handleDisconnectGmail}
+            actionLabel={gmailLoading ? 'Отключение…' : 'Отключить'}
+            actionDisabled={gmailLoading}
+            onAction={() => void handleDisconnectGmail()}
           />
         ) : (
           <ActionRow
@@ -289,8 +334,9 @@ const SettingsScreen = ({ onLogout }: SettingsScreenProps) => {
             iconInk={T.ok}
             title="Google Calendar"
             value={calendar}
-            actionLabel="Отключить"
-            onAction={handleDisconnectCalendar}
+            actionLabel={calendarLoading ? 'Отключение…' : 'Отключить'}
+            actionDisabled={calendarLoading}
+            onAction={() => void handleDisconnectCalendar()}
           />
         ) : (
           <ActionRow
@@ -305,14 +351,35 @@ const SettingsScreen = ({ onLogout }: SettingsScreenProps) => {
             onAction={() => void handleConnectCalendar()}
           />
         )}
-        <ReadonlyRow
-          icon={Send}
-          iconBg={T.infoFill}
-          iconInk={T.info}
-          title="Telegram"
-          value={userLoading ? 'Загрузка…' : (telegramConnected ? 'Подключён' : 'Не подключён')}
-          last
-        />
+        {telegramError && (
+          <div style={{
+            padding: '10px 14px',
+            fontSize: 13, color: T.danger, background: T.dangerFill,
+            borderBottom: `0.5px solid ${T.hairline}`,
+          }}>{telegramError}</div>
+        )}
+        {telegramConnected ? (
+          <NavRow
+            icon={Send}
+            iconBg={T.infoFill}
+            iconInk={T.info}
+            title="Telegram"
+            value="Подключён"
+            actionLabel={telegramLoading ? 'Отключение…' : 'Отключить'}
+            actionDisabled={telegramLoading}
+            onAction={() => void handleDisconnectTelegram()}
+            last
+          />
+        ) : (
+          <ReadonlyRow
+            icon={Send}
+            iconBg={T.infoFill}
+            iconInk={T.info}
+            title="Telegram"
+            value={userLoading ? 'Загрузка…' : 'Не подключён'}
+            last
+          />
+        )}
       </SetGroup>
 
       {/* Logout */}
@@ -413,10 +480,11 @@ function ToggleRow({ value, disabled, onChange, ...rest }: ToggleRowProps) {
 interface NavRowProps extends Omit<RowFrameProps, 'children'> {
   value?: string;
   actionLabel?: string;
+  actionDisabled?: boolean;
   onAction?: () => void;
 }
 
-function NavRow({ value, actionLabel, onAction, ...rest }: NavRowProps) {
+function NavRow({ value, actionLabel, actionDisabled, onAction, ...rest }: NavRowProps) {
   return (
     <RowFrame {...rest}>
       {value && (
@@ -429,10 +497,13 @@ function NavRow({ value, actionLabel, onAction, ...rest }: NavRowProps) {
         <button
           type="button"
           onClick={onAction}
+          disabled={actionDisabled}
           style={{
-            background: 'transparent', border: 'none', cursor: 'pointer',
+            background: 'transparent', border: 'none',
+            cursor: actionDisabled ? 'default' : 'pointer',
             color: T.amberDp, fontSize: 13, fontWeight: 500,
             fontFamily: SANS, padding: '4px 2px',
+            opacity: actionDisabled ? 0.6 : 1,
           }}
         >{actionLabel}</button>
       ) : (
