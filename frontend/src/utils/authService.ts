@@ -11,6 +11,8 @@ export const AUTH_STATE_CHANGE_EVENT = 'personage-auth-state-change';
 export const OAUTH_PROVIDER_STORAGE_KEY = 'personage_oauth_provider';
 export type OAuthProvider = 'gmail' | 'google-calendar';
 
+export type IntegrationType = 'Gmail' | 'GoogleCalendar' | 'Telegram';
+
 export interface AuthTokens {
   accessToken: string;
   refreshToken?: string | null;
@@ -324,6 +326,29 @@ export async function handleGoogleCalendarCallback(
 
   const data = (await response.json()) as { gmailEmail: string };
   return data.gmailEmail;
+}
+
+export async function revokeIntegrationAccess(
+  integrationType: IntegrationType,
+): Promise<void> {
+  const response = await fetchWithTokenRefresh((accessToken) =>
+    fetch(`${AUTH_API_URL}/integrations/revoke-access`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ integrationType }),
+    }),
+  );
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(
+      (error as { message?: string }).message ??
+        `Ошибка отключения интеграции: ${response.status}`,
+    );
+  }
 }
 
 export async function fetchCurrentUser(): Promise<UserApiResponse> {
