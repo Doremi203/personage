@@ -16,9 +16,6 @@ Always use `make` targets instead of invoking tools directly. Never run `go test
 ### Codebase exploration
 Before reading files in the main session, use the Explore agent whenever you are not yet sure which files or line ranges to read. Only read directly when you already know the exact file and relevant lines.
 
-### Code style references
-Before writing or reviewing Go code, consult the rules under `.claude/rules/`: `go-style.md`, `go-unit-tests.md`, `modern-go.md`.
-
 ### Implementing plans
 When executing a multi-task plan create a todo list and spawn a separate agent per task whenever you have enough context to write detailed instructions for it. This keeps the main session context lean and allows parallel execution.
 
