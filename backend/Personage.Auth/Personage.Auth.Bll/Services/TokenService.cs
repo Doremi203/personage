@@ -49,7 +49,7 @@ public class TokenService(
             RefreshToken = refreshToken
         };
     }
-    
+
     public async Task<OAuthTokenModel> GetUserGmailToken(string userEmail, CancellationToken ct)
     {
         var userToken = await gmailTokenRepository.GetTokenByUserEmail(userEmail, ct);
@@ -90,7 +90,7 @@ public class TokenService(
             GmailEmail = userToken.GmailEmail
         };
     }
-    
+
     public bool VerifyToken(string token)
     {
         try
@@ -116,7 +116,7 @@ public class TokenService(
         {
             ValidateIssuerSigningKey = true,
             IssuerSigningKey = GetPublicSecurityKey(),
-            
+
             ValidateIssuer = false,
             ValidateAudience = false,
             ValidateLifetime = true,
@@ -195,7 +195,7 @@ public class TokenService(
 
         return new SigningCredentials(CreateRsaSecurityKeyFromPem(pem), SecurityAlgorithms.RsaSha256);
     }
-    
+
 
     private static RsaSecurityKey CreateRsaSecurityKeyFromPem(string pem)
     {

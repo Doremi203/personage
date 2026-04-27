@@ -23,7 +23,7 @@ public class AuthGrpcServiceTests : TestClassBase
         TokenRepository = Factory.Services.GetRequiredService<IGmailTokenRepository>();
         TestCleaners = Factory.Services.GetRequiredService<TestCleaners>();
     }
-    
+
     [TestMethod]
     public async Task GetGmailTokens_NonExistentUser_ShouldThrowNotFound()
     {
@@ -32,9 +32,9 @@ public class AuthGrpcServiceTests : TestClassBase
 
         //act
         var ex = await AuthGrpcClient.Invoking(async c => await c.GetGmailTokensAsync(new GetGmailTokensRequest
-            {
-                UserEmail = nonExistentUserEmail
-            }))
+        {
+            UserEmail = nonExistentUserEmail
+        }))
             .Should()
             .ThrowAsync<RpcException>();
         //assert
@@ -52,7 +52,7 @@ public class AuthGrpcServiceTests : TestClassBase
         var refreshToken = Fixture.Create<string>();
         var gmailEmail = Fixture.Create<string>();
         var expiresAt = DateTime.UtcNow.AddMinutes(Random.Shared.Next(10, 50));
-        
+
         Cleaner.AddCleanAction(async () =>
         {
             await TestCleaners.DeleteUser(user.Id);
@@ -66,13 +66,13 @@ public class AuthGrpcServiceTests : TestClassBase
             ExpiresAt = expiresAt,
             GmailEmail = gmailEmail
         }, CancellationToken.None);
-        
+
         //act
         var res = await AuthGrpcClient.GetGmailTokensAsync(new GetGmailTokensRequest
         {
             UserEmail = userEmail
         });
-        
+
         //assert
         res.AccessToken.Should().Be(accessToken);
         res.RefreshToken.Should().Be(refreshToken);

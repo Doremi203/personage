@@ -17,7 +17,7 @@ public class InfrastructureControllerTests : TestClassBase
             .Should()
             .NotThrowAsync();
     }
-    
+
     [TestMethod]
     public async Task Liveness_ShouldBeOk()
     {

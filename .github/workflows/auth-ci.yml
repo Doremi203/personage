@@ -16,6 +16,26 @@ permissions:
   contents: read
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: backend/Personage.Auth
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Verify formatting
+        run: dotnet format --verify-no-changes --no-restore
+
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -86,6 +106,7 @@ jobs:
   success:
     name: CI success
     needs:
+      - lint
       - build
       - test
     runs-on: ubuntu-latest

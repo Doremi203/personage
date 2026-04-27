@@ -42,7 +42,7 @@ public class UserController(IUserService userService) : ControllerBase
             }
         };
     }
-    
+
     [HttpPut]
     [Authorize]
     [ProducesResponseType(StatusCodes.Status200OK)]

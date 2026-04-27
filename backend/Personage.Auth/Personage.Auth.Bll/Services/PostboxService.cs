@@ -68,7 +68,7 @@ public class PostboxService(
     )
     {
         var htmlBody = string.Format(EmailTemplates.PasswordResetHtml, resetUrl);
-    
+
         await SendEmailAsync(new SendEmailRequestModel
         {
             To = email,

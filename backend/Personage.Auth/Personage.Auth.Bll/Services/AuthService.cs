@@ -46,13 +46,13 @@ public class AuthService(
     public async Task<StartOAuthResponseModel> StartGoogleCalendarAuth(string redirectUri, CancellationToken ct)
     {
         var userId = claimValues.GetUserId();
-        
-        if (await userRepository.GetUserById(userId, ct) is not {} user)
+
+        if (await userRepository.GetUserById(userId, ct) is not { } user)
             throw new NotFoundException(ErrorCode.UserNotFound, "Invalid account. Try to relogin");
-        
+
         return await StartOAuthInternal(redirectUri, user, GoogleServiceKind.Calendar, ct);
     }
-    
+
 
     public async Task<string> HandleGmailCallback(HandleOAuthCallbackRequestModel request, CancellationToken ct)
     {
@@ -78,7 +78,7 @@ public class AuthService(
     public async Task<string> HandleGoogleCalendarCallback(HandleOAuthCallbackRequestModel request, CancellationToken ct)
     {
         var (userId, tokenExchangeResult) = await HandleOAuthCallbackInternal(request, ct);
-        
+
         var oauthToken = new OAuthToken
         {
             UserId = userId,
@@ -90,7 +90,7 @@ public class AuthService(
         };
         await googleCalendarTokenRepository.SaveToken(oauthToken, ct);
 
-        logger.LogInformation("Successfully connected Google Calendar for {UserEmail} -> {GmailEmail}", 
+        logger.LogInformation("Successfully connected Google Calendar for {UserEmail} -> {GmailEmail}",
             request.UserEmail,
             tokenExchangeResult.GmailEmail);
 
@@ -117,11 +117,11 @@ public class AuthService(
         var user = await userRepository.GetUserByEmail(requestEmail, ct);
         if (user == null)
             throw new InvalidOperationException($"User {requestEmail} not found");
-        
+
         await oauthStateRepository.DeleteState(request.State, ct);
         return (user.Id, await googleOAuthService.ExchangeCode(request.Code, request.RedirectUri, ct));
     }
-    
+
     public async Task<PersonageTokenModel> RegisterWithPassword(RegisterUserRequestModel request, CancellationToken ct)
     {
         UserValidator.ValidateUser(request.Email, request.Password, request.Name);
@@ -258,7 +258,7 @@ public class AuthService(
             State = state
         };
     }
-    
+
     private static string GenerateState()
     {
         using var rng = RandomNumberGenerator.Create();

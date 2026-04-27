@@ -11,7 +11,14 @@ from telethon.errors import SessionPasswordNeededError
 from app.auth_service_grpc_client import auth_service_grpc_client
 from app.config import settings
 from app.logging import setup_logging
-from app.models import *
+from app.models import (
+    AuthStatusResponse,
+    InitiateAuthRequest,
+    InitiateAuthResponse,
+    ResendCodeRequest,
+    VerifyCodeRequest,
+    VerifyCodeResponse,
+)
 from app.redis_client import redis_client
 from app.telegram_client import client_manager
 
@@ -71,7 +78,7 @@ async def cleanup_task():
 
 
 @app.get("/liveliness")
-async def health_check():
+async def liveliness():
     return {'status': 'ok'}
 
 

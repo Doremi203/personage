@@ -12,16 +12,16 @@ public static partial class UserValidator
     // (?=.*[A-Z]) - at least one uppercase letter  
     // (?=.*\d)   - at least one digit
     // [A-Za-z\d\W_]{8,} - at least 8 characters from allowed set (letters, digits, special characters)
-    
+
     [GeneratedRegex(EmailPattern, RegexOptions.IgnoreCase | RegexOptions.ExplicitCapture)]
     private static partial Regex EmailRegex();
-    
+
     [GeneratedRegex(NamePattern)]
     private static partial Regex NameRegex();
-    
+
     [GeneratedRegex(PasswordPattern)]
     private static partial Regex PasswordRegex();
-    
+
     public static void ValidateUser(string email, string password, string name)
     {
         ValidateEmail(email);
@@ -37,27 +37,27 @@ public static partial class UserValidator
         if (!EmailRegex().IsMatch(email))
             throw new ValidationException(ErrorCode.EmailValidationFail, "Invalid email. Your email should have the following format: email@example.com");
     }
-    
+
     public static void ValidatePassword(string password)
     {
         if (string.IsNullOrWhiteSpace(password))
             throw new ValidationException(ErrorCode.PasswordValidationFail, "Password cannot be empty");
-        
+
         if (password.Length < 8)
             throw new ValidationException(ErrorCode.PasswordValidationFail, "Password must be at least 8 characters long");
-        
+
         if (!PasswordRegex().IsMatch(password))
         {
-            throw new ValidationException(ErrorCode.PasswordValidationFail, 
+            throw new ValidationException(ErrorCode.PasswordValidationFail,
                 "Password must contain at least one lowercase letter, one uppercase letter, and one digit");
         }
     }
-    
+
     public static void ValidateName(string name)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ValidationException(ErrorCode.UserNameValidationFail, "Name cannot be empty");
-        
+
         switch (name.Length)
         {
             case < 2:

@@ -43,29 +43,29 @@ public class Program
 
         var useMetadataService = builder.Configuration.GetValue<bool>("YandexCloud:UseMetadataService");
         builder.Configuration.AddLockboxSecrets(useMetadataService);
-        
+
         builder.Services.AddGrpc(options =>
         {
             options.EnableDetailedErrors = true;
             options.Interceptors.Add<ExceptionInterceptor>();
             options.IgnoreUnknownServices = true;
         });
-        
+
         builder.Services.AddGrpcReflection();
 
         var services = builder.Services;
         var configuration = builder.Configuration;
         var environment = builder.Environment;
-        
+
         ConfigureServices(services, configuration, environment);
-        
+
         var app = builder.Build();
 
         // Merge the resolved Password into the ConnectionString if present.
         MergeDatabasePassword(app);
 
         ConfigureMiddleware(app);
-        
+
         await app.RunAsync();
     }
 
@@ -97,24 +97,24 @@ public class Program
     {
         services.AddScoped<IDbConnectionFactory, DbConnectionFactory>();
         services.AddSingleton<ExceptionInterceptor>();
-        
+
         services.AddHttpContextAccessor();
-        
+
         ConfigureSettings(services, configuration, environment);
         AddRepositories(services);
         AddBllServices(services);
-        
+
         AddReflectionAndSwagger(services);
         AddAuthentication(services, configuration);
         AddCors(services, configuration);
-        
+
         services.AddControllers();
     }
 
     private static void ConfigureMiddleware(WebApplication app)
     {
         app.UseMiddleware<ExceptionHandlingMiddleware>();
-        
+
         app.UseSwagger();
         app.UseSwaggerUI(c =>
         {
@@ -122,22 +122,22 @@ public class Program
             c.DisplayOperationId();
             c.DisplayRequestDuration();
         });
-        
+
         app.UseCors();
         app.UseAuthentication();
         app.UseAuthorization();
-        
+
         app.UseGrpcWeb();
         app.MapGrpcReflectionService();
         app.MapGrpcService<AuthGrpcService>().EnableGrpcWeb();
         app.MapGrpcService<StateTrackingGrpcService>().EnableGrpcWeb();
         app.MapGrpcService<TelegramGrpcService>().EnableGrpcWeb();
-        
+
         app.MapControllers();
     }
 
     private static void AddAuthentication(
-        IServiceCollection services, 
+        IServiceCollection services,
         IConfiguration configuration
         )
     {
@@ -145,7 +145,7 @@ public class Program
             .AddJwtBearer(options =>
             {
                 var jwtSettings = configuration.GetSection(nameof(JwtSettings)).Get<JwtSettings>();
-            
+
                 options.TokenValidationParameters = new TokenValidationParameters
                 {
                     ValidateIssuer = true,
@@ -160,7 +160,7 @@ public class Program
 
         services.AddAuthorization();
     }
-    
+
     private static void AddReflectionAndSwagger(IServiceCollection services)
     {
         services.AddGrpcReflection();
@@ -173,7 +173,7 @@ public class Program
                 Version = "v1",
                 Description = "Authentication API with gRPC and REST endpoints"
             });
-            
+
             c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
             {
                 Description = "JWT Authorization header using the Bearer scheme. Enter 'Bearer' [space] and then your token",
@@ -197,7 +197,7 @@ public class Program
                     Array.Empty<string>()
                 }
             });
-            
+
             c.MapType<ErrorResponse>(() => new Microsoft.OpenApi.Models.OpenApiSchema
             {
                 Type = "object",
@@ -242,18 +242,18 @@ public class Program
         IWebHostEnvironment environment)
     {
         services.Configure<OAuthSettings>(configuration.GetSection(nameof(OAuthSettings)));
-        
+
         var clientId = configuration["OAuthSettings:ClientId"];
         var clientSecret = configuration["OAuthSettings:ClientSecret"];
         var scopes = configuration.GetSection("OAuthSettings:Scopes").Get<string[]>();
-        
+
         if (!environment.IsProduction())
         {
             Env.Load();
             clientId ??= Environment.GetEnvironmentVariable("OAUTH_CLIENT_ID");
             clientSecret ??= Environment.GetEnvironmentVariable("OAUTH_CLIENT_SECRET");
             scopes ??= Environment.GetEnvironmentVariable("OAUTH_SCOPES")?.Split(',');
-            
+
             services.Configure<OAuthSettings>(options =>
             {
                 options.ClientId = clientId ?? throw new InvalidOperationException("OAUTH_CLIENT_ID not set");
@@ -261,7 +261,7 @@ public class Program
                 options.Scopes = scopes ?? throw new InvalidOperationException("OAUTH_SCOPES not set");
             });
         }
-        
+
         services.Configure<ConnectionFactorySettings>(configuration.GetSection(nameof(ConnectionFactorySettings)));
         services.Configure<JwtSettings>(configuration.GetSection(nameof(JwtSettings)));
         services.Configure<PostboxSettings>(configuration.GetSection(nameof(PostboxSettings)));
@@ -291,7 +291,7 @@ public class Program
                           .WithMethods(allowedMethods)
                           .WithHeaders(allowedHeaders)
                           .AllowCredentials();
-                    
+
                     if (exposedHeaders.Length > 0)
                     {
                         policy.WithExposedHeaders(exposedHeaders);
@@ -306,12 +306,12 @@ public class Program
             });
         });
     }
-    
+
     private static RsaSecurityKey CreateRsaSecurityKeyFromPublicKeyPem(string publicKeyPem)
     {
         if (string.IsNullOrWhiteSpace(publicKeyPem))
             throw new InvalidOperationException("Public key PEM is not configured");
-        
+
         var pem = publicKeyPem
             .Replace("-----BEGIN PUBLIC KEY-----", "")
             .Replace("-----END PUBLIC KEY-----", "")
@@ -320,10 +320,10 @@ public class Program
             .Trim();
 
         var keyBytes = Convert.FromBase64String(pem);
-    
+
         var rsa = RSA.Create();
         rsa.ImportSubjectPublicKeyInfo(keyBytes, out _);
-    
+
         return new RsaSecurityKey(rsa);
     }
 }

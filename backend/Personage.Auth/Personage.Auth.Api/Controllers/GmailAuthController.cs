@@ -26,7 +26,7 @@ public class GmailAuthController(
             State = res.State,
         };
     }
-    
+
     [HttpPost("callback")]
     [ProducesResponseType(typeof(AuthCallbackResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
@@ -45,5 +45,5 @@ public class GmailAuthController(
         {
             GmailEmail = gmailEmail
         };
-    } 
+    }
 }

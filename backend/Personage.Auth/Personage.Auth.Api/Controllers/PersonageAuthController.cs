@@ -52,7 +52,7 @@ public class PersonageAuthController(
             RefreshToken = res.RefreshToken,
         };
     }
-    
+
     [HttpPost("refresh")]
     [ProducesResponseType(typeof(PersonageAuthResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status401Unauthorized)]
@@ -69,7 +69,7 @@ public class PersonageAuthController(
             RefreshToken = res.RefreshToken,
         };
     }
-    
+
     [HttpPost("forgot-password")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<ActionResult> ForgotPassword(
@@ -88,7 +88,7 @@ public class PersonageAuthController(
         CancellationToken ct)
     {
         var res = await authService.ResetPassword(request.Token, request.NewPassword, ct);
-    
+
         return new PersonageAuthResponse
         {
             AccessToken = res.AccessToken,

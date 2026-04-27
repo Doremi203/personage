@@ -19,7 +19,7 @@ public class UserRepository(IDbConnectionFactory connectionFactory) : IUserRepos
     public async Task<User?> GetUserByEmail(string email, CancellationToken ct)
     {
         using var connection = await connectionFactory.CreateConnection(ct);
-        
+
         return await connection.QueryFirstOrDefaultAsync<User>(
             $"""
             --UserRepository.GetUserByEmail
@@ -34,7 +34,7 @@ public class UserRepository(IDbConnectionFactory connectionFactory) : IUserRepos
     public async Task<User?> GetUserById(Guid userId, CancellationToken ct)
     {
         using var connection = await connectionFactory.CreateConnection(ct);
-        
+
         return await connection.QueryFirstOrDefaultAsync<User>(
             $"""
             --UserRepository.GetUserById
@@ -49,7 +49,7 @@ public class UserRepository(IDbConnectionFactory connectionFactory) : IUserRepos
     public async Task<User> CreateShortUser(string email, CancellationToken ct)
     {
         using var connection = await connectionFactory.CreateConnection(ct);
-        
+
         return await connection.QuerySingleAsync<User>(
             """
             --UserRepository.CreateShortUser
@@ -83,20 +83,20 @@ public class UserRepository(IDbConnectionFactory connectionFactory) : IUserRepos
             """,
             new
             {
-                email = request.Email, 
-                name = request.Name, 
+                email = request.Email,
+                name = request.Name,
                 password_hash = request.PasswordHash
             });
     }
 
     public async Task<UserWithToken[]> GetUsersGmailProcessedBeforeMoment(
-        DateTime processedBeforeMoment, 
-        int limit, 
+        DateTime processedBeforeMoment,
+        int limit,
         CancellationToken ct)
     {
         using var connection = await connectionFactory.CreateConnection(ct);
-    
-        const string query = 
+
+        const string query =
             """
             --UserRepository.GetUsersGmailProcessedBeforeMoment   
             SELECT u.id AS UserId,
@@ -138,7 +138,7 @@ public class UserRepository(IDbConnectionFactory connectionFactory) : IUserRepos
     public async Task<UserWithTelegramSession[]> GetUsersTelegramProcessedBeforeMoment(DateTime processedBeforeMoment, int limit, CancellationToken ct)
     {
         using var connection = await connectionFactory.CreateConnection(ct);
-        
+
         var results = await connection.QueryAsync<UserWithTelegramSession>(
             """
             --UserRepository.GetUsersTelegramProcessedBeforeMoment   
@@ -167,8 +167,8 @@ public class UserRepository(IDbConnectionFactory connectionFactory) : IUserRepos
     public async Task<UserWithToken[]> GetUsersGoogleCalendarProcessedBeforeMoment(DateTime processedBeforeMoment, int limit, CancellationToken ct)
     {
         using var connection = await connectionFactory.CreateConnection(ct);
-    
-        const string query = 
+
+        const string query =
             """
             --UserRepository.GetUsersGoogleCalendarProcessedBeforeMoment   
             SELECT u.id AS UserId,
@@ -206,11 +206,11 @@ public class UserRepository(IDbConnectionFactory connectionFactory) : IUserRepos
 
         return results.ToArray();
     }
-    
+
     public async Task UpdatePassword(Guid userId, string passwordHash, CancellationToken ct)
     {
         using var connection = await connectionFactory.CreateConnection(ct);
-        
+
         await connection.ExecuteAsync(
             """
             --UserRepository.UpdatePassword
@@ -228,7 +228,7 @@ public class UserRepository(IDbConnectionFactory connectionFactory) : IUserRepos
     public async Task UpdateName(Guid userId, string name, CancellationToken ct)
     {
         using var connection = await connectionFactory.CreateConnection(ct);
-        
+
         await connection.ExecuteAsync(
             """
             --UserRepository.UpdateName

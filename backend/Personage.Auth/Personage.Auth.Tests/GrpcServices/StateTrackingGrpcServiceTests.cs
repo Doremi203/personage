@@ -34,12 +34,12 @@ public class StateTrackingGrpcServiceTests : TestClassBase
 
         var nonMatchingTimestamp = DateTime.UtcNow
             .AddMinutes(-Random.Shared.Next(1, notProcessedForMinutesThreshold - 1));
-        
+
         var userNotProcessed = await TestUserRepository.CreateUserWithToken(null);
         var userProcessedBeforeCutoff = await TestUserRepository.CreateUserWithToken(matchingTimestamp);
         var userProcessedAfterCutoff = await TestUserRepository.CreateUserWithToken(nonMatchingTimestamp);
         var userWithoutTokenId = await TestUserRepository.CreateUser();
-        
+
         var factory = (TestApplicationFactory)Factory;
         var handlerMock = factory.HttpMessageHandlerMock;
 
@@ -49,12 +49,12 @@ public class StateTrackingGrpcServiceTests : TestClassBase
             refresh_token = Fixture.Create<string>(),
             expires_in = Random.Shared.Next(100, 2000)
         };
-        
+
         handlerMock.SetupSendAsync(
             "https://oauth2.googleapis.com/token",
             HttpMethod.Post,
             JsonSerializer.Serialize(tokenResponse));
-        
+
         Cleaner.AddCleanAction(async () =>
         {
             await TestCleaners.DeleteUsers([
@@ -63,7 +63,7 @@ public class StateTrackingGrpcServiceTests : TestClassBase
                 userProcessedAfterCutoff.UserId,
                 userWithoutTokenId]);
         });
-        
+
         //act
         var res = await StateTrackingGrpcClient.GetUsersForProcessingAsync(
             new GetUsersForProcessingRequest
@@ -72,20 +72,20 @@ public class StateTrackingGrpcServiceTests : TestClassBase
                 MinSecondsSinceLastProcess = notProcessedForMinutesThreshold * 60,
                 ServiceType = ServiceType.Gmail
             }, cancellationToken: CancellationToken.None);
-        
+
         //assert
         var idsForProcess = res.Users.Select(x => x.UserId).ToHashSet();
         idsForProcess.Contains(userNotProcessed.UserId.ToString()).Should().BeTrue();
         idsForProcess.Contains(userProcessedBeforeCutoff.UserId.ToString()).Should().BeTrue();
         idsForProcess.Contains(userProcessedAfterCutoff.UserId.ToString()).Should().BeFalse();
         idsForProcess.Contains(userWithoutTokenId.ToString()).Should().BeFalse();
-        
+
         var notProcessedUserRes = res.Users.Single(x => x.UserId == userNotProcessed.UserId.ToString());
         notProcessedUserRes.Credentials.GmailTokens.AccessToken.Should().Be(userNotProcessed.Token.AccessToken);
         notProcessedUserRes.Credentials.GmailTokens.RefreshToken.Should().Be(userNotProcessed.Token.RefreshToken);
         notProcessedUserRes.Credentials.GmailTokens.GmailEmail.Should().Be(userNotProcessed.Token.GmailEmail);
         notProcessedUserRes.Credentials.GmailTokens.ExpiresAt.ToDateTime().Should().BeCloseTo(userNotProcessed.Token.ExpiresAt, TimeSpan.FromMilliseconds(100));
-        
+
         var processedBeforeCutoffRes = res.Users.Single(x => x.UserId == userProcessedBeforeCutoff.UserId.ToString());
         processedBeforeCutoffRes.Credentials.GmailTokens.AccessToken.Should().Be(userProcessedBeforeCutoff.Token.AccessToken);
         processedBeforeCutoffRes.Credentials.GmailTokens.RefreshToken.Should().Be(userProcessedBeforeCutoff.Token.RefreshToken);
@@ -109,12 +109,12 @@ public class StateTrackingGrpcServiceTests : TestClassBase
             var matchingUser = await TestUserRepository.CreateUserWithToken(matchingTimestamp);
             users.Add(matchingUser);
         }
-        
+
         Cleaner.AddCleanAction(async () =>
         {
             await TestCleaners.DeleteUsers(users.Select(x => x.UserId).ToArray());
         });
-        
+
         var factory = (TestApplicationFactory)Factory;
         var handlerMock = factory.HttpMessageHandlerMock;
 
@@ -124,12 +124,12 @@ public class StateTrackingGrpcServiceTests : TestClassBase
             refresh_token = Fixture.Create<string>(),
             expires_in = Random.Shared.Next(100, 2000)
         };
-        
+
         handlerMock.SetupSendAsync(
             "https://oauth2.googleapis.com/token",
             HttpMethod.Post,
             JsonSerializer.Serialize(tokenResponse));
-        
+
         //act
         var res = await StateTrackingGrpcClient.GetUsersForProcessingAsync(
             new GetUsersForProcessingRequest
@@ -138,7 +138,7 @@ public class StateTrackingGrpcServiceTests : TestClassBase
                 MinSecondsSinceLastProcess = notProcessedForMinutesThreshold * 60,
                 ServiceType = ServiceType.Gmail
             }, cancellationToken: CancellationToken.None);
-        
+
         //assert
         res.Users.Should().HaveCount(batchSize);
     }
@@ -151,9 +151,9 @@ public class StateTrackingGrpcServiceTests : TestClassBase
         var matchingTimestamp = DateTime.UtcNow
             .AddMinutes(-notProcessedForMinutesThreshold - Random.Shared.Next(5, 100));
         var user = await TestUserRepository.CreateUserWithToken(matchingTimestamp);
-        
+
         Cleaner.AddCleanAction(async () => await TestCleaners.DeleteUser(user.UserId));
-        
+
         //act
         var usersForProcessBeforeMarking = await StateTrackingGrpcClient.GetUsersForProcessingAsync(
             new GetUsersForProcessingRequest
@@ -176,7 +176,7 @@ public class StateTrackingGrpcServiceTests : TestClassBase
                     }
                 }
             }, cancellationToken: CancellationToken.None);
-        
+
         var usersForProcessAfterMarking = await StateTrackingGrpcClient.GetUsersForProcessingAsync(
             new GetUsersForProcessingRequest
             {
@@ -184,7 +184,7 @@ public class StateTrackingGrpcServiceTests : TestClassBase
                 MinSecondsSinceLastProcess = notProcessedForMinutesThreshold * 60,
                 ServiceType = ServiceType.Gmail
             }, cancellationToken: CancellationToken.None);
-        
+
         //assert
         usersForProcessBeforeMarking.Users.Should().ContainSingle(x => x.UserId == user.UserId.ToString());
         usersForProcessAfterMarking.Users.Should().NotContain(x => x.UserId == user.UserId.ToString());

@@ -9,7 +9,7 @@ public class TelegramSessionRepository(IDbConnectionFactory connectionFactory) :
     public async Task<Guid> StoreSession(Guid userId, string sessionString, CancellationToken ct)
     {
         using var connection = await connectionFactory.CreateConnection(ct);
-        
+
         return await connection.QueryFirstAsync<Guid>(
             """
             INSERT INTO telegram_session (user_id, session) 
@@ -20,13 +20,13 @@ public class TelegramSessionRepository(IDbConnectionFactory connectionFactory) :
                 created_at = NOW()
             RETURNING id;
             """,
-            new { userId, sessionString});
+            new { userId, sessionString });
     }
 
     public async Task<string?> GetSessionString(Guid userId, CancellationToken ct)
     {
         using var connection = await connectionFactory.CreateConnection(ct);
-        
+
         return await connection.QueryFirstOrDefaultAsync<string>(
             """
             SELECT session 
@@ -35,11 +35,11 @@ public class TelegramSessionRepository(IDbConnectionFactory connectionFactory) :
             """,
             new { userId });
     }
-    
+
     public async Task MarkUsersAsProcessed((Guid UserId, DateTime ProcessedAt)[] users, CancellationToken ct)
     {
         using var connection = await connectionFactory.CreateConnection(ct);
-        
+
         await connection.ExecuteAsync(
             """
             --TelegramSessionRepository.MarkUsersAsProcessed
@@ -61,7 +61,7 @@ public class TelegramSessionRepository(IDbConnectionFactory connectionFactory) :
     public async Task RemoveSession(Guid userId, CancellationToken ct)
     {
         using var connection = await connectionFactory.CreateConnection(ct);
-        
+
         await connection.ExecuteAsync(
             """
             --TelegramSessionRepository.RemoveSession

@@ -15,7 +15,7 @@ public class IntegrationsService(
     public async Task RevokeAccess(ServiceTypeModel serviceType, CancellationToken ct)
     {
         var userId = claimValues.GetUserId();
-        
+
         switch (serviceType)
         {
             case ServiceTypeModel.Gmail:

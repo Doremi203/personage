@@ -11,7 +11,7 @@ public class RefreshTokenRepository(IDbConnectionFactory connectionFactory) : IR
     public async Task<RefreshToken> CreateRefreshToken(CreateRefreshTokenRequest request, CancellationToken ct)
     {
         using var connection = await connectionFactory.CreateConnection(ct);
-        
+
         return await connection.QueryFirstAsync<RefreshToken>(
             """
             --RefreshTokenRepository.CreateRefreshToken
@@ -35,7 +35,7 @@ public class RefreshTokenRepository(IDbConnectionFactory connectionFactory) : IR
     public async Task<RefreshToken?> GetRefreshToken(string token, CancellationToken ct)
     {
         using var connection = await connectionFactory.CreateConnection(ct);
-        
+
         return await connection.QueryFirstOrDefaultAsync<RefreshToken>(
             """
              --RefreshTokenRepository.GetRefreshToken

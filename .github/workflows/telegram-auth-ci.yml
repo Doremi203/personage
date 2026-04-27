@@ -33,6 +33,12 @@ jobs:
       - name: Install dependencies
         run: pip install --no-cache-dir -r requirements.txt
 
+      - name: Install ruff
+        run: pip install --no-cache-dir ruff
+
+      - name: Run ruff
+        run: ruff check .
+
       - name: Check syntax
         run: python -m py_compile app/main.py
 

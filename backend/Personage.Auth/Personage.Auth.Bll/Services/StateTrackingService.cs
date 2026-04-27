@@ -157,7 +157,7 @@ public class StateTrackingService(
             case ServiceTypeModel.Telegram:
                 await telegramSessionRepository.MarkUsersAsProcessed(usersToMark, ct);
                 break;
-            
+
             case ServiceTypeModel.GoogleCalendar:
                 await googleCalendarTokenRepository.MarkUsersAsProcessed(usersToMark, ct);
                 break;

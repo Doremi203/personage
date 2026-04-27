@@ -99,7 +99,7 @@ class Settings(BaseSettings):
             response = requests.get(GET_TOKEN_FROM_VM_METADATA_URL, headers=headers, timeout=2)
             response.raise_for_status()
             return response.json()["access_token"]
-        except:
+        except Exception:
             logger.warning("Unable to get IAM token on VM")
             return None
 
