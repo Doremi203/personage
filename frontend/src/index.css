@@ -60,9 +60,13 @@
 
 html, body, #root {
   height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 body {
+  position: fixed;
+  inset: 0;
   margin: 0;
   font-family: "Inter", -apple-system, system-ui, "Segoe UI", sans-serif;
   color: oklch(0.22 0.015 60);
