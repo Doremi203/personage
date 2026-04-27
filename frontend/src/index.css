@@ -56,6 +56,13 @@
   .animate-sheet-in    { animation: sheetIn    0.25s cubic-bezier(.2,.8,.2,1) forwards; }
   .animate-consent-rise{ animation: consentRise 0.26s cubic-bezier(.2,.8,.2,1) forwards; }
   .animate-consent-fade{ animation: consentFade 0.18s ease forwards; }
+
+  /* Detect iOS/Safari/Chromium autofill: webkit applies :-webkit-autofill
+     when a saved credential is filled, which fires this animation. JS
+     hooks animationstart to react (e.g. blur to dismiss the iOS keyboard
+     left over after Face ID password autofill). */
+  @keyframes onAutoFillStart { from {} to {} }
+  input:-webkit-autofill { animation-name: onAutoFillStart; animation-duration: 1ms; }
 }
 
 html, body, #root {

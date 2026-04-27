@@ -281,6 +281,15 @@ function Field({
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        onAnimationStart={(e) => {
+          // iOS Face ID password autofill leaves the keyboard up even though
+          // the field is already filled. Blur the autofilled input so the
+          // keyboard dismisses. The 'onAutoFillStart' animation fires from
+          // the :-webkit-autofill rule in index.css.
+          if (e.animationName === 'onAutoFillStart') {
+            e.currentTarget.blur();
+          }
+        }}
         type={type}
         autoComplete={autoComplete}
         placeholder={placeholder}
