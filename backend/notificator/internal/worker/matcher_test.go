@@ -99,12 +99,41 @@ func TestNotificationHandler_Process(t *testing.T) {
 			wantErr: require.NoError,
 		},
 		{
+			name: "setting disabled skips push without rate limit or persist",
+			args: args{data: newPushNotif()},
+			setup: func(m mocks, a args) {
+				m.subscriptions.EXPECT().
+					GetRecipient(gomock.Any(), push.RecipientID(matcherUUID)).
+					Return(withSub, nil)
+				m.repo.EXPECT().
+					IsSettingEnabled(gomock.Any(), matcherUUID, notification.SettingTypeScheduleChange).
+					Return(false, nil)
+			},
+			wantErr: require.NoError,
+		},
+		{
+			name: "setting check error wraps",
+			args: args{data: newPushNotif()},
+			setup: func(m mocks, a args) {
+				m.subscriptions.EXPECT().
+					GetRecipient(gomock.Any(), push.RecipientID(matcherUUID)).
+					Return(withSub, nil)
+				m.repo.EXPECT().
+					IsSettingEnabled(gomock.Any(), matcherUUID, notification.SettingTypeScheduleChange).
+					Return(false, assert.AnError)
+			},
+			wantErr: require.Error,
+		},
+		{
 			name: "rate limited persists pending and returns nil",
 			args: args{data: newPushNotif()},
 			setup: func(m mocks, a args) {
 				m.subscriptions.EXPECT().
 					GetRecipient(gomock.Any(), push.RecipientID(matcherUUID)).
 					Return(withSub, nil)
+				m.repo.EXPECT().
+					IsSettingEnabled(gomock.Any(), matcherUUID, notification.SettingTypeScheduleChange).
+					Return(true, nil)
 				m.rateLimiter.EXPECT().
 					Allow(gomock.Any(), matcherUUID, notification.SettingTypeScheduleChange).
 					Return(false, nil)
@@ -129,6 +158,9 @@ func TestNotificationHandler_Process(t *testing.T) {
 				m.subscriptions.EXPECT().
 					GetRecipient(gomock.Any(), push.RecipientID(matcherUUID)).
 					Return(withSub, nil)
+				m.repo.EXPECT().
+					IsSettingEnabled(gomock.Any(), matcherUUID, notification.SettingTypeScheduleChange).
+					Return(true, nil)
 				m.rateLimiter.EXPECT().
 					Allow(gomock.Any(), matcherUUID, notification.SettingTypeScheduleChange).
 					Return(false, nil)
@@ -145,6 +177,9 @@ func TestNotificationHandler_Process(t *testing.T) {
 				m.subscriptions.EXPECT().
 					GetRecipient(gomock.Any(), push.RecipientID(matcherUUID)).
 					Return(withSub, nil)
+				m.repo.EXPECT().
+					IsSettingEnabled(gomock.Any(), matcherUUID, notification.SettingTypeScheduleChange).
+					Return(true, nil)
 				m.rateLimiter.EXPECT().
 					Allow(gomock.Any(), matcherUUID, notification.SettingTypeScheduleChange).
 					Return(false, nil)
@@ -161,6 +196,9 @@ func TestNotificationHandler_Process(t *testing.T) {
 				m.subscriptions.EXPECT().
 					GetRecipient(gomock.Any(), push.RecipientID(matcherUUID)).
 					Return(withSub, nil)
+				m.repo.EXPECT().
+					IsSettingEnabled(gomock.Any(), matcherUUID, notification.SettingTypeScheduleChange).
+					Return(true, nil)
 				m.rateLimiter.EXPECT().
 					Allow(gomock.Any(), matcherUUID, notification.SettingTypeScheduleChange).
 					Return(true, nil)
@@ -183,6 +221,9 @@ func TestNotificationHandler_Process(t *testing.T) {
 				m.subscriptions.EXPECT().
 					GetRecipient(gomock.Any(), push.RecipientID(matcherUUID)).
 					Return(withSub, nil)
+				m.repo.EXPECT().
+					IsSettingEnabled(gomock.Any(), matcherUUID, notification.SettingTypeScheduleChange).
+					Return(true, nil)
 				m.rateLimiter.EXPECT().
 					Allow(gomock.Any(), matcherUUID, notification.SettingTypeScheduleChange).
 					Return(true, nil)
@@ -199,6 +240,9 @@ func TestNotificationHandler_Process(t *testing.T) {
 				m.subscriptions.EXPECT().
 					GetRecipient(gomock.Any(), push.RecipientID(matcherUUID)).
 					Return(withSub, nil)
+				m.repo.EXPECT().
+					IsSettingEnabled(gomock.Any(), matcherUUID, notification.SettingTypeScheduleChange).
+					Return(true, nil)
 				m.rateLimiter.EXPECT().
 					Allow(gomock.Any(), matcherUUID, notification.SettingTypeScheduleChange).
 					Return(true, nil)
@@ -215,6 +259,9 @@ func TestNotificationHandler_Process(t *testing.T) {
 				m.subscriptions.EXPECT().
 					GetRecipient(gomock.Any(), push.RecipientID(matcherUUID)).
 					Return(withSub, nil)
+				m.repo.EXPECT().
+					IsSettingEnabled(gomock.Any(), matcherUUID, notification.SettingTypeScheduleChange).
+					Return(true, nil)
 				m.rateLimiter.EXPECT().
 					Allow(gomock.Any(), matcherUUID, notification.SettingTypeScheduleChange).
 					Return(true, nil)

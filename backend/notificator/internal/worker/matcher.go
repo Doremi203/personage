@@ -79,6 +79,24 @@ func (p *notificationHandler) Process(
 	}
 
 	typ := notification.SettingType(data.GetType())
+	enabled, err := p.notificationRepo.IsSettingEnabled(ctx, recipientUUID, typ)
+	if err != nil {
+		return errors.WrapFailf(
+			err,
+			"check notification setting for recipient %v type %v",
+			errors.Token("id", recipientUUID),
+			errors.Token("type", string(typ)),
+		)
+	}
+	if !enabled {
+		p.logger.Infof(
+			"notification type %v disabled for recipient %v, skipping push",
+			errors.Token("type", string(typ)),
+			errors.Token("id", pushRecipientID),
+		)
+		return nil
+	}
+
 	allowed, err := p.rateLimiter.Allow(ctx, recipientUUID, typ)
 	if err != nil {
 		p.logger.Error(errors.WrapFailf(err, "check rate limit for recipient %v", errors.Token("id", recipientUUID)))

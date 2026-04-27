@@ -98,10 +98,34 @@ func TestRetrier_ProcessOnce(t *testing.T) {
 			},
 		},
 		{
+			name: "setting disabled drops pending notification",
+			setup: func(m mocks) {
+				m.repo.EXPECT().ListPending(gomock.Any()).
+					Return([]notification.Notification{notif(&pastRetry, &futureExpiry)}, nil)
+				m.repo.EXPECT().
+					IsSettingEnabled(gomock.Any(), retrierUserID, notification.SettingTypeScheduleChange).
+					Return(false, nil)
+				m.repo.EXPECT().Drop(gomock.Any(), retrierNotif).Return(nil)
+			},
+		},
+		{
+			name: "setting check error skips entry",
+			setup: func(m mocks) {
+				m.repo.EXPECT().ListPending(gomock.Any()).
+					Return([]notification.Notification{notif(&pastRetry, &futureExpiry)}, nil)
+				m.repo.EXPECT().
+					IsSettingEnabled(gomock.Any(), retrierUserID, notification.SettingTypeScheduleChange).
+					Return(false, assert.AnError)
+			},
+		},
+		{
 			name: "rate limit error skips entry",
 			setup: func(m mocks) {
 				m.repo.EXPECT().ListPending(gomock.Any()).
 					Return([]notification.Notification{notif(&pastRetry, &futureExpiry)}, nil)
+				m.repo.EXPECT().
+					IsSettingEnabled(gomock.Any(), retrierUserID, notification.SettingTypeScheduleChange).
+					Return(true, nil)
 				m.rateLimiter.EXPECT().
 					Allow(gomock.Any(), retrierUserID, notification.SettingTypeScheduleChange).
 					Return(false, assert.AnError)
@@ -112,6 +136,9 @@ func TestRetrier_ProcessOnce(t *testing.T) {
 			setup: func(m mocks) {
 				m.repo.EXPECT().ListPending(gomock.Any()).
 					Return([]notification.Notification{notif(&pastRetry, &futureExpiry)}, nil)
+				m.repo.EXPECT().
+					IsSettingEnabled(gomock.Any(), retrierUserID, notification.SettingTypeScheduleChange).
+					Return(true, nil)
 				m.rateLimiter.EXPECT().
 					Allow(gomock.Any(), retrierUserID, notification.SettingTypeScheduleChange).
 					Return(false, nil)
@@ -125,6 +152,9 @@ func TestRetrier_ProcessOnce(t *testing.T) {
 			setup: func(m mocks) {
 				m.repo.EXPECT().ListPending(gomock.Any()).
 					Return([]notification.Notification{notif(&pastRetry, &futureExpiry)}, nil)
+				m.repo.EXPECT().
+					IsSettingEnabled(gomock.Any(), retrierUserID, notification.SettingTypeScheduleChange).
+					Return(true, nil)
 				m.rateLimiter.EXPECT().
 					Allow(gomock.Any(), retrierUserID, notification.SettingTypeScheduleChange).
 					Return(true, nil)
@@ -138,6 +168,9 @@ func TestRetrier_ProcessOnce(t *testing.T) {
 			setup: func(m mocks) {
 				m.repo.EXPECT().ListPending(gomock.Any()).
 					Return([]notification.Notification{notif(&pastRetry, &futureExpiry)}, nil)
+				m.repo.EXPECT().
+					IsSettingEnabled(gomock.Any(), retrierUserID, notification.SettingTypeScheduleChange).
+					Return(true, nil)
 				m.rateLimiter.EXPECT().
 					Allow(gomock.Any(), retrierUserID, notification.SettingTypeScheduleChange).
 					Return(true, nil)
@@ -152,6 +185,9 @@ func TestRetrier_ProcessOnce(t *testing.T) {
 			setup: func(m mocks) {
 				m.repo.EXPECT().ListPending(gomock.Any()).
 					Return([]notification.Notification{notif(&pastRetry, &futureExpiry)}, nil)
+				m.repo.EXPECT().
+					IsSettingEnabled(gomock.Any(), retrierUserID, notification.SettingTypeScheduleChange).
+					Return(true, nil)
 				m.rateLimiter.EXPECT().
 					Allow(gomock.Any(), retrierUserID, notification.SettingTypeScheduleChange).
 					Return(true, nil)
@@ -171,6 +207,9 @@ func TestRetrier_ProcessOnce(t *testing.T) {
 			setup: func(m mocks) {
 				m.repo.EXPECT().ListPending(gomock.Any()).
 					Return([]notification.Notification{notif(&pastRetry, &futureExpiry)}, nil)
+				m.repo.EXPECT().
+					IsSettingEnabled(gomock.Any(), retrierUserID, notification.SettingTypeScheduleChange).
+					Return(true, nil)
 				m.rateLimiter.EXPECT().
 					Allow(gomock.Any(), retrierUserID, notification.SettingTypeScheduleChange).
 					Return(true, nil)

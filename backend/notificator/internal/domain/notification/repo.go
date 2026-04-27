@@ -31,6 +31,11 @@ type Repo interface {
 	ToggleSetting(ctx context.Context, userID uuid.UUID, notificationType string) (Setting, error)
 	GetSettings(ctx context.Context, userID uuid.UUID) ([]Setting, error)
 
+	// IsSettingEnabled reports whether the user has the given notification
+	// type enabled. Defaults to true when no row exists for (userID, typ),
+	// matching the notification_settings table default.
+	IsSettingEnabled(ctx context.Context, userID uuid.UUID, typ SettingType) (bool, error)
+
 	// MarkAsRead sets read_at on a notification owned by userID. Idempotent:
 	// a second call leaves the original read_at unchanged. Returns
 	// ErrNotificationNotFound when the row does not exist for the user.
