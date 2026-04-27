@@ -135,14 +135,25 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
   return outputArray;
 }
 
+// navigator.serviceWorker.ready can hang on iOS PWA when a SW is installing
+// for the first time or recently updated. Prefer a registration with an
+// already-active worker before falling back to .ready, and give .ready a
+// generous deadline so slow mobile networks don't trip the timeout.
+async function getReadyRegistration(): Promise<ServiceWorkerRegistration> {
+  const existing = await navigator.serviceWorker.getRegistration();
+  if (existing?.active) return existing;
+
+  return withTimeout(
+    navigator.serviceWorker.ready,
+    20_000,
+    'Service worker is not ready',
+  );
+}
+
 export async function subscribeToPush(
   vapidPublicKey: string,
 ): Promise<PushSubscription> {
-  const registration = await withTimeout(
-    navigator.serviceWorker.ready,
-    10_000,
-    'Service worker is not ready',
-  );
+  const registration = await getReadyRegistration();
 
   const existingSubscription =
     await registration.pushManager.getSubscription();
@@ -199,7 +210,7 @@ export async function sendSubscriptionToBackend(
 }
 
 export async function unsubscribeFromPush(): Promise<void> {
-  const registration = await navigator.serviceWorker.ready;
+  const registration = await getReadyRegistration();
   const subscription = await registration.pushManager.getSubscription();
   if (!subscription) return;
 

@@ -6,6 +6,17 @@ import {StaleWhileRevalidate} from 'workbox-strategies';
 
 declare let self: ServiceWorkerGlobalScope;
 
+// With injectManifest + registerType: 'autoUpdate', the custom SW must take
+// control on its own — vite-plugin-pwa cannot inject skipWaiting/clientsClaim
+// into a user-provided sw.ts. Without these, a freshly-installed SW stays in
+// "waiting" forever (until every tab is closed), and navigator.serviceWorker.ready
+// hangs — which on iOS PWA surfaces as "Service worker is not ready" when the
+// user enables push notifications.
+self.skipWaiting();
+self.addEventListener('activate', (event) => {
+    event.waitUntil(self.clients.claim());
+});
+
 cleanupOutdatedCaches();
 precacheAndRoute(self.__WB_MANIFEST);
 
