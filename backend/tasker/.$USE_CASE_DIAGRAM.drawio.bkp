@@ -1,0 +1,420 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" type="device">
+  <diagram id="personage-uc-design" name="Personage UML Use Case">
+    <mxGraphModel dx="1200" dy="2000" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="900" pageHeight="1700" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="title" value="Personage — UML Use Case Diagram" style="text;html=1;align=center;verticalAlign=middle;fontSize=16;fontStyle=1;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="100" y="20" width="700" height="24" as="geometry"/>
+        </mxCell>
+        <mxCell id="subtitle" value="Сервисы Tasker и Notificator · функции PWA-приложения" style="text;html=1;align=center;verticalAlign=middle;fontSize=11;fontColor=#555555;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="100" y="44" width="700" height="20" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="sys_tasker" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FAFAFA;strokeColor=#555555;strokeWidth=1.2;" vertex="1" parent="1">
+          <mxGeometry x="140" y="80" width="580" height="640" as="geometry"/>
+        </mxCell>
+        <mxCell id="sys_tasker_title" value="Сервис Tasker" style="text;html=1;align=center;verticalAlign=middle;fontSize=14;fontStyle=1;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="190" y="88" width="480" height="22" as="geometry"/>
+        </mxCell>
+        <mxCell id="sys_tasker_sep" style="endArrow=none;startArrow=none;html=1;rounded=0;strokeColor=#999999;strokeWidth=0.7;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="160" y="114" as="sourcePoint"/>
+            <mxPoint x="700" y="114" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="pkg_sources" value="Подключение источников данных" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;dashed=1;dashPattern=4 3;fontStyle=1;fontSize=11;fillColor=none;strokeColor=#888888;" vertex="1" parent="1">
+          <mxGeometry x="160" y="128" width="540" height="130" as="geometry"/>
+        </mxCell>
+        <mxCell id="uc1" value="1. Подключить Gmail&#10;(OAuth)" style="ellipse;whiteSpace=wrap;html=1;fontSize=11;fillColor=#DCE8F5;strokeColor=#4F7AAE;strokeWidth=1.2;" vertex="1" parent="1">
+          <mxGeometry x="200" y="182" width="180" height="56" as="geometry"/>
+        </mxCell>
+        <mxCell id="uc2" value="2. Подключить Telegram&#10;(MTProto-сессия)" style="ellipse;whiteSpace=wrap;html=1;fontSize=11;fillColor=#DCE8F5;strokeColor=#4F7AAE;strokeWidth=1.2;" vertex="1" parent="1">
+          <mxGeometry x="460" y="182" width="200" height="56" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="note_ai" value="&lt;b&gt;Фоновый AI-конвейер (без участия пользователя)&lt;/b&gt;&lt;br/&gt;Из подключённых источников Tasker автоматически создаёт задачи: события → embeddings → кластеры → LLM-генерация задачи. Пользователь работает только с готовыми задачами." style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;fillColor=#FCF3C7;strokeColor=#C9A93A;align=left;spacingLeft=10;spacingRight=14;spacingTop=8;spacingBottom=8;fontSize=10;fontColor=#4A3D10;size=14;" vertex="1" parent="1">
+          <mxGeometry x="180" y="268" width="500" height="62" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="pkg_tasks" value="Управление задачами" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;dashed=1;dashPattern=4 3;fontStyle=1;fontSize=11;fillColor=none;strokeColor=#888888;" vertex="1" parent="1">
+          <mxGeometry x="160" y="346" width="540" height="360" as="geometry"/>
+        </mxCell>
+        <mxCell id="uc3" value="3. Просмотреть список задач&#10;(фильтрация, пагинация)" style="ellipse;whiteSpace=wrap;html=1;fontSize=11;fillColor=#DCEBDA;strokeColor=#5C8C58;strokeWidth=1.2;" vertex="1" parent="1">
+          <mxGeometry x="180" y="382" width="200" height="56" as="geometry"/>
+        </mxCell>
+        <mxCell id="uc4" value="4. Открыть карточку задачи" style="ellipse;whiteSpace=wrap;html=1;fontSize=11;fillColor=#DCEBDA;strokeColor=#5C8C58;strokeWidth=1.2;" vertex="1" parent="1">
+          <mxGeometry x="460" y="442" width="200" height="56" as="geometry"/>
+        </mxCell>
+        <mxCell id="uc5" value="5. Завершить задачу" style="ellipse;whiteSpace=wrap;html=1;fontSize=11;fillColor=#DCEBDA;strokeColor=#5C8C58;strokeWidth=1.2;" vertex="1" parent="1">
+          <mxGeometry x="200" y="531" width="160" height="48" as="geometry"/>
+        </mxCell>
+        <mxCell id="uc6" value="6. Отложить задачу" style="ellipse;whiteSpace=wrap;html=1;fontSize=11;fillColor=#DCEBDA;strokeColor=#5C8C58;strokeWidth=1.2;" vertex="1" parent="1">
+          <mxGeometry x="200" y="611" width="160" height="48" as="geometry"/>
+        </mxCell>
+        <mxCell id="uc7" value="7. Удалить задачу" style="ellipse;whiteSpace=wrap;html=1;fontSize=11;fillColor=#DCEBDA;strokeColor=#5C8C58;strokeWidth=1.2;" vertex="1" parent="1">
+          <mxGeometry x="480" y="611" width="160" height="48" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="sys_notif" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FAFAFA;strokeColor=#555555;strokeWidth=1.2;" vertex="1" parent="1">
+          <mxGeometry x="140" y="750" width="580" height="640" as="geometry"/>
+        </mxCell>
+        <mxCell id="sys_notif_title" value="Сервис Notificator" style="text;html=1;align=center;verticalAlign=middle;fontSize=14;fontStyle=1;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="190" y="758" width="480" height="22" as="geometry"/>
+        </mxCell>
+        <mxCell id="sys_notif_sep" style="endArrow=none;startArrow=none;html=1;rounded=0;strokeColor=#999999;strokeWidth=0.7;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="160" y="784" as="sourcePoint"/>
+            <mxPoint x="700" y="784" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="pkg_settings" value="Настройки типов уведомлений" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;dashed=1;dashPattern=4 3;fontStyle=1;fontSize=11;fillColor=none;strokeColor=#888888;" vertex="1" parent="1">
+          <mxGeometry x="160" y="798" width="540" height="110" as="geometry"/>
+        </mxCell>
+        <mxCell id="uc10" value="10. Просмотреть настройки&#10;уведомлений" style="ellipse;whiteSpace=wrap;html=1;fontSize=11;fillColor=#F4E1CB;strokeColor=#B47A3F;strokeWidth=1.2;" vertex="1" parent="1">
+          <mxGeometry x="180" y="839" width="200" height="52" as="geometry"/>
+        </mxCell>
+        <mxCell id="uc11" value="11. Включить / выключить&#10;тип уведомления" style="ellipse;whiteSpace=wrap;html=1;fontSize=11;fillColor=#F4E1CB;strokeColor=#B47A3F;strokeWidth=1.2;" vertex="1" parent="1">
+          <mxGeometry x="455" y="839" width="210" height="52" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="pkg_subscribe" value="Подписка устройства на push" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;dashed=1;dashPattern=4 3;fontStyle=1;fontSize=11;fillColor=none;strokeColor=#888888;" vertex="1" parent="1">
+          <mxGeometry x="160" y="928" width="540" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="uc8" value="8. Подписать устройство&#10;на push-уведомления" style="ellipse;whiteSpace=wrap;html=1;fontSize=11;fillColor=#E3DAEC;strokeColor=#7D6AA0;strokeWidth=1.2;" vertex="1" parent="1">
+          <mxGeometry x="175" y="966" width="210" height="48" as="geometry"/>
+        </mxCell>
+        <mxCell id="uc9" value="9. Отписать устройство" style="ellipse;whiteSpace=wrap;html=1;fontSize=11;fillColor=#E3DAEC;strokeColor=#7D6AA0;strokeWidth=1.2;" vertex="1" parent="1">
+          <mxGeometry x="460" y="966" width="200" height="48" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="pkg_receive" value="Получение и просмотр уведомлений" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;dashed=1;dashPattern=4 3;fontStyle=1;fontSize=11;fillColor=none;strokeColor=#888888;" vertex="1" parent="1">
+          <mxGeometry x="160" y="1048" width="540" height="220" as="geometry"/>
+        </mxCell>
+        <mxCell id="uc13" value="13. Push о предстоящем&#10;событии" style="ellipse;whiteSpace=wrap;html=1;fontSize=11;fillColor=#F1D6D2;strokeColor=#B05B53;strokeWidth=1.2;" vertex="1" parent="1">
+          <mxGeometry x="460" y="1084" width="200" height="52" as="geometry"/>
+        </mxCell>
+        <mxCell id="uc12" value="12. История уведомлений&#10;(просмотр)" style="ellipse;whiteSpace=wrap;html=1;fontSize=11;fillColor=#F1D6D2;strokeColor=#B05B53;strokeWidth=1.2;" vertex="1" parent="1">
+          <mxGeometry x="180" y="1134" width="200" height="52" as="geometry"/>
+        </mxCell>
+        <mxCell id="uc14" value="14. Push об изменении&#10;расписания" style="ellipse;whiteSpace=wrap;html=1;fontSize=11;fillColor=#F1D6D2;strokeColor=#B05B53;strokeWidth=1.2;" vertex="1" parent="1">
+          <mxGeometry x="455" y="1184" width="210" height="52" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="note_push" value="&lt;b&gt;Фоновая отправка push (без участия пользователя)&lt;/b&gt;&lt;br/&gt;Push-уведомления отправляются автоматически по триггерам Tasker: приближение времени события и пересчёт расписания. Доставка идёт через сервис веб-пуша браузера (VAPID)." style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;fillColor=#FCF3C7;strokeColor=#C9A93A;align=left;spacingLeft=10;spacingRight=14;spacingTop=8;spacingBottom=8;fontSize=10;fontColor=#4A3D10;size=14;" vertex="1" parent="1">
+          <mxGeometry x="180" y="1290" width="500" height="80" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="actor_user" value="Пользователь&#10;Personage&#10;(PWA)" style="shape=umlActor;verticalLabelPosition=bottom;labelBackgroundColor=none;verticalAlign=top;html=1;fontSize=12;fontStyle=1;strokeColor=#1a1a1a;strokeWidth=1.6;" vertex="1" parent="1">
+          <mxGeometry x="40" y="690" width="46" height="86" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="actor_gmail" value="Gmail&#10;OAuth" style="shape=umlActor;verticalLabelPosition=bottom;labelBackgroundColor=none;verticalAlign=top;html=1;fontSize=11;strokeColor=#1a1a1a;strokeWidth=1.3;" vertex="1" parent="1">
+          <mxGeometry x="805" y="160" width="30" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="actor_tg" value="Telegram&#10;MTProto" style="shape=umlActor;verticalLabelPosition=bottom;labelBackgroundColor=none;verticalAlign=top;html=1;fontSize=11;strokeColor=#1a1a1a;strokeWidth=1.3;" vertex="1" parent="1">
+          <mxGeometry x="805" y="270" width="30" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="actor_push" value="Web Push&#10;Service&#10;(VAPID)" style="shape=umlActor;verticalLabelPosition=bottom;labelBackgroundColor=none;verticalAlign=top;html=1;fontSize=11;strokeColor=#1a1a1a;strokeWidth=1.3;" vertex="1" parent="1">
+          <mxGeometry x="805" y="1130" width="30" height="68" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="trunk_h" style="endArrow=none;startArrow=none;html=1;rounded=0;strokeColor=#222222;strokeWidth=1.4;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="86" y="728" as="sourcePoint"/>
+            <mxPoint x="130" y="728" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="trunk_v" style="endArrow=none;startArrow=none;html=1;rounded=0;strokeColor=#222222;strokeWidth=1.4;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="130" y="200" as="sourcePoint"/>
+            <mxPoint x="130" y="1260" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="a_uc1" style="endArrow=none;startArrow=none;html=1;rounded=0;strokeColor=#222222;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="130" y="210" as="sourcePoint"/>
+            <mxPoint x="200" y="210" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="a_uc3" style="endArrow=none;startArrow=none;html=1;rounded=0;strokeColor=#222222;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="130" y="410" as="sourcePoint"/>
+            <mxPoint x="180" y="410" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="a_uc5" style="endArrow=none;startArrow=none;html=1;rounded=0;strokeColor=#222222;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="130" y="555" as="sourcePoint"/>
+            <mxPoint x="200" y="555" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="a_uc6" style="endArrow=none;startArrow=none;html=1;rounded=0;strokeColor=#222222;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="130" y="635" as="sourcePoint"/>
+            <mxPoint x="200" y="635" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="a_uc10" style="endArrow=none;startArrow=none;html=1;rounded=0;strokeColor=#222222;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="130" y="865" as="sourcePoint"/>
+            <mxPoint x="180" y="865" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="a_uc8" style="endArrow=none;startArrow=none;html=1;rounded=0;strokeColor=#222222;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="130" y="990" as="sourcePoint"/>
+            <mxPoint x="175" y="990" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="a_uc12" style="endArrow=none;startArrow=none;html=1;rounded=0;strokeColor=#222222;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="130" y="1160" as="sourcePoint"/>
+            <mxPoint x="180" y="1160" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="a_uc2" style="endArrow=none;startArrow=none;html=1;rounded=0;strokeColor=#222222;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="130" y="300" as="sourcePoint"/>
+            <mxPoint x="460" y="238" as="targetPoint"/>
+            <Array as="points">
+              <mxPoint x="460" y="300"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="a_uc4" style="endArrow=none;startArrow=none;html=1;rounded=0;strokeColor=#222222;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="130" y="445" as="sourcePoint"/>
+            <mxPoint x="460" y="470" as="targetPoint"/>
+            <Array as="points">
+              <mxPoint x="460" y="445"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="a_uc7" style="endArrow=none;startArrow=none;html=1;rounded=0;strokeColor=#222222;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="130" y="595" as="sourcePoint"/>
+            <mxPoint x="480" y="635" as="targetPoint"/>
+            <Array as="points">
+              <mxPoint x="480" y="595"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="a_uc11" style="endArrow=none;startArrow=none;html=1;rounded=0;strokeColor=#222222;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="130" y="830" as="sourcePoint"/>
+            <mxPoint x="455" y="865" as="targetPoint"/>
+            <Array as="points">
+              <mxPoint x="455" y="830"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="a_uc9" style="endArrow=none;startArrow=none;html=1;rounded=0;strokeColor=#222222;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="130" y="918" as="sourcePoint"/>
+            <mxPoint x="460" y="990" as="targetPoint"/>
+            <Array as="points">
+              <mxPoint x="460" y="918"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="a_uc13" style="endArrow=none;startArrow=none;html=1;rounded=0;strokeColor=#222222;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="130" y="1080" as="sourcePoint"/>
+            <mxPoint x="460" y="1110" as="targetPoint"/>
+            <Array as="points">
+              <mxPoint x="460" y="1080"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="a_uc14" style="endArrow=none;startArrow=none;html=1;rounded=0;strokeColor=#222222;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="130" y="1255" as="sourcePoint"/>
+            <mxPoint x="455" y="1210" as="targetPoint"/>
+            <Array as="points">
+              <mxPoint x="455" y="1255"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="a_gmail" style="endArrow=none;startArrow=none;html=1;rounded=0;strokeColor=#222222;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="805" y="190" as="sourcePoint"/>
+            <mxPoint x="380" y="210" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="a_tg" style="endArrow=none;startArrow=none;html=1;rounded=0;strokeColor=#222222;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="805" y="295" as="sourcePoint"/>
+            <mxPoint x="660" y="225" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="a_push_uc13" style="endArrow=none;startArrow=none;html=1;rounded=0;strokeColor=#222222;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="805" y="1150" as="sourcePoint"/>
+            <mxPoint x="660" y="1110" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="a_push_uc14" style="endArrow=none;startArrow=none;html=1;rounded=0;strokeColor=#222222;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="805" y="1175" as="sourcePoint"/>
+            <mxPoint x="665" y="1210" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="inc_uc5_uc4" value="«include»" style="endArrow=open;endFill=0;html=1;dashed=1;dashPattern=5 4;rounded=0;strokeColor=#222222;fontSize=10;fontStyle=2;labelBackgroundColor=none;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="360" y="550" as="sourcePoint"/>
+            <mxPoint x="487" y="490" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="inc_uc6_uc4" value="«include»" style="endArrow=open;endFill=0;html=1;dashed=1;dashPattern=5 4;rounded=0;strokeColor=#222222;fontSize=10;fontStyle=2;labelBackgroundColor=none;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="360" y="630" as="sourcePoint"/>
+            <mxPoint x="518" y="496" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="inc_uc7_uc4" value="«include»" style="endArrow=open;endFill=0;html=1;dashed=1;dashPattern=5 4;rounded=0;strokeColor=#222222;fontSize=10;fontStyle=2;labelBackgroundColor=none;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="560" y="611" as="sourcePoint"/>
+            <mxPoint x="560" y="500" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="inc_uc11_uc10" value="«include»" style="endArrow=open;endFill=0;html=1;dashed=1;dashPattern=5 4;rounded=0;strokeColor=#222222;fontSize=10;fontStyle=2;labelBackgroundColor=none;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="455" y="865" as="sourcePoint"/>
+            <mxPoint x="382" y="865" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="ext_uc4_uc3" value="«extend»&#10;[из списка]" style="endArrow=open;endFill=0;html=1;dashed=1;dashPattern=5 4;rounded=0;strokeColor=#222222;fontSize=10;fontStyle=2;labelBackgroundColor=none;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="460" y="463" as="sourcePoint"/>
+            <mxPoint x="372" y="425" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ext_uc9_uc8" value="«extend»&#10;[при отказе]" style="endArrow=open;endFill=0;html=1;dashed=1;dashPattern=5 4;rounded=0;strokeColor=#222222;fontSize=10;fontStyle=2;labelBackgroundColor=none;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="460" y="983" as="sourcePoint"/>
+            <mxPoint x="388" y="983" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ext_uc13_uc8" value="«extend»&#10;[если подписан]" style="endArrow=open;endFill=0;html=1;dashed=1;dashPattern=5 4;rounded=0;strokeColor=#222222;fontSize=10;fontStyle=2;labelBackgroundColor=none;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="560" y="1084" as="sourcePoint"/>
+            <mxPoint x="350" y="1011" as="targetPoint"/>
+            <Array as="points">
+              <mxPoint x="560" y="1035"/>
+              <mxPoint x="350" y="1035"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ext_uc14_uc8" value="«extend»&#10;[если подписан]" style="endArrow=open;endFill=0;html=1;dashed=1;dashPattern=5 4;rounded=0;strokeColor=#222222;fontSize=10;fontStyle=2;labelBackgroundColor=none;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="640" y="1190" as="sourcePoint"/>
+            <mxPoint x="385" y="990" as="targetPoint"/>
+            <Array as="points">
+              <mxPoint x="685" y="1190"/>
+              <mxPoint x="685" y="962"/>
+              <mxPoint x="385" y="962"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ext_uc12_uc13" value="«extend»&#10;[запись о доставке]" style="endArrow=open;endFill=0;html=1;dashed=1;dashPattern=5 4;rounded=0;strokeColor=#222222;fontSize=10;fontStyle=2;labelBackgroundColor=none;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="360" y="1148" as="sourcePoint"/>
+            <mxPoint x="487" y="1130" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ext_uc12_uc14" value="«extend»&#10;[запись о доставке]" style="endArrow=open;endFill=0;html=1;dashed=1;dashPattern=5 4;rounded=0;strokeColor=#222222;fontSize=10;fontStyle=2;labelBackgroundColor=none;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="360" y="1175" as="sourcePoint"/>
+            <mxPoint x="470" y="1192" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="legend_box" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FAFAFA;strokeColor=#888888;strokeWidth=0.8;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1410" width="820" height="260" as="geometry"/>
+        </mxCell>
+        <mxCell id="legend_title" value="Легенда" style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontStyle=1;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="56" y="1418" width="200" height="24" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="leg_user_actor" value="" style="shape=umlActor;verticalLabelPosition=bottom;labelBackgroundColor=none;verticalAlign=top;html=1;strokeColor=#1a1a1a;strokeWidth=1.2;" vertex="1" parent="1">
+          <mxGeometry x="76" y="1454" width="22" height="44" as="geometry"/>
+        </mxCell>
+        <mxCell id="leg_user_text" value="&lt;b&gt;Главный актор&lt;/b&gt; — конечный пользователь Personage PWA." style="text;html=1;align=left;verticalAlign=middle;fontSize=10;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="115" y="1462" width="350" height="28" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="leg_ext_actor" value="" style="shape=umlActor;verticalLabelPosition=bottom;labelBackgroundColor=none;verticalAlign=top;html=1;strokeColor=#1a1a1a;strokeWidth=1.2;" vertex="1" parent="1">
+          <mxGeometry x="76" y="1508" width="22" height="44" as="geometry"/>
+        </mxCell>
+        <mxCell id="leg_ext_text" value="&lt;b&gt;Внешний актор&lt;/b&gt; — внешний сервис (Gmail, Telegram, Web Push)." style="text;html=1;align=left;verticalAlign=middle;fontSize=10;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="115" y="1516" width="350" height="28" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="leg_uc" value="Use case" style="ellipse;whiteSpace=wrap;html=1;fontSize=9;fillColor=#DCE8F5;strokeColor=#4F7AAE;strokeWidth=1;" vertex="1" parent="1">
+          <mxGeometry x="62" y="1568" width="60" height="24" as="geometry"/>
+        </mxCell>
+        <mxCell id="leg_uc_text" value="&lt;b&gt;Эллипс&lt;/b&gt; — функция, доступная пользователю через UI / API." style="text;html=1;align=left;verticalAlign=middle;fontSize=10;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="135" y="1568" width="350" height="24" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="leg_note" value="" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;fillColor=#FCF3C7;strokeColor=#C9A93A;size=8;" vertex="1" parent="1">
+          <mxGeometry x="62" y="1610" width="56" height="32" as="geometry"/>
+        </mxCell>
+        <mxCell id="leg_note_text" value="&lt;b&gt;Жёлтая заметка&lt;/b&gt; — пояснение о фоновом процессе без участия пользователя." style="text;html=1;align=left;verticalAlign=middle;fontSize=10;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="135" y="1614" width="350" height="28" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="leg_assoc" style="endArrow=none;startArrow=none;html=1;rounded=0;strokeColor=#222222;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="500" y="1470" as="sourcePoint"/>
+            <mxPoint x="560" y="1470" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="leg_assoc_text" value="&lt;b&gt;Сплошная линия&lt;/b&gt; — пользователь использует функцию (association)." style="text;html=1;align=left;verticalAlign=middle;fontSize=10;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="575" y="1456" width="280" height="28" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="leg_inc" style="endArrow=open;endFill=0;html=1;dashed=1;dashPattern=5 4;rounded=0;strokeColor=#222222;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="500" y="1525" as="sourcePoint"/>
+            <mxPoint x="560" y="1525" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="leg_inc_text" value="&lt;b&gt;«include»&lt;/b&gt; — обязательный вложенный шаг." style="text;html=1;align=left;verticalAlign=middle;fontSize=10;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="575" y="1511" width="280" height="28" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="leg_ext" style="endArrow=open;endFill=0;html=1;dashed=1;dashPattern=5 4;rounded=0;strokeColor=#222222;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="500" y="1580" as="sourcePoint"/>
+            <mxPoint x="560" y="1580" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="leg_ext_text2" value="&lt;b&gt;«extend»&lt;/b&gt; — условный / опциональный шаг (с условием в [скобках])." style="text;html=1;align=left;verticalAlign=middle;fontSize=10;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="575" y="1566" width="280" height="28" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="leg_sys" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FAFAFA;strokeColor=#555555;strokeWidth=1;" vertex="1" parent="1">
+          <mxGeometry x="495" y="1614" width="64" height="32" as="geometry"/>
+        </mxCell>
+        <mxCell id="leg_pkg" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#888888;dashed=1;dashPattern=4 3;strokeWidth=0.8;" vertex="1" parent="1">
+          <mxGeometry x="502" y="1620" width="50" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="leg_sys_text" value="&lt;b&gt;Система / пакет&lt;/b&gt; — граница системы (сплошная) и пакет use case (пунктир)." style="text;html=1;align=left;verticalAlign=middle;fontSize=10;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="575" y="1614" width="280" height="32" as="geometry"/>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
