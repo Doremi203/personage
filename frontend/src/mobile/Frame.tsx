@@ -11,7 +11,7 @@ interface FrameProps {
 export function Frame({ children }: FrameProps) {
   return (
     <div style={{
-      minHeight: '100vh',
+      minHeight: '100dvh',
       background: T.bgDeep,
       display: 'flex',
       justifyContent: 'center',
@@ -22,8 +22,8 @@ export function Frame({ children }: FrameProps) {
         style={{
           width: '100%',
           maxWidth: 480,
-          minHeight: '100vh',
-          height: '100vh',
+          minHeight: '100dvh',
+          height: '100dvh',
           background: T.bg,
           boxShadow: '0 0 40px -10px rgba(40,30,20,0.18)',
           display: 'flex',

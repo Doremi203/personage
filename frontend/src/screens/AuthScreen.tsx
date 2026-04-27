@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   ChevronLeft,
   Eye,
@@ -36,6 +36,33 @@ const AuthScreen = ({ onAuthSuccess }: AuthScreenProps) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [consentRequired, setConsentRequired] = useState(false);
+  const scrollerRef = useRef<HTMLDivElement>(null);
+
+  // iOS auto-scrolls focused inputs above the autofill / Face ID popup,
+  // pushing the screen up. Lock the scroll container while a credential
+  // input is focused so the popup overlays the screen instead of moving it.
+  useEffect(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    let lockedTop: number | null = null;
+    const isCredentialInput = (t: EventTarget | null) =>
+      t instanceof HTMLInputElement && (t.type === 'email' || t.type === 'password');
+    const onFocusIn = (e: FocusEvent) => {
+      if (isCredentialInput(e.target)) lockedTop = el.scrollTop;
+    };
+    const onFocusOut = () => { lockedTop = null; };
+    const onScroll = () => {
+      if (lockedTop !== null && el.scrollTop !== lockedTop) el.scrollTop = lockedTop;
+    };
+    el.addEventListener('focusin', onFocusIn);
+    el.addEventListener('focusout', onFocusOut);
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      el.removeEventListener('focusin', onFocusIn);
+      el.removeEventListener('focusout', onFocusOut);
+      el.removeEventListener('scroll', onScroll);
+    };
+  }, []);
 
   const handleSubmit = () => {
     setError(null);
@@ -87,7 +114,7 @@ const AuthScreen = ({ onAuthSuccess }: AuthScreenProps) => {
   }
 
   return (
-    <div style={{
+    <div ref={scrollerRef} style={{
       width: '100%', height: '100%',
       display: 'flex', flexDirection: 'column',
       background: T.bg, color: T.ink, fontFamily: SANS,
