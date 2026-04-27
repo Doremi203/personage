@@ -69,8 +69,11 @@ Services: `tasker`, `notificator`, `auth`, `traitex`
 ```bash
 npm run dev          # Vite dev server
 npm run build        # Production build
+npm run preview      # Preview production build locally
 npm run lint         # ESLint
 npm run typecheck    # TypeScript type checking (tsc --noEmit)
+npm run test:e2e     # Playwright end-to-end tests
+npm run test:e2e:ui  # Playwright UI mode
 ```
 
 ### Root-level
@@ -152,7 +155,7 @@ Tasker uses AI for intelligent task management:
 3. Closed clusters are processed by an LLM (OpenRouter) to generate actionable tasks
 4. Tasks are scheduled and trigger notifications via the notificator service
 
-Design docs live in `backend/tasker/`: `DEFINITIONS.md`, `FUNCTIONAL_REQUIREMENTS.md`, `USE_CASES.md`, `ARCHITECTURE.puml`, `SEQUENCE_EVENT_TO_TASK.puml`. Consult before non-trivial changes to event→task flow.
+Design docs live in `backend/tasker/`: `FUNCTIONAL_REQUIREMENTS.md`, `USE_CASES.md`, `USE_CASES.puml`, `ARCHITECTURE.puml`. Consult before non-trivial changes to event→task flow.
 
 ## CI/CD
 
@@ -168,10 +171,10 @@ Go linter config (`.golangci.yml`): errcheck, goconst, gosec, govet, ineffassign
 
 ## Testing
 
-Go tests use `testcontainers-go` for integration tests with real PostgreSQL. Environment variable `TESTCONTAINERS_RYUK_DISABLED=true` is set in the Makefile. Run a single test with:
+Go tests use `testcontainers-go` for integration tests with real PostgreSQL. Environment variable `TESTCONTAINERS_RYUK_DISABLED=true` is set in the Makefile. Run a single test (substitute the service path — `tasker`, `notificator`, `libs/go/...`, etc.):
 
 ```bash
-cd backend && go test ./tasker/internal/... -run TestName -race
+cd backend && go test ./<service>/internal/... -run TestName -race
 ```
 
 ### Functional tests (`tests/`)
