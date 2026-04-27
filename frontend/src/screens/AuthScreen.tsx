@@ -280,15 +280,19 @@ function Field({
       <Icon size={16} strokeWidth={1.8} style={{ color: T.ink3, flexShrink: 0 }} />
       <input
         value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onAnimationStart={(e) => {
-          // iOS Face ID password autofill leaves the keyboard up even though
-          // the field is already filled. Blur the autofilled input so the
-          // keyboard dismisses. The 'onAutoFillStart' animation fires from
-          // the :-webkit-autofill rule in index.css.
-          if (e.animationName === 'onAutoFillStart') {
-            e.currentTarget.blur();
+        onChange={(e) => {
+          const next = e.target.value;
+          // iOS Face ID / iCloud Keychain autofill leaves the keyboard up
+          // even though the credential is already filled. Detect the bulk
+          // value jump (autofill fills the field in one event; typing only
+          // adds a char at a time) and blur the focused element so the
+          // keyboard dismisses. The focused field is whichever the user
+          // tapped first (usually email), not necessarily this input.
+          if (next.length - value.length >= 4) {
+            const active = document.activeElement;
+            if (active instanceof HTMLInputElement) active.blur();
           }
+          onChange(next);
         }}
         type={type}
         autoComplete={autoComplete}
