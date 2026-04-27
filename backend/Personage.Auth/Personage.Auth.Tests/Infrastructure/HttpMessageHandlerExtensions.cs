@@ -32,7 +32,7 @@ public static class HttpMessageHandlerMockExtensions
                 Content = new StringContent(responseContent, System.Text.Encoding.UTF8, contentType)
             });
     }
-    
+
     public static void VerifySendAsync(
         this Mock<HttpMessageHandler> handler,
         string requestUrl,
@@ -46,7 +46,7 @@ public static class HttpMessageHandlerMockExtensions
             ItExpr.Is<HttpRequestMessage>(req =>
                 req.RequestUri!.ToString() == requestUrl &&
                 req.Method == method &&
-                (contentValidator == null || 
+                (contentValidator == null ||
                  contentValidator(req.Content!.ReadAsStringAsync().GetAwaiter().GetResult()))),
             ItExpr.IsAny<CancellationToken>());
     }

@@ -1,10 +1,10 @@
+from abc import ABC, abstractmethod
+from datetime import datetime
 from uuid import UUID
 
 from app.domain.models.processing.SnapshotModel import SnapshotModel
 
 type SnapshotId = UUID
-from datetime import datetime
-from abc import ABC, abstractmethod
 
 
 class IProcessingSnapshotRepository(ABC):

@@ -10,7 +10,7 @@ public static class CommonMapper
     {
         if (value is null)
             return null;
-        
+
         return new GmailTokens
         {
             AccessToken = value.AccessToken,
@@ -18,13 +18,13 @@ public static class CommonMapper
             ExpiresAt = Timestamp.FromDateTime(value.ExpiresAt),
             GmailEmail = value.GmailEmail
         };
-    }   
-    
+    }
+
     public static GoogleCalendarTokens? ToGrpcGoogleCalendarTokens(OAuthTokenModel? value)
     {
         if (value is null)
             return null;
-        
+
         return new GoogleCalendarTokens
         {
             AccessToken = value.AccessToken,

@@ -28,7 +28,7 @@ public class GoogleCalendarAuthController(
             State = res.State,
         };
     }
-    
+
     [HttpPost("callback")]
     [ProducesResponseType(typeof(AuthCallbackResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
@@ -47,5 +47,5 @@ public class GoogleCalendarAuthController(
         {
             GmailEmail = gmailEmail
         };
-    } 
+    }
 }

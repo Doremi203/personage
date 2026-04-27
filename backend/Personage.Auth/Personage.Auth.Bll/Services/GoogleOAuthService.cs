@@ -37,13 +37,13 @@ public class GoogleOAuthService(
             ["state"] = state,
             ["prompt"] = "consent"
         };
-        
-        var queryString = string.Join("&", 
+
+        var queryString = string.Join("&",
             queryParams.Select(kvp => $"{kvp.Key}={HttpUtility.UrlEncode(kvp.Value)}"));
-        
+
         return $"{OAuthAuthorizationUrlPrefix}?{queryString}";
     }
-    
+
     public async Task<OAuthTokenModel> ExchangeCode(string code, string redirectUri, CancellationToken ct)
     {
         var requestBody = new Dictionary<string, string>
@@ -54,27 +54,28 @@ public class GoogleOAuthService(
             ["redirect_uri"] = redirectUri,
             ["grant_type"] = "authorization_code"
         };
-        
+
         var response = await httpClient.PostAsync(
             OAuthTokenUrlPrefix,
             new FormUrlEncodedContent(requestBody), ct);
-        
+
         if (!response.IsSuccessStatusCode)
         {
             var error = await response.Content.ReadAsStringAsync(ct);
             logger.LogError("Failed to exchange code: {Error}", error);
             throw new InvalidOperationException($"Failed to exchange code: {error}");
         }
-        
+
         var json = await response.Content.ReadAsStringAsync(ct);
         var tokenResponse = JsonSerializer.Deserialize<AuthorizationTokenResponse>(json);
-        
+
         if (tokenResponse == null)
             throw new InvalidOperationException("Invalid token response");
-        
+
         var email = await GetUserEmailAsync(tokenResponse.AccessToken);
-        
-        return new OAuthTokenModel{
+
+        return new OAuthTokenModel
+        {
             AccessToken = tokenResponse.AccessToken,
             RefreshToken = tokenResponse.RefreshToken,
             ExpiresAt = DateTime.UtcNow.AddSeconds(tokenResponse.ExpiresIn),
@@ -101,10 +102,10 @@ public class GoogleOAuthService(
         {
             var errorContent = await response.Content.ReadAsStringAsync(ct);
             logger.LogError("Token refresh failed: {Error}", errorContent);
-            
+
             if (errorContent.Contains("invalid_grant"))
                 throw new OAuthException("Token has been revoked. User needs to re-authenticate.");
-            
+
             throw new OAuthException($"Token refresh failed: {response.StatusCode}");
         }
 
@@ -133,45 +134,45 @@ public class GoogleOAuthService(
             _ => throw new ArgumentOutOfRangeException(nameof(serviceKind), serviceKind, null)
         };
     }
-    
+
     private async Task<string> GetUserEmailAsync(string accessToken)
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "https://www.googleapis.com/oauth2/v2/userinfo");
         request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
-        
+
         var response = await httpClient.SendAsync(request);
         response.EnsureSuccessStatusCode();
-        
+
         var json = await response.Content.ReadAsStringAsync();
         var userInfo = JsonSerializer.Deserialize<UserInfoResponse>(json);
-        
+
         return userInfo?.Email ?? throw new InvalidOperationException("Could not get user email");
     }
-    
+
     private class AuthorizationTokenResponse
     {
         [JsonPropertyName("access_token")]
         public string AccessToken { get; init; } = null!;
-        
+
         [JsonPropertyName("expires_in")]
         public int ExpiresIn { get; init; }
-        
-        [JsonPropertyName("refresh_token")] 
+
+        [JsonPropertyName("refresh_token")]
         public string RefreshToken { get; init; } = null!;
     }
-    
+
     private class RefreshTokenResponse
     {
         [JsonPropertyName("access_token")]
         public string AccessToken { get; init; } = null!;
-        
+
         [JsonPropertyName("expires_in")]
         public int ExpiresIn { get; init; }
-        
-        [JsonPropertyName("refresh_token")] 
+
+        [JsonPropertyName("refresh_token")]
         public string? RefreshToken { get; init; }
     }
-    
+
     private class UserInfoResponse
     {
         [JsonPropertyName("email")]

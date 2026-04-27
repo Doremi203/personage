@@ -11,7 +11,7 @@ public class TestOAuthStateRepository(IDbConnectionFactory connectionFactory)
     public async Task<OAuthState?> GetOAuthStateByUserEmail(string userEmail)
     {
         using var connection = await connectionFactory.CreateConnection(CancellationToken.None);
-        
+
         return await connection.QueryFirstOrDefaultAsync<OAuthState>(
             """
             SELECT 
@@ -24,5 +24,5 @@ public class TestOAuthStateRepository(IDbConnectionFactory connectionFactory)
             WHERE user_email = @userEmail AND expires_at > NOW()
             """,
             new { userEmail });
-    } 
+    }
 }

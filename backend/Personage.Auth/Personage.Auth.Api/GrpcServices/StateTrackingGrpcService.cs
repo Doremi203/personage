@@ -50,7 +50,7 @@ public class StateTrackingGrpcService(
             ProcessedAt = grpcProcessedUser.ProcessedAt.ToDateTime()
         };
     }
-    
+
     private static UserForProcessing Map(UserForProcessingModel model)
     {
         var res = new UserForProcessing
@@ -58,8 +58,8 @@ public class StateTrackingGrpcService(
             UserId = model.UserId.ToString(),
             Credentials = GetProcessingCredentials(model.Credentials)
         };
-        
-        if(model.LastProcessedAt is not null)
+
+        if (model.LastProcessedAt is not null)
             res.LastProcessedAt = Timestamp.FromDateTime(model.LastProcessedAt.Value);
 
         return res;
@@ -82,7 +82,7 @@ public class StateTrackingGrpcService(
             },
             GoogleCalendarProcessingCredentials googleCalendarCredentials => new ProcessingCredentials
             {
-               GoogleCalendarTokens = CommonMapper.ToGrpcGoogleCalendarTokens(googleCalendarCredentials.Tokens)
+                GoogleCalendarTokens = CommonMapper.ToGrpcGoogleCalendarTokens(googleCalendarCredentials.Tokens)
             },
             _ => throw new ArgumentOutOfRangeException(nameof(model), model, null)
         };

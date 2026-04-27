@@ -21,9 +21,9 @@ public class UserService(
 
         //TODO: Can be simplified to a single db call for optimisation
         var userInfo = await userRepository.GetUserById(userId, ct);
-        if(userInfo is null)
+        if (userInfo is null)
             throw new NotFoundException(ErrorCode.UserNotFound, "User with specified id not found");
-        
+
         var telegramSession = await telegramSessionRepository.GetSessionString(userId, ct);
         var gmailInfo = await gmailTokenRepository.GetTokenByUserId(userId, ct);
         var googleCalendarInfo = await googleCalendarTokenRepository.GetTokenByUserId(userId, ct);
@@ -52,12 +52,12 @@ public class UserService(
     public async Task UpdateUserInfo(string name, CancellationToken ct)
     {
         UserValidator.ValidateName(name);
-        
+
         var userId = claimValues.GetUserId();
         var userInfo = await userRepository.GetUserById(userId, ct);
-        if(userInfo is null)
+        if (userInfo is null)
             throw new NotFoundException(ErrorCode.UserNotFound, "User with specified id not found");
-        
+
         await userRepository.UpdateName(userId, name, ct);
     }
 }

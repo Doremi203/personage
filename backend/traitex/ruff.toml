@@ -1,0 +1,4 @@
+extend-exclude = [
+    "proto",
+    "externalClients/*/proto",
+]

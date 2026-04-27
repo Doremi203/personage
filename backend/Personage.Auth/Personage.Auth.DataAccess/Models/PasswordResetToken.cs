@@ -7,5 +7,5 @@ public class PasswordResetToken
     public string Token { get; init; } = null!;
     public DateTime ExpiresAt { get; init; }
     public DateTime CreatedAt { get; init; }
-    public DateTime? UsedAt { get;init; }
+    public DateTime? UsedAt { get; init; }
 }

@@ -21,12 +21,12 @@ public abstract class TestClassBase : IDisposable
     private GrpcChannel GrpcChannel { get; }
     protected Fixture Fixture { get; } = new();
     protected Cleaner Cleaner { get; }
-    
+
     //REST API
     protected IGmailAuthApi GmailAuthApi { get; }
     protected IUserApi UserApi { get; }
     protected IInfrastructureApi InfrastructureApi { get; }
-    
+
     //gRPC API
     protected AuthService.AuthServiceClient AuthGrpcClient { get; }
     protected StateTrackingService.StateTrackingServiceClient StateTrackingGrpcClient { get; }
@@ -39,24 +39,24 @@ public abstract class TestClassBase : IDisposable
         GmailAuthApi = RestClient.For<IGmailAuthApi>(HttpClient);
         InfrastructureApi = RestClient.For<IInfrastructureApi>(HttpClient);
         UserApi = RestClient.For<IUserApi>(HttpClient);
-        
+
         GrpcChannel = GrpcChannel.ForAddress("http://localhost", new GrpcChannelOptions
         {
             HttpClient = HttpClient
         });
-        
+
         AuthGrpcClient = new AuthService.AuthServiceClient(GrpcChannel);
         StateTrackingGrpcClient = new StateTrackingService.StateTrackingServiceClient(GrpcChannel);
 
         Cleaner = Factory.Services.GetRequiredService<Cleaner>();
         TokenService = Factory.Services.GetRequiredService<ITokenService>();
     }
-    
+
     protected virtual void OverrideServices(IServiceCollection services)
     {
         services.AddSingleton<Cleaner>();
     }
-    
+
     public void Dispose()
     {
         HttpClient.Dispose();
@@ -64,7 +64,7 @@ public abstract class TestClassBase : IDisposable
         GrpcChannel.Dispose();
         GC.SuppressFinalize(this);
     }
-    
+
     [TestCleanup]
     public async Task Cleanup()
     {

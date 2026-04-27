@@ -10,7 +10,7 @@ public class PasswordResetTokenRepository(IDbConnectionFactory connectionFactory
     public async Task<PasswordResetToken?> GetToken(string token, CancellationToken ct)
     {
         using var connection = await connectionFactory.CreateConnection(ct);
-        
+
         return await connection.QueryFirstOrDefaultAsync<PasswordResetToken>(
             """
             SELECT
@@ -29,7 +29,7 @@ public class PasswordResetTokenRepository(IDbConnectionFactory connectionFactory
         CancellationToken ct)
     {
         using var connection = await connectionFactory.CreateConnection(ct);
-        
+
         var id = Guid.NewGuid();
         await connection.ExecuteAsync(
             """

@@ -10,7 +10,7 @@ public class OAuthStateRepository(IDbConnectionFactory connectionFactory) : IOAu
     public async Task<OAuthState?> GetState(string state, CancellationToken ct)
     {
         using var connection = await connectionFactory.CreateConnection(ct);
-        
+
         return await connection.QueryFirstOrDefaultAsync<OAuthState>(
             """
             SELECT 
@@ -28,7 +28,7 @@ public class OAuthStateRepository(IDbConnectionFactory connectionFactory) : IOAu
     public async Task SaveState(OAuthState state, CancellationToken ct)
     {
         using var connection = await connectionFactory.CreateConnection(ct);
-        
+
         await connection.ExecuteAsync(
             """
             INSERT INTO oauth_state (state, user_email, redirect_uri, expires_at)
@@ -44,7 +44,7 @@ public class OAuthStateRepository(IDbConnectionFactory connectionFactory) : IOAu
     public async Task DeleteState(string state, CancellationToken ct)
     {
         using var connection = await connectionFactory.CreateConnection(ct);
-        
+
         await connection.ExecuteAsync(
             "DELETE FROM oauth_state WHERE state = @state",
             new { state });

@@ -20,10 +20,10 @@ public class ExceptionInterceptor(ILogger<ExceptionInterceptor> logger) : Interc
         {
             var statusCode = GetGrpcStatusCode(customEx);
             var logLevel = GetLogLevel(statusCode);
-            
-            logger.Log(logLevel, customEx, "Domain exception: {ErrorCode} - {Message}", 
+
+            logger.Log(logLevel, customEx, "Domain exception: {ErrorCode} - {Message}",
                 customEx.ErrorCode, customEx.Message);
-            
+
             throw new RpcException(new Status(statusCode, customEx.Message));
         }
         catch (RpcException)
@@ -40,9 +40,9 @@ public class ExceptionInterceptor(ILogger<ExceptionInterceptor> logger) : Interc
 
     private static StatusCode GetGrpcStatusCode(CustomException customException)
     {
-        if(customException is NotFoundException)
+        if (customException is NotFoundException)
             return StatusCode.NotFound;
-        
+
         return customException.ErrorCode switch
         {
             ErrorCode.TokenNotFound => StatusCode.NotFound,
@@ -53,7 +53,7 @@ public class ExceptionInterceptor(ILogger<ExceptionInterceptor> logger) : Interc
             _ => StatusCode.Unknown
         };
     }
-    
+
     private static LogLevel GetLogLevel(StatusCode statusCode)
     {
         return statusCode switch

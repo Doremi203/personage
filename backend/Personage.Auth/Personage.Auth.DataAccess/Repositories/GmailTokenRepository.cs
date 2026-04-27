@@ -10,7 +10,7 @@ public class GmailTokenRepository(IDbConnectionFactory connectionFactory) : IGma
     public async Task<OAuthTokenWithId?> GetTokenByUserEmail(string userEmail, CancellationToken ct)
     {
         using var connection = await connectionFactory.CreateConnection(ct);
-        
+
         return await connection.QueryFirstOrDefaultAsync<OAuthTokenWithId>(
             """
             --GmailTokenRepository.GetTokenByUserEmail
@@ -33,7 +33,7 @@ public class GmailTokenRepository(IDbConnectionFactory connectionFactory) : IGma
     public async Task<OAuthTokenWithId?> GetTokenByUserId(Guid userId, CancellationToken ct)
     {
         using var connection = await connectionFactory.CreateConnection(ct);
-        
+
         return await connection.QueryFirstOrDefaultAsync<OAuthTokenWithId>(
             """
             --GmailTokenRepository.GetTokenByUserId
@@ -54,7 +54,7 @@ public class GmailTokenRepository(IDbConnectionFactory connectionFactory) : IGma
     public async Task SaveToken(OAuthToken token, CancellationToken ct)
     {
         using var connection = await connectionFactory.CreateConnection(ct);
-        
+
         await connection.ExecuteAsync(
             """
             --GmailTokenRepository.SaveToken
@@ -72,7 +72,7 @@ public class GmailTokenRepository(IDbConnectionFactory connectionFactory) : IGma
     public async Task UpdateToken(Guid tokenId, string accessToken, string refreshToken, DateTime expiresAt, CancellationToken ct)
     {
         using var connection = await connectionFactory.CreateConnection(ct);
-        
+
         await connection.ExecuteAsync(
             """
             --GmailTokenRepository.UpdateToken
@@ -96,7 +96,7 @@ public class GmailTokenRepository(IDbConnectionFactory connectionFactory) : IGma
     public async Task<Guid[]> GetUsersWithoutToken(Guid[] userIds, CancellationToken ct)
     {
         using var connection = await connectionFactory.CreateConnection(ct);
-        
+
         var usersWithTokens = await connection.QueryAsync<Guid>(
             """
             --GmailTokenRepository.GetUsersWithoutToken
@@ -106,16 +106,16 @@ public class GmailTokenRepository(IDbConnectionFactory connectionFactory) : IGma
             WHERE gt.user_id = any(@userIds);
             """,
             new { userIds });
-        
+
         return userIds
             .Except(usersWithTokens)
             .ToArray();
     }
-    
+
     public async Task MarkUsersAsProcessed((Guid UserId, DateTime ProcessedAt)[] users, CancellationToken ct)
     {
         using var connection = await connectionFactory.CreateConnection(ct);
-        
+
         await connection.ExecuteAsync(
             """
             --GmailTokenRepository.MarkUsersAsProcessed
@@ -137,7 +137,7 @@ public class GmailTokenRepository(IDbConnectionFactory connectionFactory) : IGma
     public async Task RemoveToken(Guid userId, CancellationToken ct)
     {
         using var connection = await connectionFactory.CreateConnection(ct);
-        
+
         await connection.ExecuteAsync(
             """
             --GmailTokenRepository.RemoveToken

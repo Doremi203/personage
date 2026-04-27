@@ -29,7 +29,7 @@ public class UserControllerTests : TestClassBase
         var passwordHash = Fixture.Create<string>();
         var initialName = Fixture.Create<string>();
         const string nameToBeSet = "New Valid Name";
-        
+
         var user = await UserRepository.CreateUser(new CreateUserRequest
         {
             Email = email,
@@ -40,22 +40,22 @@ public class UserControllerTests : TestClassBase
         {
             await TestCleaners.DeleteUser(user.Id);
         });
-        
+
         InitializeClientWithAuth(user.Id);
         //act
         var userBeforeUpdate = await UserRepository.GetUserById(user.Id, CancellationToken.None);
         await UserApi.UpdateUserInfo(new UpdateUserInfoRequest
-            {
-                Name = nameToBeSet,
-            },
+        {
+            Name = nameToBeSet,
+        },
             CancellationToken.None);
         var userAfterUpdate = await UserRepository.GetUserById(user.Id, CancellationToken.None);
-        
+
         //assert
         userBeforeUpdate!.Email.Should().Be(email);
         userBeforeUpdate.Name.Should().Be(initialName);
         userBeforeUpdate.PasswordHash.Should().Be(passwordHash);
-        
+
         userAfterUpdate!.Email.Should().Be(email);
         userAfterUpdate.Name.Should().Be(nameToBeSet);
         userAfterUpdate.PasswordHash.Should().Be(passwordHash);

@@ -21,39 +21,39 @@ public sealed class TestApplicationFactory(Action<IServiceCollection> overrideSe
     public Mock<HttpMessageHandler> HttpMessageHandlerMock { get; } = new();
     private bool _isMigrationsApplied;
     private readonly object _lock = new();
-    
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
-        
+
         builder.ConfigureTestServices(services =>
         {
             var descriptor = services.FirstOrDefault(
                 d => d.ServiceType == typeof(IHttpClientFactory) ||
-                     (d.ServiceType.IsGenericType && 
+                     (d.ServiceType.IsGenericType &&
                       d.ServiceType.GetGenericTypeDefinition() == typeof(IHttpClientFactory)));
-            
+
             if (descriptor != null) services.Remove(descriptor);
 
             services.AddHttpClient<IGoogleOAuthService, GoogleOAuthService>()
                 .ConfigurePrimaryHttpMessageHandler(() => HttpMessageHandlerMock.Object);
-            
+
             services.AddScoped<TestCleaners>();
             services.AddScoped<TestOAuthStateRepository>();
             services.AddScoped<TestUserRepository>();
-            
+
             overrideServices.Invoke(services);
         });
     }
-    
+
     protected override void ConfigureClient(HttpClient client)
     {
         base.ConfigureClient(client);
-        
+
         lock (_lock)
         {
             if (_isMigrationsApplied) return;
-            
+
             RunGooseMigrations();
             _isMigrationsApplied = true;
         }

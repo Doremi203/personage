@@ -10,7 +10,7 @@ public class GoogleCalendarTokenRepository(IDbConnectionFactory connectionFactor
     public async Task SaveToken(OAuthToken token, CancellationToken ct)
     {
         using var connection = await connectionFactory.CreateConnection(ct);
-        
+
         await connection.ExecuteAsync(
             """
             --GoogleCalendarTokenRepository.SaveToken
@@ -31,11 +31,11 @@ public class GoogleCalendarTokenRepository(IDbConnectionFactory connectionFactor
             """,
             token);
     }
-    
+
     public async Task MarkUsersAsProcessed((Guid UserId, DateTime ProcessedAt)[] users, CancellationToken ct)
     {
         using var connection = await connectionFactory.CreateConnection(ct);
-        
+
         await connection.ExecuteAsync(
             """
             --GoogleCalendarTokenRepository.MarkUsersAsProcessed
@@ -57,7 +57,7 @@ public class GoogleCalendarTokenRepository(IDbConnectionFactory connectionFactor
     public async Task<OAuthTokenWithId?> GetTokenByUserId(Guid userId, CancellationToken ct)
     {
         using var connection = await connectionFactory.CreateConnection(ct);
-        
+
         return await connection.QueryFirstOrDefaultAsync<OAuthTokenWithId>(
             """
             --GoogleCalendarTokenRepository.GetTokenByUserId
@@ -78,7 +78,7 @@ public class GoogleCalendarTokenRepository(IDbConnectionFactory connectionFactor
     public async Task RemoveToken(Guid userId, CancellationToken ct)
     {
         using var connection = await connectionFactory.CreateConnection(ct);
-        
+
         await connection.ExecuteAsync(
             """
             --GoogleCalendarTokenRepository.RemoveToken
