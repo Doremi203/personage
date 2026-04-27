@@ -16,6 +16,9 @@ Always use `make` targets instead of invoking tools directly. Never run `go test
 ### Codebase exploration
 Before reading files in the main session, use the Explore agent whenever you are not yet sure which files or line ranges to read. Only read directly when you already know the exact file and relevant lines.
 
+### Code style references
+Before writing or reviewing Go code, consult the rules under `.claude/rules/`: `go-style.md`, `go-unit-tests.md`, `modern-go.md`.
+
 ### Implementing plans
 When executing a multi-task plan create a todo list and spawn a separate agent per task whenever you have enough context to write detailed instructions for it. This keeps the main session context lean and allows parallel execution.
 
@@ -69,8 +72,11 @@ Services: `tasker`, `notificator`, `auth`, `traitex`
 ```bash
 npm run dev          # Vite dev server
 npm run build        # Production build
+npm run preview      # Preview production build locally
 npm run lint         # ESLint
 npm run typecheck    # TypeScript type checking (tsc --noEmit)
+npm run test:e2e     # Playwright end-to-end tests
+npm run test:e2e:ui  # Playwright UI mode
 ```
 
 ### Root-level
@@ -152,7 +158,7 @@ Tasker uses AI for intelligent task management:
 3. Closed clusters are processed by an LLM (OpenRouter) to generate actionable tasks
 4. Tasks are scheduled and trigger notifications via the notificator service
 
-Design docs live in `backend/tasker/`: `DEFINITIONS.md`, `FUNCTIONAL_REQUIREMENTS.md`, `USE_CASES.md`, `ARCHITECTURE.puml`, `SEQUENCE_EVENT_TO_TASK.puml`. Consult before non-trivial changes to event→task flow.
+Design docs live in `backend/tasker/`: `FUNCTIONAL_REQUIREMENTS.md`, `USE_CASES.md`, `USE_CASES.puml`, `ARCHITECTURE.puml`. Consult before non-trivial changes to event→task flow.
 
 ## CI/CD
 
@@ -168,10 +174,10 @@ Go linter config (`.golangci.yml`): errcheck, goconst, gosec, govet, ineffassign
 
 ## Testing
 
-Go tests use `testcontainers-go` for integration tests with real PostgreSQL. Environment variable `TESTCONTAINERS_RYUK_DISABLED=true` is set in the Makefile. Run a single test with:
+Go tests use `testcontainers-go` for integration tests with real PostgreSQL. Environment variable `TESTCONTAINERS_RYUK_DISABLED=true` is set in the Makefile. Run a single test (substitute the service path — `tasker`, `notificator`, `libs/go/...`, etc.):
 
 ```bash
-cd backend && go test ./tasker/internal/... -run TestName -race
+cd backend && go test ./<service>/internal/... -run TestName -race
 ```
 
 ### Functional tests (`tests/`)
