@@ -32,11 +32,93 @@ export function getNotificationPermission():
 }
 
 
+function withTimeout<T>(
+  promise: Promise<T>,
+  ms: number,
+  message: string,
+): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error(message)),
+      ms,
+    );
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err instanceof Error ? err : new Error(String(err)));
+      },
+    );
+  });
+}
+
+// iOS Safari (especially in standalone PWA mode) sometimes never resolves the
+// Promise returned by Notification.requestPermission() after the user dismisses
+// the system dialog, even though Notification.permission does flip to its new
+// value. Without a fallback the calling UI stays stuck on a loading spinner.
+// We race the native Promise with a poll on Notification.permission and a
+// hard timeout so the caller always gets an answer.
 export async function requestNotificationPermission(): Promise<NotificationPermission> {
   if (!('Notification' in window)) {
     throw new Error('Notifications are not supported in this browser');
   }
-  return Notification.requestPermission();
+
+  return new Promise<NotificationPermission>((resolve, reject) => {
+    let settled = false;
+    let pollId: ReturnType<typeof setInterval> | null = null;
+    let hardTimeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    const cleanup = () => {
+      if (pollId !== null) {
+        clearInterval(pollId);
+        pollId = null;
+      }
+      if (hardTimeoutId !== null) {
+        clearTimeout(hardTimeoutId);
+        hardTimeoutId = null;
+      }
+    };
+    const settle = (value: NotificationPermission) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      resolve(value);
+    };
+    const fail = (err: Error) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(err);
+    };
+
+    pollId = setInterval(() => {
+      const perm = Notification.permission;
+      if (perm === 'granted' || perm === 'denied') {
+        settle(perm);
+      }
+    }, 500);
+
+    hardTimeoutId = setTimeout(() => {
+      const perm = Notification.permission;
+      if (perm === 'granted' || perm === 'denied') {
+        settle(perm);
+      } else {
+        fail(new Error('Permission request timed out'));
+      }
+    }, 15_000);
+
+    try {
+      Notification.requestPermission().then(
+        (value) => settle(value),
+        (err) => fail(err instanceof Error ? err : new Error(String(err))),
+      );
+    } catch (err) {
+      fail(err instanceof Error ? err : new Error(String(err)));
+    }
+  });
 }
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
@@ -56,7 +138,11 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
 export async function subscribeToPush(
   vapidPublicKey: string,
 ): Promise<PushSubscription> {
-  const registration = await navigator.serviceWorker.ready;
+  const registration = await withTimeout(
+    navigator.serviceWorker.ready,
+    10_000,
+    'Service worker is not ready',
+  );
 
   const existingSubscription =
     await registration.pushManager.getSubscription();
@@ -64,10 +150,14 @@ export async function subscribeToPush(
     return existingSubscription;
   }
 
-  return await registration.pushManager.subscribe({
-    userVisibleOnly: true,
-    applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
-  });
+  return withTimeout(
+    registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+    }),
+    15_000,
+    'Push subscription request timed out',
+  );
 }
 
 export async function sendSubscriptionToBackend(
@@ -86,15 +176,19 @@ export async function sendSubscriptionToBackend(
     auth_key: keys.auth,
   };
 
-  const response = await fetchWithTokenRefresh((accessToken) =>
-    fetch(SUBSCRIBE_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Token': accessToken,
-      },
-      body: JSON.stringify(body),
-    }),
+  const response = await withTimeout(
+    fetchWithTokenRefresh((accessToken) =>
+      fetch(SUBSCRIBE_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Token': accessToken,
+        },
+        body: JSON.stringify(body),
+      }),
+    ),
+    15_000,
+    'Saving push subscription on the server timed out',
   );
 
   if (!response.ok) {
