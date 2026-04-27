@@ -93,6 +93,31 @@ func (r *repo) ListByUserID(ctx context.Context, userID uuid.UUID, limit, offset
 	return slices.Map(entities, entityToDomain), nil
 }
 
+func (r *repo) IsSettingEnabled(ctx context.Context, userID uuid.UUID, typ notification.SettingType) (bool, error) {
+	const query = `
+		SELECT enabled
+		FROM notification_settings
+		WHERE recipient_id = $1 AND type = $2
+	`
+	rows, err := r.db.Query(ctx, query, userID, string(typ))
+	if err != nil {
+		return false, errors.WrapFail(err, "exec select notification setting query")
+	}
+	defer rows.Close()
+
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return false, errors.WrapFail(err, "iterate notification setting rows")
+		}
+		return true, nil
+	}
+	var enabled bool
+	if err := rows.Scan(&enabled); err != nil {
+		return false, errors.WrapFail(err, "scan notification setting enabled")
+	}
+	return enabled, nil
+}
+
 func (r *repo) GetSettings(ctx context.Context, userID uuid.UUID) ([]notification.Setting, error) {
 	const query = `
 		SELECT recipient_id, type, enabled

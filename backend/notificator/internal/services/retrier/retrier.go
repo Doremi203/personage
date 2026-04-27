@@ -81,7 +81,20 @@ func (r *Retrier) process(ctx context.Context, n notification.Notification, now 
 		return
 	}
 
-	allowed, err := r.rateLimiter.Allow(ctx, n.UserID, notification.SettingType(n.Type))
+	typ := notification.SettingType(n.Type)
+	enabled, err := r.repo.IsSettingEnabled(ctx, n.UserID, typ)
+	if err != nil {
+		r.logError(err, "check notification setting for pending notification")
+		return
+	}
+	if !enabled {
+		if err := r.repo.Drop(ctx, n.ID); err != nil {
+			r.logError(err, "drop notification with disabled setting")
+		}
+		return
+	}
+
+	allowed, err := r.rateLimiter.Allow(ctx, n.UserID, typ)
 	if err != nil {
 		r.logError(err, "check rate limit for pending notification")
 		return
