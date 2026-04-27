@@ -521,7 +521,7 @@ function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
         padding: '12px 14px', borderRadius: 10,
         border: `0.5px solid ${T.hairline}`,
         background: T.surface, color: T.ink,
-        fontFamily: SANS, fontSize: 15,
+        fontFamily: SANS, fontSize: 16,
         outline: 'none',
         ...props.style,
       }}

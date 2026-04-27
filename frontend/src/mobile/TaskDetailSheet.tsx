@@ -238,7 +238,7 @@ export function TaskDetailSheet({
             rows={3}
             style={{
               width: '100%', boxSizing: 'border-box', resize: 'none',
-              fontSize: 15, color: T.ink2, lineHeight: 1.5, marginBottom: 18,
+              fontSize: 16, color: T.ink2, lineHeight: 1.5, marginBottom: 18,
               fontFamily: SANS,
               background: T.subtle, border: `1px solid ${T.hairline}`,
               borderRadius: 10, padding: '10px 12px', outline: 'none',
@@ -427,7 +427,7 @@ function EditDateRow({ icon: Icon, iconBg, iconInk, label, value, onChange, last
         style={{
           flex: 1, minWidth: 0, textAlign: 'right',
           background: 'transparent', border: 'none', outline: 'none',
-          fontFamily: SANS, fontSize: 14, color: T.amberDp, fontWeight: 500,
+          fontFamily: SANS, fontSize: 16, color: T.amberDp, fontWeight: 500,
         }}
       />
     </div>
