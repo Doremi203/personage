@@ -96,7 +96,7 @@ const ResetPasswordScreen = ({ token, onSuccess }: ResetPasswordScreenProps) => 
                   placeholder="Новый пароль"
                   style={{
                     flex: 1, background: 'transparent', border: 'none', outline: 'none',
-                    fontFamily: SANS, fontSize: 15, color: T.ink, minWidth: 0,
+                    fontFamily: SANS, fontSize: 16, color: T.ink, minWidth: 0,
                   }}
                 />
                 <button
@@ -124,7 +124,7 @@ const ResetPasswordScreen = ({ token, onSuccess }: ResetPasswordScreenProps) => 
                   placeholder="Подтверждение пароля"
                   style={{
                     flex: 1, background: 'transparent', border: 'none', outline: 'none',
-                    fontFamily: SANS, fontSize: 15, color: T.ink, minWidth: 0,
+                    fontFamily: SANS, fontSize: 16, color: T.ink, minWidth: 0,
                   }}
                 />
               </div>

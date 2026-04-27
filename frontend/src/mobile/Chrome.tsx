@@ -118,7 +118,7 @@ export function SearchBar({ value, onChange, placeholder = 'Поиск', inputRe
           placeholder={placeholder}
           style={{
             flex: 1, background: 'transparent', border: 'none', outline: 'none',
-            fontFamily: SANS, fontSize: 15, color: T.ink, minWidth: 0,
+            fontFamily: SANS, fontSize: 16, color: T.ink, minWidth: 0,
           }}
         />
       </div>
