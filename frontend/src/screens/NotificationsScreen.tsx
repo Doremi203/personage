@@ -108,7 +108,7 @@ const NotificationsScreen = () => {
       ) : error ? (
         <ErrorState message={error} onRetry={() => void refreshNotifications({ force: true })} />
       ) : filtered.length === 0 ? (
-        <EmptyState filter={filter} />
+        <EmptyState filter={filter} hasItems={items.length > 0} />
       ) : (
         <>
           {groups.today.length > 0 && (
@@ -217,7 +217,7 @@ function NotifCard({ n, unread }: NotifCardProps) {
   );
 }
 
-function EmptyState({ filter }: { filter: Filter }) {
+function EmptyState({ filter, hasItems }: { filter: Filter; hasItems: boolean }) {
   return (
     <div style={{ padding: '64px 32px 16px', textAlign: 'center' }}>
       <div style={{
@@ -232,7 +232,7 @@ function EmptyState({ filter }: { filter: Filter }) {
         fontFamily: SERIF, fontSize: 22, color: T.ink, marginBottom: 6,
         letterSpacing: -0.2,
       }}>
-        {filter === 'unread' ? 'Всё прочитано' : 'Тишина'}
+        {filter === 'unread' && hasItems ? 'Всё прочитано' : 'Тишина'}
       </div>
       <div style={{ fontSize: 13.5, color: T.ink3, lineHeight: 1.45 }}>
         Новые уведомления появятся здесь

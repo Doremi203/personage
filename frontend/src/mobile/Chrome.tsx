@@ -181,6 +181,7 @@ export function Segmented<T extends string>({ items, value, onChange }: Segmente
           <button
             type="button"
             key={it.id}
+            aria-pressed={active}
             onClick={() => onChange(it.id)}
             style={{
               flex: 1, padding: '7px 10px', borderRadius: 7,
