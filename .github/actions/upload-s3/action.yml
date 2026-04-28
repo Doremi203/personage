@@ -60,20 +60,31 @@ runs:
 
         echo "🚀 Deploying to ${BUCKET}..."
 
-        # Sync hashed assets with long-lived cache (1 year)
+        # Sync hashed assets with long-lived cache (1 year). sw.js and the
+        # HTML/JSON entrypoints are excluded — they need per-request
+        # revalidation (handled below) so a freshly-deployed bundle is
+        # picked up immediately instead of being cached for a year.
         aws s3 sync "$SRC" "$BUCKET" \
           --endpoint-url "$ENDPOINT_URL" \
           --delete \
           --cache-control "max-age=31536000" \
           --exclude "index.html" \
-          --exclude "*.json"
+          --exclude "*.json" \
+          --exclude "sw.js" \
+          --exclude "sw.js.map"
 
-        # Sync index.html and JSON manifests with no-cache so updates apply immediately
+        # index.html, json manifests, and the service worker must revalidate
+        # on every request. Yandex CDN's edge_cache_settings.default_value
+        # (24h) kicks in whenever Cache-Control has no max-age directive —
+        # including no-cache/no-store — so we use max-age=0 explicitly to
+        # force per-request revalidation at the edge.
         aws s3 sync "$SRC" "$BUCKET" \
           --endpoint-url "$ENDPOINT_URL" \
-          --cache-control "no-cache, no-store, must-revalidate" \
+          --cache-control "max-age=0, must-revalidate" \
           --exclude "*" \
           --include "index.html" \
-          --include "*.json"
+          --include "*.json" \
+          --include "sw.js" \
+          --include "sw.js.map"
 
         echo "✅ Deployed successfully to ${BUCKET}"

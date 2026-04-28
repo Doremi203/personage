@@ -34,11 +34,15 @@ aws s3 sync "$DIST_DIR" "s3://$BUCKET_NAME" \
     --exclude "sw.js" \
     --exclude "sw.js.map"
 
-# index.html, json, and service worker files without caching (so updates apply immediately)
-# sw.js MUST NOT be cached — browsers need to fetch the latest version to detect updates
+# index.html, json, and service worker files must revalidate on every request
+# (so the SW update check and bundle entrypoint never go stale).
+# Yandex CDN's edge_cache_settings.default_value (24h) kicks in whenever the
+# origin Cache-Control has no max-age directive — including no-cache/no-store —
+# so we must use max-age=0 explicitly to force per-request revalidation at the
+# edge. See: https://cloud.yandex.com/en/docs/cdn/concepts/caching
 aws s3 sync "$DIST_DIR" "s3://$BUCKET_NAME" \
     --endpoint-url "$ENDPOINT_URL" \
-    --cache-control "no-cache, no-store, must-revalidate" \
+    --cache-control "max-age=0, must-revalidate" \
     --exclude "*" \
     --include "index.html" \
     --include "*.json" \
