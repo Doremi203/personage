@@ -48,7 +48,14 @@ resource "yandex_dns_recordset" "frontend_apex_record" {
   name    = "${var.domain}."
   type    = "ANAME"
   ttl     = 600
-  data    = [yandex_cdn_resource.frontend_cdn.provider_cname]
+  # Hotfix: bypass the Yandex CDN and serve directly from the S3 website
+  # endpoint. The CDN was caching sw.js / index.html for ~24h regardless of
+  # the origin's Cache-Control headers and `yc cdn cache purge` was failing
+  # to actually evict edge caches, which broke PWA service-worker installs
+  # (assets referenced by the cached sw.js had been deleted by deploys).
+  # Re-point at `yandex_cdn_resource.frontend_cdn.provider_cname` once the
+  # CDN issue is resolved.
+  data = ["${var.domain}.website.yandexcloud.net"]
 }
 
 moved {
