@@ -1,3 +1,4 @@
+import { throwIfError } from './apiError';
 import { fetchWithTokenRefresh } from './authService';
 
 export async function fetchWithAuth<T>(
@@ -14,12 +15,7 @@ export async function fetchWithAuth<T>(
     }),
   );
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(
-      (error as { message?: string }).message ?? `Ошибка: ${response.status}`,
-    );
-  }
+  await throwIfError(response);
 
   const text = await response.text();
   return text ? (JSON.parse(text) as T) : ({} as T);

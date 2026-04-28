@@ -33,12 +33,22 @@ export default defineConfig({
     },
     {
       name: 'authenticated',
-      testIgnore: [/auth\.spec\.ts/, /.*\.setup\.ts/],
+      testIgnore: [/auth\.spec\.ts/, /errors\.spec\.ts/, /.*\.setup\.ts/],
       use: {
         ...devices['Desktop Chrome'],
         storageState: STORAGE_STATE,
       },
       dependencies: ['setup'],
+    },
+    {
+      // Self-contained error-handling tests. Mocks all backend traffic via
+      // page.route, so they don't need live creds or the `setup` step.
+      name: 'errors',
+      testMatch: /errors\.spec\.ts/,
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: { cookies: [], origins: [] },
+      },
     },
   ],
 

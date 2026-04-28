@@ -1,3 +1,5 @@
+import { throwIfError } from './apiError';
+
 const TELEGRAM_AUTH_API_URL =
   (import.meta.env.VITE_TELEGRAM_AUTH_API_URL as string | undefined) ??
   'https://telegram-auth.persomanage.ru';
@@ -33,14 +35,7 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(
-      (error as { detail?: string; message?: string }).detail ??
-        (error as { detail?: string; message?: string }).message ??
-        `Ошибка Telegram: ${response.status}`,
-    );
-  }
+  await throwIfError(response);
   return (await response.json()) as T;
 }
 
@@ -76,8 +71,6 @@ export async function getTelegramAuthStatus(loginId: string): Promise<AuthStatus
   const response = await fetch(
     `${TELEGRAM_AUTH_API_URL}/v1/auth/status/${encodeURIComponent(loginId)}`,
   );
-  if (!response.ok) {
-    throw new Error(`Ошибка статуса Telegram: ${response.status}`);
-  }
+  await throwIfError(response);
   return (await response.json()) as AuthStatusResponse;
 }
