@@ -1,120 +1,111 @@
 @startuml
 ' Personage — Infrastructure / Deployment diagram
 skinparam shadowing false
-skinparam componentStyle rectangle
 skinparam defaultFontName Arial
 
-' ====== External actors / clients ======
 actor "Пользователь" as User
 
-node "Клиентские устройства" as Clients {
-  node "Web браузер" as WebClient
+node "Клиентские устройства" as ClientDevices {
+  component "Web браузер (PWA)" as WebClient
 }
 
 cloud "LLM Provider" as LLMCloud {
-  [OpenRouter API] as LLMAPI
+  component "OpenRouter API" as LLMAPI
+}
+cloud "Web Push" as PushCloud {
+  component "FCM / Mozilla autopush" as PushAPI
 }
 
-cloud "Gitlab" as gitlab {
-  [Gitlab pipeline] as gitlab_pipeline
-}
-
-' ====== Cloud / VPS environment ======
-node "Облачная инфраструктура (VPS/Cloud)" as CloudEnv {
+node "Облачная инфраструктура (Yandex Cloud)" as CloudEnv {
 
   node "DNS" as dns {
-    component "CDN запись" as dns_cdn
-    component "L7 запись" as dns_l7
-    component "S3 запись" as dns_s3
+    component "ANAME запись\npersomanage.ru" as dns_apex
+    component "L7 запись\n*.persomanage.ru\ngrpc-*.persomanage.ru" as dns_l7
   }
 
   node "L7 балансировщик" as l7 {
-    component "HTTPS слушатель" as l7_https_listener
-    component "HTTP слушатель\nперенаправляет на HTTPS" as l7_http_listener
+    component "HTTPS слушатель (443)" as l7_https
+    component "HTTP слушатель (80)\nперенаправляет на HTTPS" as l7_http
+    component "HTTPS router" as l7_router
 
-    component "HTTPS router" as l7_https_router
-    component "Tasker виртуальный хост" as tasker_virtual_host
-    component "Auth виртуальный хост" as auth_virtual_host
-    component "Notificator виртуальный хост" as notificator_virtual_host
+    component "Tasker виртуальный хост\ntasker.persomanage.ru\ngrpc-tasker.persomanage.ru" as vh_tasker
+    component "Auth виртуальный хост\nauth.persomanage.ru\ngrpc-auth.persomanage.ru" as vh_auth
+    component "Notificator виртуальный хост\nnotificator.persomanage.ru\ngrpc-notificator.persomanage.ru" as vh_notif
+    component "Telegram-auth виртуальный хост\ntelegram-auth.persomanage.ru\ngrpc-telegram-auth.persomanage.ru" as vh_tgauth
+    component "Traitex виртуальный хост\ntraitex.persomanage.ru\ngrpc-traitex.persomanage.ru" as vh_traitex
   }
 
-    node "Tasker группа ВМ" as tasker {
-      component "node 1" as tasker1
-      component "node 2" as tasker2
-    }
+  node "Tasker группа ВМ" as tasker_ig {
+    component "node 1" as tasker_n1
+    component "node 2" as tasker_n2
+  }
+  node "Auth группа ВМ" as auth_ig {
+    component "node 1" as auth_n1
+    component "node 2" as auth_n2
+  }
+  node "Notificator группа ВМ" as notif_ig {
+    component "node 1" as notif_n1
+    component "node 2" as notif_n2
+  }
+  node "Telegram-auth группа ВМ" as tgauth_ig {
+    component "node 1" as tgauth_n1
+    component "node 2" as tgauth_n2
+  }
+  node "Traitex группа ВМ" as traitex_ig {
+    component "node 1" as traitex_n1
+    component "node 2" as traitex_n2
+  }
 
-    node "Notificator группа ВМ" as notificator {
-      component "node 1" as notificator1
-      component "node 2" as notificator2
-    }
+  queue "Connector events YMQ" as q_connector
+  queue "Notificator commands YMQ" as q_notificator
+  queue "Tasker eval events YMQ" as q_eval
 
-    node "Auth группа ВМ" as auth {
-      component "node 1" as auth1
-      component "node 2" as auth2
-    }
+  database "PostgreSQL\n(pgvector)" as PG
+  database "Valkey (Redis)\n+ Sentinel" as Valkey
 
-    node "Traitex группа ВМ" as traitex {
-      component "node 1" as traitex1
-      component "node 2" as traitex2
-    }
-
-    node "Виртуальная машина для GitLab" as gitlab_vm {
-        component "GitLab CI Runner" as gitlab_ci
-    }
-
-    database "PostgreSQL" as PG
-    database "CDN" as cdn
-    database "Frontend S3\nстатические файлы" as s3
-    database "Terraform state S3" as tf_s3
-    queue "Connector events SQS" as connector_events_sqs
-    queue "Notification events SQS" as notification_events_sqs
+  component "CDN" as cdn
+  database "Frontend S3\nстатические файлы" as s3_front
 }
 
-' ====== Connections (clients) ======
 User --> WebClient
-
-' Web / Telegram access
 WebClient --> dns : HTTPS/HTTP\n*.persomanage.ru
 
-dns_cdn --> cdn
-cdn --> s3 : Кэширует статику
+dns_apex --> cdn : persomanage.ru
+dns_l7 --> l7_https : HTTPS\n*.persomanage.ru
+dns_l7 --> l7_http : HTTP\n*.persomanage.ru
+cdn --> s3_front : Кэширует статику
 
-dns_s3 --> s3 : persomanage.ru
+l7_https --> l7_router
+l7_router --> vh_tasker : tasker.persomanage.ru/*
+l7_router --> vh_auth : auth.persomanage.ru/*
+l7_router --> vh_notif : notificator.persomanage.ru/*
+l7_router --> vh_tgauth : telegram-auth.persomanage.ru/*
+l7_router --> vh_traitex : traitex.persomanage.ru/*
 
-dns_l7 --> l7_https_listener : HTTPS\n*.persomanage.ru
-dns_l7 --> l7_http_listener : HTTP\n*.persomanage.ru
-l7_https_listener --> l7_https_router
-l7_https_router --> tasker_virtual_host : tasker.personamanage.ru/*
-l7_https_router --> auth_virtual_host : auth.personamanage.ru/*
-l7_https_router --> notificator_virtual_host : notificator.personamanage.ru/*
-tasker_virtual_host --> tasker1
-tasker_virtual_host --> tasker2
-auth_virtual_host --> auth1
-auth_virtual_host --> auth2
-notificator_virtual_host --> notificator1
-notificator_virtual_host --> notificator2
+vh_tasker --> tasker_ig
+vh_auth --> auth_ig
+vh_notif --> notif_ig
+vh_tgauth --> tgauth_ig
+vh_traitex --> traitex_ig
 
-' Service to service communication '
-tasker --> auth : GRPC
-notificator --> auth : GRPC
-traitex --> auth : GRPC
+tasker_ig --> auth_ig : GRPC
+notif_ig --> auth_ig : GRPC
+traitex_ig --> auth_ig : GRPC
+tgauth_ig --> auth_ig : GRPC
 
-' SQS reading/writing '
-connector_events_sqs --> tasker : Чтение событий
-traitex --> connector_events_sqs : Запись событий
+traitex_ig --> q_connector : Запись событий
+q_connector --> tasker_ig : Чтение событий
+tasker_ig --> q_notificator : Запись событий
+q_notificator --> notif_ig : Чтение событий
+tasker_ig --> q_eval : Чтение/запись событий
 
-notification_events_sqs --> notificator : Чтение событий
-tasker --> notification_events_sqs : Запись событий
+tasker_ig --> PG : SQL
+auth_ig --> PG : SQL
+notif_ig --> PG : SQL
+traitex_ig --> PG : SQL
+tgauth_ig --> Valkey : Redis Sentinel
 
-' LLM API access '
-tasker --> LLMAPI : Запросы к LLM
+tasker_ig --> LLMAPI : Запросы к LLM
+notif_ig --> PushAPI : Web Push (VAPID)
 
-' ====== Data layer ======
-tasker --> PG : SQL
-auth --> PG : SQL
-notificator --> PG : SQL
-traitex --> PG : SQL
-
-' ====== DevOps ====== '
-gitlab_pipeline --> gitlab_ci : Запуск CI/CD задач
 @enduml

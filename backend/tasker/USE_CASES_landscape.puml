@@ -1,0 +1,77 @@
+@startuml
+' Personage — System architecture overview (landscape, для презентации)
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam linetype polyline
+skinparam ranksep 30
+skinparam nodesep 25
+
+actor "Пользователь" as User
+
+cloud "OpenRouter API"               as LLMAPI
+cloud "Web Push\n(FCM / autopush)"   as PushAPI
+node  "Web браузер (PWA)"            as WebClient
+
+package "Облачная инфраструктура (Yandex Cloud)" as CloudEnv {
+
+  together {
+    component "Cloud DNS\npersomanage.ru" as dns
+    component "Cloud CDN"                 as cdn
+    database  "Frontend S3 (PWA)"         as s3_front
+  }
+
+  component "Application Load Balancer (HTTPS + gRPC)" as alb
+
+  together {
+    node "Tasker (×2)"        as tasker_ig
+    node "Auth (×2)"          as auth_ig
+    node "Notificator (×2)"   as notif_ig
+    node "Telegram-auth (×2)" as tgauth_ig
+    node "Traitex (×2)"       as traitex_ig
+  }
+
+  together {
+    queue "YMQ\nConnector events"     as q_connector
+    queue "YMQ\nNotificator commands" as q_notificator
+    queue "YMQ\nTasker eval events"   as q_eval
+  }
+
+  together {
+    database "PostgreSQL\n+ pgvector"       as PG
+    database "Valkey (Redis)\n+ Sentinel"   as Valkey
+  }
+}
+
+User      --> WebClient
+WebClient --> dns : HTTPS
+dns       --> cdn : persomanage.ru
+dns       --> alb : *.persomanage.ru\ngrpc-*.persomanage.ru
+cdn       --> s3_front : origin
+
+alb --> tasker_ig
+alb --> auth_ig
+alb --> notif_ig
+alb --> tgauth_ig
+alb --> traitex_ig
+
+tasker_ig  --> auth_ig : gRPC
+notif_ig   --> auth_ig : gRPC
+traitex_ig --> auth_ig : gRPC
+tgauth_ig  --> auth_ig : gRPC
+
+traitex_ig    --> q_connector   : запись
+q_connector   --> tasker_ig     : чтение
+tasker_ig     --> q_notificator : запись
+q_notificator --> notif_ig      : чтение
+tasker_ig     --> q_eval        : чтение/запись
+
+tasker_ig  --> PG     : SQL
+auth_ig    --> PG     : SQL
+notif_ig   --> PG     : SQL
+traitex_ig --> PG     : SQL
+tgauth_ig  --> Valkey : Redis Sentinel
+
+tasker_ig --> LLMAPI  : HTTPS
+notif_ig  --> PushAPI : Web Push (VAPID)
+
+@enduml

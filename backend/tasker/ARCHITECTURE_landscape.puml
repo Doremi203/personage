@@ -1,14 +1,14 @@
-@startuml Tasker Service Architecture
+@startuml Tasker Service Architecture (landscape)
 
 skinparam shadowing false
 skinparam componentStyle rectangle
 skinparam defaultFontName Arial
 skinparam linetype polyline
-skinparam ranksep 40
-skinparam nodesep 20
+skinparam ranksep 35
+skinparam nodesep 18
 skinparam packageStyle rectangle
 skinparam backgroundColor #FFFFFF
-top to bottom direction
+left to right direction
 
 skinparam component {
     BackgroundColor<<external>> #FFE6E6
@@ -29,25 +29,23 @@ skinparam component {
     BorderColor<<storage>>      #666666
 }
 
-' ───────── Внешние системы (вход/выход) ─────────
-package "Внешние системы" as ext {
-    component "Frontend / PWA" as clients <<external>>
-    component "YMQ\nConnector Events" as q_in <<external>>
-    component "OpenRouter API\n(LLM + Embeddings)" as openrouter <<external>>
-    component "YMQ\nNotificator commands" as q_out <<external>>
+' Каждый «слой» — вертикальный столбец, слои выстроены слева направо.
 
-    clients    -[hidden]down- q_in
-    q_in       -[hidden]down- openrouter
-    openrouter -[hidden]down- q_out
+' ───────── Внешние источники (входы) ─────────
+package "Внешние источники" as ext_in {
+    component "Frontend / PWA"          as clients <<external>>
+    component "YMQ\nConnector Events"   as q_in    <<external>>
+
+    clients -[hidden]down- q_in
 }
 
-' ───────── API + точки входа фоновых задач ─────────
+' ───────── API + точки входа ─────────
 package "API и точки входа" as entry {
     component "Tasks gRPC Service\n+ ListTasksV1\n+ GetTaskV1\n+ UpdateTaskV1\n+ PostponeTaskV1\n+ CompleteTaskV1\n+ DeleteTaskV1" as grpc_tasks <<api>>
     component "SQS Message Processor\n+ Connector Events Handler" as sqs_proc <<worker>>
-    component "Cluster Closure Worker\n(планировщик)" as closure_worker <<worker>>
-    component "Scheduling Worker\n(планировщик)" as scheduling_worker <<worker>>
-    component "Notification Worker\n(планировщик)" as notification_worker <<worker>>
+    component "Cluster Closure Worker\n(планировщик)"  as closure_worker      <<worker>>
+    component "Scheduling Worker\n(планировщик)"       as scheduling_worker   <<worker>>
+    component "Notification Worker\n(планировщик)"     as notification_worker <<worker>>
 
     grpc_tasks        -[hidden]down- sqs_proc
     sqs_proc          -[hidden]down- closure_worker
@@ -57,9 +55,9 @@ package "API и точки входа" as entry {
 
 ' ───────── Use Cases ─────────
 package "Use Cases" as uc_pkg {
-    component "Clusterization UseCase\n+ ProcessEvent" as clusterization_uc <<usecase>>
-    component "Task Generation UseCase\n+ ProcessClosableClusters" as taskgen_uc <<usecase>>
-    component "Scheduling UseCase\n+ SchedulePendingTasks" as scheduling_uc <<usecase>>
+    component "Clusterization UseCase\n+ ProcessEvent"               as clusterization_uc <<usecase>>
+    component "Task Generation UseCase\n+ ProcessClosableClusters"   as taskgen_uc        <<usecase>>
+    component "Scheduling UseCase\n+ SchedulePendingTasks"           as scheduling_uc     <<usecase>>
     component "Task List UseCase\n+ GetTasks / GetTask\n+ UpdateTask / PostponeTask\n+ CompleteTask / DeleteTask" as tasklist_uc <<usecase>>
 
     clusterization_uc -[hidden]down- taskgen_uc
@@ -69,13 +67,13 @@ package "Use Cases" as uc_pkg {
 
 ' ───────── Services ─────────
 package "Services" as svc_pkg {
-    component "Embedding Service\n+ GenerateEmbeddings" as embedding_service <<service>>
+    component "Embedding Service\n+ GenerateEmbeddings"                 as embedding_service        <<service>>
     component "Cluster Actionability Service\n+ GetTaskGenerationDecision" as actionability_service <<service>>
-    component "Task Generation Service\n+ GenerateTask" as task_service <<service>>
-    component "Scheduler (pure)\n+ CalculateSchedule" as scheduler_service <<service>>
-    component "Upcoming Event Notifier\n+ NotifyUpcomingEvents" as upcoming_notifier <<service>>
-    component "Schedule Change Notifier\n+ NotifyScheduleChanges" as schedule_change_notifier <<service>>
-    component "Notificator Push Service\n+ Send" as notificator_push <<service>>
+    component "Task Generation Service\n+ GenerateTask"                 as task_service             <<service>>
+    component "Scheduler (pure)\n+ CalculateSchedule"                   as scheduler_service        <<service>>
+    component "Upcoming Event Notifier\n+ NotifyUpcomingEvents"         as upcoming_notifier        <<service>>
+    component "Schedule Change Notifier\n+ NotifyScheduleChanges"       as schedule_change_notifier <<service>>
+    component "Notificator Push Service\n+ Send"                        as notificator_push         <<service>>
 
     embedding_service        -[hidden]down- actionability_service
     actionability_service    -[hidden]down- task_service
@@ -97,13 +95,21 @@ package "Repositories" as repo_pkg {
 
 ' ───────── Инфраструктура и хранилище ─────────
 package "Инфраструктура" as infra {
-    component "Database Client\n(pgxpool + pgvector)" as db_client <<infra>>
-    component "Tx Provider" as tx_provider <<infra>>
+    component "Database Client\n(pgxpool + pgvector)" as db_client   <<infra>>
+    component "Tx Provider"                            as tx_provider <<infra>>
 
     db_client -[hidden]down- tx_provider
 }
 
 database "PostgreSQL\n+ pgvector" as postgres <<storage>>
+
+' ───────── Внешние интеграции (выходы) ─────────
+package "Внешние интеграции" as ext_out {
+    component "OpenRouter API\n(LLM + Embeddings)" as openrouter <<external>>
+    component "YMQ\nNotificator commands"         as q_out      <<external>>
+
+    openrouter -[hidden]down- q_out
+}
 
 ' ───────── Связи: входящие потоки ─────────
 clients --> grpc_tasks : gRPC / HTTP
@@ -152,16 +158,5 @@ cluster_repo --> db_client
 task_repo    --> db_client
 tx_provider  --> db_client
 db_client    --> postgres
-
-legend bottom
-  |<#FFE6E6>   | Внешние системы |
-  |<#DCEEFB>   | API |
-  |<#E6F3FF>   | Workers / Handlers |
-  |<#E6FFE6>   | Use Cases |
-  |<#FFF4E6>   | Services |
-  |<#F0E6FF>   | Repositories |
-  |<#ECECEC>   | Инфраструктура |
-  |<#E6E6E6>   | Storage |
-endlegend
 
 @enduml
