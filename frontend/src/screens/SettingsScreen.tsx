@@ -3,9 +3,11 @@ import {
   BarChart2,
   Bell,
   CalendarClock,
+  Check,
   ChevronRight,
   Loader2,
   Mail,
+  Pencil,
   Send,
   type LucideIcon,
 } from 'lucide-react';
@@ -18,6 +20,7 @@ import {
   revokeIntegrationAccess,
   startGmailAuth,
   startGoogleCalendarAuth,
+  updateUserName,
   type UserApiResponse,
 } from '../utils/authService';
 import { clearUserCache } from '../utils/userCache';
@@ -26,6 +29,18 @@ import {
   toggleNotification,
 } from '../utils/notificatorService';
 import { TelegramConnectModal } from '../components/TelegramConnectModal';
+
+const NAME_PATTERN = /^[\p{L}\s\-']+$/u;
+
+function validateName(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) return 'Имя не может быть пустым';
+  if (trimmed.length < 2 || trimmed.length > 100)
+    return 'Имя должно содержать от 2 до 100 символов';
+  if (!NAME_PATTERN.test(trimmed))
+    return 'Имя может содержать только буквы, пробелы, дефисы и апострофы';
+  return null;
+}
 
 interface SettingsScreenProps {
   onLogout: () => void;
@@ -83,6 +98,10 @@ const SettingsScreen = ({ onLogout }: SettingsScreenProps) => {
   const [telegramLoading, setTelegramLoading] = useState(false);
   const [telegramModalOpen, setTelegramModalOpen] = useState(false);
   const [telegramError, setTelegramError] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState('');
+  const [nameSaving, setNameSaving] = useState(false);
+  const [nameError, setNameError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -227,6 +246,48 @@ const SettingsScreen = ({ onLogout }: SettingsScreenProps) => {
     } : prev);
   };
 
+  const startEditName = () => {
+    setNameDraft(user?.name ?? '');
+    setNameError(null);
+    setEditingName(true);
+  };
+
+  const cancelEditName = () => {
+    setEditingName(false);
+    setNameError(null);
+  };
+
+  const handleEditNameToggle = async () => {
+    if (nameSaving) return;
+    if (!editingName) {
+      startEditName();
+      return;
+    }
+    const trimmed = nameDraft.trim();
+    const original = (user?.name ?? '').trim();
+    if (trimmed === original) {
+      cancelEditName();
+      return;
+    }
+    const validation = validateName(nameDraft);
+    if (validation) {
+      setNameError(validation);
+      return;
+    }
+    setNameSaving(true);
+    setNameError(null);
+    try {
+      await updateUserName(trimmed);
+      setUser((prev) => (prev ? { ...prev, name: trimmed } : prev));
+      clearUserCache();
+      setEditingName(false);
+    } catch (err) {
+      setNameError(err instanceof Error ? err.message : 'Не удалось изменить имя');
+    } finally {
+      setNameSaving(false);
+    }
+  };
+
   const handleToggle = (type: string) => {
     setSettings((prev) => prev.map((s) => s.type === type ? { ...s, toggling: true } : s));
     void toggleNotification(type)
@@ -269,17 +330,72 @@ const SettingsScreen = ({ onLogout }: SettingsScreenProps) => {
             {(displayName || 'П').charAt(0).toUpperCase()}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
+            {editingName ? (
+              <input
+                autoFocus
+                value={nameDraft}
+                maxLength={100}
+                disabled={nameSaving}
+                onChange={(e) => {
+                  setNameDraft(e.target.value);
+                  if (nameError) setNameError(null);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    void handleEditNameToggle();
+                  } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    cancelEditName();
+                  }
+                }}
+                placeholder="Имя"
+                style={{
+                  width: '100%', boxSizing: 'border-box',
+                  fontFamily: SERIF, fontSize: 19, lineHeight: 1.2, letterSpacing: -0.2,
+                  color: T.ink,
+                  background: T.subtle, border: `1px solid ${T.amberDp}`,
+                  borderRadius: 10, padding: '6px 10px', outline: 'none',
+                }}
+              />
+            ) : (
+              <div style={{
+                fontFamily: SERIF, fontSize: 19, color: T.ink,
+                letterSpacing: -0.2, lineHeight: 1.2,
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}>{displayName}</div>
+            )}
+            {editingName && nameError && (
+              <div style={{
+                fontSize: 12, color: T.danger, marginTop: 4, lineHeight: 1.4,
+              }}>{nameError}</div>
+            )}
             <div style={{
-              fontFamily: SERIF, fontSize: 19, color: T.ink,
-              letterSpacing: -0.2, lineHeight: 1.2,
-              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-            }}>{displayName}</div>
-            <div style={{
-              fontSize: 13, color: T.ink3, marginTop: 2,
+              fontSize: 13, color: T.ink3, marginTop: editingName ? 6 : 2,
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
             }}>{displayEmail}</div>
           </div>
-          <ChevronRight size={18} strokeWidth={1.8} style={{ color: T.ink4 }} />
+          <button
+            type="button"
+            aria-label={editingName ? 'Сохранить имя' : 'Изменить имя'}
+            onClick={() => void handleEditNameToggle()}
+            disabled={nameSaving || (!editingName && userLoading)}
+            style={{
+              background: editingName ? T.amberFill : 'transparent',
+              border: 'none', padding: 8, borderRadius: 8,
+              color: editingName ? T.amberDp : T.ink2,
+              cursor: nameSaving || (!editingName && userLoading) ? 'default' : 'pointer',
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              opacity: !editingName && userLoading ? 0.5 : 1,
+              flexShrink: 0,
+            }}
+          >
+            {nameSaving
+              ? <Loader2 size={17} className="animate-spin" />
+              : editingName
+                ? <Check size={18} strokeWidth={2.2} />
+                : <Pencil size={17} strokeWidth={1.9} />}
+          </button>
         </div>
       </div>
 
