@@ -19,14 +19,14 @@ test.describe('Notifications', () => {
   test('"Прочитать всё" button appears only when there is unread', async ({ page }) => {
     // Read state is fresh — if the account has any notifications, button is shown.
     const markAll = page.getByRole('button', { name: 'Прочитать всё' });
-    const emptyHeading = page.getByText('Тишина', { exact: true });
 
     if (await markAll.isVisible({ timeout: 2_000 }).catch(() => false)) {
       await markAll.click();
-      await expect(markAll).toBeHidden();
-      await expect(page.getByText('Всё прочитано').first()).toBeVisible();
-    } else {
-      await expect(emptyHeading).toBeVisible();
     }
+    await expect(markAll).toBeHidden();
+    // After either path, the all-read indicator is shown — either the
+    // header subtitle, or the unread-tab empty state heading (both read
+    // "Всё прочитано").
+    await expect(page.getByText('Всё прочитано').first()).toBeVisible();
   });
 });
