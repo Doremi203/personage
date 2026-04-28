@@ -1,3 +1,4 @@
+import { ApiError, throwIfError } from './apiError';
 import { clearNotificationsCache } from './notificationsCache';
 import { clearUserCache } from './userCache';
 
@@ -81,13 +82,7 @@ export async function login(
     },
   );
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(
-      (error as { message?: string }).message ??
-        `Ошибка входа: ${response.status}`,
-    );
-  }
+  await throwIfError(response);
 
   const data = (await response.json()) as {
     accessToken: string;
@@ -112,13 +107,7 @@ export async function register(
     body: JSON.stringify({ email, password, name }),
   });
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(
-      (error as { message?: string }).message ??
-        `Ошибка регистрации: ${response.status}`,
-    );
-  }
+  await throwIfError(response);
 
   const data = (await response.json()) as {
     accessToken: string;
@@ -163,7 +152,7 @@ export async function fetchWithTokenRefresh(
   doFetch: (accessToken: string) => Promise<Response>,
 ): Promise<Response> {
   const tokens = getTokens();
-  if (!tokens) throw new Error('Не авторизован');
+  if (!tokens) throw new ApiError(401, 'Необходимо войти в аккаунт.');
 
   let response = await doFetch(tokens.accessToken);
   if (response.status !== 401) {
@@ -173,13 +162,13 @@ export async function fetchWithTokenRefresh(
   const newTokens = await refreshAccessToken();
   if (!newTokens) {
     clearTokens();
-    throw new Error('Сессия истекла');
+    throw new ApiError(401, 'Сессия истекла. Войдите заново.');
   }
 
   response = await doFetch(newTokens.accessToken);
   if (response.status === 401) {
     clearTokens();
-    throw new Error('Сессия истекла');
+    throw new ApiError(401, 'Сессия истекла. Войдите заново.');
   }
 
   return response;
@@ -195,13 +184,7 @@ export async function resetPassword(
     body: JSON.stringify({ token, newPassword }),
   });
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(
-      (error as { message?: string }).message ??
-        `Ошибка сброса пароля: ${response.status}`,
-    );
-  }
+  await throwIfError(response);
 
   const data = (await response.json()) as {
     accessToken: string;
@@ -228,9 +211,7 @@ export async function forgotPassword(
     },
   );
 
-  if (!response.ok) {
-    throw new Error(`Ошибка: ${response.status}`);
-  }
+  await throwIfError(response);
 }
 
 export async function startGmailAuth(
@@ -243,13 +224,7 @@ export async function startGmailAuth(
     body: JSON.stringify({ userEmail, redirectUri }),
   });
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(
-      (error as { message?: string }).message ??
-        `Ошибка запуска авторизации Gmail: ${response.status}`,
-    );
-  }
+  await throwIfError(response);
 
   return (await response.json()) as { authorizationUrl: string; state: string };
 }
@@ -266,13 +241,7 @@ export async function handleGmailCallback(
     body: JSON.stringify({ userEmail, code, state, redirectUri }),
   });
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(
-      (error as { message?: string }).message ??
-        `Ошибка подключения Gmail: ${response.status}`,
-    );
-  }
+  await throwIfError(response);
 
   const data = (await response.json()) as { gmailEmail: string };
   return data.gmailEmail;
@@ -293,13 +262,7 @@ export async function startGoogleCalendarAuth(
     }),
   );
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(
-      (error as { message?: string }).message ??
-        `Ошибка запуска авторизации Google Calendar: ${response.status}`,
-    );
-  }
+  await throwIfError(response);
 
   return (await response.json()) as { authorizationUrl: string; state: string };
 }
@@ -316,13 +279,7 @@ export async function handleGoogleCalendarCallback(
     body: JSON.stringify({ userEmail, code, state, redirectUri }),
   });
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(
-      (error as { message?: string }).message ??
-        `Ошибка подключения Google Calendar: ${response.status}`,
-    );
-  }
+  await throwIfError(response);
 
   const data = (await response.json()) as { gmailEmail: string };
   return data.gmailEmail;
@@ -342,13 +299,7 @@ export async function revokeIntegrationAccess(
     }),
   );
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(
-      (error as { message?: string }).message ??
-        `Ошибка отключения интеграции: ${response.status}`,
-    );
-  }
+  await throwIfError(response);
 }
 
 export async function fetchCurrentUser(): Promise<UserApiResponse> {
@@ -358,13 +309,7 @@ export async function fetchCurrentUser(): Promise<UserApiResponse> {
     }),
   );
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(
-      (error as { message?: string }).message ??
-        `Ошибка получения данных пользователя: ${response.status}`,
-    );
-  }
+  await throwIfError(response);
 
   return (await response.json()) as UserApiResponse;
 }

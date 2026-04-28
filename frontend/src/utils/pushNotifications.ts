@@ -1,3 +1,4 @@
+import { throwIfError } from './apiError';
 import { fetchWithTokenRefresh } from './authService';
 
 const SUBSCRIBE_ENDPOINT = 'https://notificator.persomanage.ru/v1/push/subscribe';
@@ -191,11 +192,7 @@ export async function sendSubscriptionToBackend(
     'Saving push subscription on the server timed out',
   );
 
-  if (!response.ok) {
-    throw new Error(
-      `Failed to register push subscription: ${response.status} ${response.statusText}`,
-    );
-  }
+  await throwIfError(response);
 }
 
 export async function unsubscribeFromPush(): Promise<void> {
@@ -214,11 +211,7 @@ export async function unsubscribeFromPush(): Promise<void> {
     }),
   );
 
-  if (!response.ok) {
-    throw new Error(
-      `Failed to unregister push subscription: ${response.status} ${response.statusText}`,
-    );
-  }
+  await throwIfError(response);
 
   await subscription.unsubscribe();
 }
