@@ -241,4 +241,8 @@ class EventProducer(IEventProducer):
         match connector_type:
             case ConnectorTypeModel.Gmail:
                 return ConnectorType.CONNECTOR_TYPE_GMAIL
+            case ConnectorTypeModel.Telegram:
+                return ConnectorType.CONNECTOR_TYPE_TELEGRAM
+            case ConnectorTypeModel.GoogleCalendar:
+                return ConnectorType.CONNECTOR_TYPE_GOOGLE_CALENDAR
         return ConnectorType.CONNECTOR_TYPE_UNKNOWN

@@ -89,6 +89,31 @@ func TestFromPB_PopulatesAllSections(t *testing.T) {
 	assert.Less(t, bobIdx, zachIdx, "participants should be sorted alphabetically")
 }
 
+func TestFromPB_ConnectorTypeMapping(t *testing.T) {
+	tests := []struct {
+		name string
+		in   eventsPb.ConnectorType
+		want domain.EventSource
+	}{
+		{name: "gmail", in: eventsPb.ConnectorType_CONNECTOR_TYPE_GMAIL, want: domain.EventSourceGmail},
+		{name: "telegram", in: eventsPb.ConnectorType_CONNECTOR_TYPE_TELEGRAM, want: domain.EventSourceTelegram},
+		{name: "google_calendar", in: eventsPb.ConnectorType_CONNECTOR_TYPE_GOOGLE_CALENDAR, want: domain.EventSourceGoogleCalendar},
+		{name: "unknown", in: eventsPb.ConnectorType_CONNECTOR_TYPE_UNKNOWN, want: domain.EventSourceUnknown},
+		{name: "out_of_range", in: eventsPb.ConnectorType(99), want: domain.EventSourceUnknown},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := domain.FromPB(&eventsPb.Event{
+				Id:            "event-1",
+				UserId:        "user-1",
+				ConnectorType: tt.in,
+			})
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got.Source)
+		})
+	}
+}
+
 func TestFromPB_NilTimeFrameRendersBlank(t *testing.T) {
 	pb := &eventsPb.Event{
 		Id:     "event-1",

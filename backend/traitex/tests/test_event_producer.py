@@ -96,6 +96,27 @@ async def test_dedup_id_changes_with_content():
 
 
 @pytest.mark.asyncio
+async def test_dedup_id_changes_with_connector():
+    occurred = datetime.datetime(2025, 4, 29, 10, 0, 0, tzinfo=datetime.UTC)
+    user_id = uuid.UUID("44444444-4444-4444-4444-444444444444")
+
+    e_gmail = _make_event(body="x", subject="x", user_id=user_id, occurred_at=occurred)
+    e_telegram = _make_event(body="x", subject="x", user_id=user_id, occurred_at=occurred)
+    e_telegram.connector_type = ConnectorTypeModel.Telegram
+    e_calendar = _make_event(body="x", subject="x", user_id=user_id, occurred_at=occurred)
+    e_calendar.connector_type = ConnectorTypeModel.GoogleCalendar
+
+    client = FakeQueueClient()
+    producer = EventProducer(client)
+    await producer.send(e_gmail)
+    await producer.send(e_telegram)
+    await producer.send(e_calendar)
+
+    dedup_ids = {s['deduplication_id'] for s in client.singles}
+    assert len(dedup_ids) == 3, "dedup ids must differ across connectors"
+
+
+@pytest.mark.asyncio
 async def test_dedup_id_changes_with_user():
     occurred = datetime.datetime(2025, 4, 29, 10, 0, 0, tzinfo=datetime.UTC)
     e1 = _make_event(body="x", subject="x", user_id=uuid.UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"), occurred_at=occurred)
