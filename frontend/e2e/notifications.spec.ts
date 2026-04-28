@@ -12,21 +12,30 @@ test.describe('Notifications', () => {
   });
 
   test('list loads with filter tabs', async ({ page }) => {
-    await expect(page.getByRole('button', { name: 'Все' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Непрочитанные' })).toBeVisible();
+    const unreadTab = page.getByRole('button', { name: 'Непрочитанные' });
+    const allTab = page.getByRole('button', { name: 'Все' });
+    await expect(unreadTab).toBeVisible();
+    await expect(allTab).toBeVisible();
+
+    // Unread is the default tab and is rendered to the left of All.
+    await expect(unreadTab).toHaveAttribute('aria-pressed', 'true');
+    await expect(allTab).toHaveAttribute('aria-pressed', 'false');
+    const unreadBox = await unreadTab.boundingBox();
+    const allBox = await allTab.boundingBox();
+    expect(unreadBox && allBox && unreadBox.x < allBox.x).toBe(true);
   });
 
   test('"Прочитать всё" button appears only when there is unread', async ({ page }) => {
-    // Read state is fresh — if the account has any notifications, button is shown.
+    // Read state is fresh — if the account has unread notifications, button is shown.
     const markAll = page.getByRole('button', { name: 'Прочитать всё' });
-    const emptyHeading = page.getByText('Тишина', { exact: true });
 
     if (await markAll.isVisible({ timeout: 2_000 }).catch(() => false)) {
       await markAll.click();
-      await expect(markAll).toBeHidden();
-      await expect(page.getByText('Всё прочитано')).toBeVisible();
-    } else {
-      await expect(emptyHeading).toBeVisible();
     }
+    await expect(markAll).toBeHidden();
+    // After either path, the all-read indicator is shown — either the
+    // header subtitle, or the unread-tab empty state heading (both read
+    // "Всё прочитано").
+    await expect(page.getByText('Всё прочитано').first()).toBeVisible();
   });
 });

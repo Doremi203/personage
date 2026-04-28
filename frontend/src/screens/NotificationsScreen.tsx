@@ -56,7 +56,7 @@ function isRecent(iso: string): boolean {
 
 const NotificationsScreen = () => {
   const { items, read, unreadCount, loading, loaded, error } = useNotifications();
-  const [filter, setFilter] = useState<Filter>('all');
+  const [filter, setFilter] = useState<Filter>('unread');
 
   useEffect(() => {
     void refreshNotifications();
@@ -75,8 +75,8 @@ const NotificationsScreen = () => {
   }, [filtered]);
 
   const segItems: SegmentedItem<Filter>[] = [
-    { id: 'all',    label: 'Все',           count: items.length },
     { id: 'unread', label: 'Непрочитанные', count: unreadCount },
+    { id: 'all',    label: 'Все',           count: items.length },
   ];
 
   return (
