@@ -5,6 +5,7 @@ from app.services.DebugService import DebugService
 from app.services.GmailProcessingService import GmailProcessingService
 from app.services.GoogleCalendarProcessingService import CalendarProcessingService
 from app.services.TelegramProcessingService import TelegramProcessingService
+from app.services.segmentation import SegmentationConfig, SegmentBuffer
 from messaging.EventProducer import EventProducer
 
 
@@ -29,14 +30,27 @@ class ServiceContainer(containers.DeclarativeContainer):
         processing_snapshot_repository=repositories.processing_snapshot_repository,
     )
 
-    telegram_processing_service = providers.Factory(
+    telegram_segmentation_config = providers.Singleton(
+        SegmentationConfig,
+        silence_window_seconds=config.telegram.segmentation.silence_window_seconds.as_int(),
+        max_segment_messages=config.telegram.segmentation.max_segment_messages.as_int(),
+        max_segment_span_seconds=config.telegram.segmentation.max_segment_span_seconds.as_int(),
+    )
+
+    telegram_segment_buffer = providers.Singleton(
+        SegmentBuffer,
+        config=telegram_segmentation_config,
+    )
+
+    telegram_processing_service = providers.Singleton(
         TelegramProcessingService,
         telegram_processing_repository=repositories.telegram_processing_repository,
         processing_results_repository=repositories.processing_results_repository,
         processing_snapshot_repository=repositories.processing_snapshot_repository,
         state_tracking_client=clients.state_tracking_client,
         telegram_api_client=clients.telegram_api_client,
-        event_producer=event_producer
+        event_producer=event_producer,
+        segment_buffer=telegram_segment_buffer,
     )
 
     calendar_processing_service = providers.Factory(
