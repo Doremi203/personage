@@ -198,6 +198,53 @@ func (r *repo) GetTasksByStatus(ctx context.Context, userID domain.UserID, statu
 	return slices.Map(entities, taskEntity.ToDomain), nil
 }
 
+func (r *repo) GetPlannedTasksInRange(
+	ctx context.Context,
+	userID domain.UserID,
+	from time.Time,
+	to time.Time,
+) ([]domain.Task, error) {
+	query := `
+		SELECT
+			task_id,
+			user_id,
+			cluster_id,
+			title,
+			description,
+			duration_minutes,
+			priority,
+			deadline,
+			start_time,
+			end_time,
+			status,
+			category,
+			evidence_event_ids,
+			created_at,
+			updated_at
+		FROM tasks
+		WHERE user_id = $1
+		  AND status = $2
+		  AND start_time IS NOT NULL
+		  AND end_time IS NOT NULL
+		  AND start_time < $4
+		  AND end_time > $3
+		ORDER BY start_time ASC
+	`
+
+	rows, err := r.client.Query(ctx, query, userID, domain.TaskStatusPlanned, from, to)
+	if err != nil {
+		return nil, errors.WrapFail(err, "query planned tasks in range")
+	}
+	defer rows.Close()
+
+	entities, err := pgx.CollectRows(rows, pgx.RowToStructByName[taskEntity])
+	if err != nil {
+		return nil, errors.WrapFail(err, "collect task rows")
+	}
+
+	return slices.Map(entities, taskEntity.ToDomain), nil
+}
+
 func (r *repo) GetUsersWithUnplannedTasks(ctx context.Context) ([]domain.UserID, error) {
 	query := `
 		SELECT DISTINCT user_id

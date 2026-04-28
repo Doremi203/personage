@@ -41,6 +41,7 @@ type TaskRepo interface {
 	GetTaskByID(ctx context.Context, taskID TaskID, userID UserID) (Task, error)
 	GetTasksByUserID(ctx context.Context, userID UserID) ([]Task, error)
 	GetTasksByStatus(ctx context.Context, userID UserID, status TaskStatus) ([]Task, error)
+	GetPlannedTasksInRange(ctx context.Context, userID UserID, from time.Time, to time.Time) ([]Task, error)
 	GetUsersWithUnplannedTasks(ctx context.Context) ([]UserID, error)
 	UpdateTaskSchedule(ctx context.Context, taskID TaskID, startTime time.Time, endTime time.Time, status TaskStatus) error
 	UpdateTaskStatus(ctx context.Context, taskID TaskID, status TaskStatus) error

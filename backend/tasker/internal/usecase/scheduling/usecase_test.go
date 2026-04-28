@@ -49,6 +49,7 @@ func TestSchedulePendingTasks_SingleUserSingleTask(t *testing.T) {
 	repo := mock_domain.NewMockTaskRepo(ctrl)
 	repo.EXPECT().GetUsersWithUnplannedTasks(gomock.Any()).Return([]domain.UserID{userID}, nil)
 	repo.EXPECT().GetTasksByStatus(gomock.Any(), userID, domain.TaskStatusUnplanned).Return(tasks, nil)
+	repo.EXPECT().GetPlannedTasksInRange(gomock.Any(), userID, gomock.Any(), gomock.Any()).Return(nil, nil)
 	repo.EXPECT().UpdateTaskSchedule(gomock.Any(), domain.TaskID("task-1"), gomock.Any(), gomock.Any(), domain.TaskStatusPlanned).Return(nil)
 
 	notificationSender := mock_domain.NewMockNotificationsService(ctrl)
@@ -74,12 +75,14 @@ func TestSchedulePendingTasks_MultipleUsers(t *testing.T) {
 	repo.EXPECT().GetTasksByStatus(gomock.Any(), user1, domain.TaskStatusUnplanned).Return([]domain.Task{
 		{ID: "task-1", UserID: user1, Duration: 20 * time.Minute, Priority: 5, Status: domain.TaskStatusUnplanned},
 	}, nil)
+	repo.EXPECT().GetPlannedTasksInRange(gomock.Any(), user1, gomock.Any(), gomock.Any()).Return(nil, nil)
 	repo.EXPECT().UpdateTaskSchedule(gomock.Any(), domain.TaskID("task-1"), gomock.Any(), gomock.Any(), domain.TaskStatusPlanned).Return(nil)
 
 	repo.EXPECT().GetTasksByStatus(gomock.Any(), user2, domain.TaskStatusUnplanned).Return([]domain.Task{
 		{ID: "task-2", UserID: user2, Duration: 15 * time.Minute, Priority: 8, Status: domain.TaskStatusUnplanned},
 		{ID: "task-3", UserID: user2, Duration: 25 * time.Minute, Priority: 3, Status: domain.TaskStatusUnplanned},
 	}, nil)
+	repo.EXPECT().GetPlannedTasksInRange(gomock.Any(), user2, gomock.Any(), gomock.Any()).Return(nil, nil)
 	repo.EXPECT().UpdateTaskSchedule(gomock.Any(), domain.TaskID("task-2"), gomock.Any(), gomock.Any(), domain.TaskStatusPlanned).Return(nil)
 	repo.EXPECT().UpdateTaskSchedule(gomock.Any(), domain.TaskID("task-3"), gomock.Any(), gomock.Any(), domain.TaskStatusPlanned).Return(nil)
 
@@ -127,6 +130,7 @@ func TestSchedulePendingTasks_GetTasksErrorContinuesWithNextUser(t *testing.T) {
 	repo.EXPECT().GetTasksByStatus(gomock.Any(), user2, domain.TaskStatusUnplanned).Return([]domain.Task{
 		{ID: "task-2", UserID: user2, Duration: 20 * time.Minute, Priority: 5, Status: domain.TaskStatusUnplanned},
 	}, nil)
+	repo.EXPECT().GetPlannedTasksInRange(gomock.Any(), user2, gomock.Any(), gomock.Any()).Return(nil, nil)
 	repo.EXPECT().UpdateTaskSchedule(gomock.Any(), domain.TaskID("task-2"), gomock.Any(), gomock.Any(), domain.TaskStatusPlanned).Return(nil)
 
 	notificationSender := mock_domain.NewMockNotificationsService(ctrl)
@@ -151,6 +155,7 @@ func TestSchedulePendingTasks_TaskTooLargeForWindow(t *testing.T) {
 	repo.EXPECT().GetTasksByStatus(gomock.Any(), userID, domain.TaskStatusUnplanned).Return([]domain.Task{
 		{ID: "big-task", UserID: userID, Duration: 25 * time.Hour, Priority: 5, Status: domain.TaskStatusUnplanned},
 	}, nil)
+	repo.EXPECT().GetPlannedTasksInRange(gomock.Any(), userID, gomock.Any(), gomock.Any()).Return(nil, nil)
 	// No UpdateTaskSchedule call expected — task doesn't fit
 
 	notificationSender := mock_domain.NewMockNotificationsService(ctrl)
@@ -174,6 +179,7 @@ func TestSchedulePendingTasks_PriorityOrdering(t *testing.T) {
 		{ID: "low-priority", UserID: userID, Duration: 20 * time.Minute, Priority: 1, Status: domain.TaskStatusUnplanned},
 		{ID: "high-priority", UserID: userID, Duration: 20 * time.Minute, Priority: 10, Status: domain.TaskStatusUnplanned},
 	}, nil)
+	repo.EXPECT().GetPlannedTasksInRange(gomock.Any(), userID, gomock.Any(), gomock.Any()).Return(nil, nil)
 
 	var highStart, lowStart time.Time
 	repo.EXPECT().UpdateTaskSchedule(gomock.Any(), domain.TaskID("high-priority"), gomock.Any(), gomock.Any(), domain.TaskStatusPlanned).
@@ -202,6 +208,159 @@ func TestSchedulePendingTasks_PriorityOrdering(t *testing.T) {
 	}
 }
 
+func TestSchedulePendingTasks_ExistingPlannedBlocksSlot(t *testing.T) {
+	ctrl := gomock.NewController(t)
+
+	userID := domain.UserID("user-1")
+
+	existingStart := fixedNow
+	existingEnd := fixedNow.Add(30 * time.Minute)
+	existingPlanned := []domain.Task{
+		{
+			ID:        "existing-task",
+			UserID:    userID,
+			Duration:  30 * time.Minute,
+			Priority:  5,
+			Status:    domain.TaskStatusPlanned,
+			StartTime: &existingStart,
+			EndTime:   &existingEnd,
+		},
+	}
+	pending := []domain.Task{
+		{
+			ID:       "new-task",
+			UserID:   userID,
+			Duration: 30 * time.Minute,
+			Priority: 5,
+			Status:   domain.TaskStatusUnplanned,
+		},
+	}
+
+	repo := mock_domain.NewMockTaskRepo(ctrl)
+	repo.EXPECT().GetUsersWithUnplannedTasks(gomock.Any()).Return([]domain.UserID{userID}, nil)
+	repo.EXPECT().GetTasksByStatus(gomock.Any(), userID, domain.TaskStatusUnplanned).Return(pending, nil)
+	repo.EXPECT().GetPlannedTasksInRange(gomock.Any(), userID, gomock.Any(), gomock.Any()).Return(existingPlanned, nil)
+
+	var newStart, newEnd time.Time
+	repo.EXPECT().UpdateTaskSchedule(gomock.Any(), domain.TaskID("new-task"), gomock.Any(), gomock.Any(), domain.TaskStatusPlanned).
+		DoAndReturn(func(_ context.Context, _ domain.TaskID, start time.Time, end time.Time, _ domain.TaskStatus) error {
+			newStart = start
+			newEnd = end
+			return nil
+		})
+
+	notificationSender := mock_domain.NewMockNotificationsService(ctrl)
+	notificationSender.EXPECT().Send(gomock.Any(), gomock.Any()).Return(nil).Times(1)
+
+	uc := NewUseCase(log.Stub{}, repo, notificationSender, 1*time.Hour, clock)
+
+	err := uc.SchedulePendingTasks(t.Context())
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if newStart.Before(existingEnd) && newEnd.After(existingStart) {
+		t.Fatalf("new task overlaps with existing planned: new=[%v,%v], existing=[%v,%v]",
+			newStart, newEnd, existingStart, existingEnd)
+	}
+}
+
+func TestSchedulePendingTasks_NoUnplannedSkipsExistingPlannedFetch(t *testing.T) {
+	ctrl := gomock.NewController(t)
+
+	userID := domain.UserID("user-1")
+
+	repo := mock_domain.NewMockTaskRepo(ctrl)
+	repo.EXPECT().GetUsersWithUnplannedTasks(gomock.Any()).Return([]domain.UserID{userID}, nil)
+	repo.EXPECT().GetTasksByStatus(gomock.Any(), userID, domain.TaskStatusUnplanned).Return(nil, nil)
+
+	notificationSender := mock_domain.NewMockNotificationsService(ctrl)
+	notificationSender.EXPECT().Send(gomock.Any(), gomock.Any()).Times(0)
+
+	uc := NewUseCase(log.Stub{}, repo, notificationSender, 24*time.Hour, clock)
+
+	err := uc.SchedulePendingTasks(t.Context())
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+}
+
+func TestSchedulePendingTasks_AllSlotsOccupiedSendsNoNotification(t *testing.T) {
+	ctrl := gomock.NewController(t)
+
+	userID := domain.UserID("user-1")
+
+	wallStart := fixedNow
+	wallEnd := fixedNow.Add(1 * time.Hour)
+	existingPlanned := []domain.Task{
+		{
+			ID:        "wall",
+			UserID:    userID,
+			Duration:  1 * time.Hour,
+			Priority:  5,
+			Status:    domain.TaskStatusPlanned,
+			StartTime: &wallStart,
+			EndTime:   &wallEnd,
+		},
+	}
+	pending := []domain.Task{
+		{
+			ID:       "doesnt-fit",
+			UserID:   userID,
+			Duration: 30 * time.Minute,
+			Priority: 5,
+			Status:   domain.TaskStatusUnplanned,
+		},
+	}
+
+	repo := mock_domain.NewMockTaskRepo(ctrl)
+	repo.EXPECT().GetUsersWithUnplannedTasks(gomock.Any()).Return([]domain.UserID{userID}, nil)
+	repo.EXPECT().GetTasksByStatus(gomock.Any(), userID, domain.TaskStatusUnplanned).Return(pending, nil)
+	repo.EXPECT().GetPlannedTasksInRange(gomock.Any(), userID, gomock.Any(), gomock.Any()).Return(existingPlanned, nil)
+
+	notificationSender := mock_domain.NewMockNotificationsService(ctrl)
+	notificationSender.EXPECT().Send(gomock.Any(), gomock.Any()).Times(0)
+
+	uc := NewUseCase(log.Stub{}, repo, notificationSender, 1*time.Hour, clock)
+
+	err := uc.SchedulePendingTasks(t.Context())
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+}
+
+func TestSchedulePendingTasks_GetExistingPlannedErrorContinuesWithNextUser(t *testing.T) {
+	ctrl := gomock.NewController(t)
+
+	user1 := domain.UserID("user-1")
+	user2 := domain.UserID("user-2")
+
+	repo := mock_domain.NewMockTaskRepo(ctrl)
+	repo.EXPECT().GetUsersWithUnplannedTasks(gomock.Any()).Return([]domain.UserID{user1, user2}, nil)
+
+	repo.EXPECT().GetTasksByStatus(gomock.Any(), user1, domain.TaskStatusUnplanned).Return([]domain.Task{
+		{ID: "task-1", UserID: user1, Duration: 20 * time.Minute, Priority: 5, Status: domain.TaskStatusUnplanned},
+	}, nil)
+	repo.EXPECT().GetPlannedTasksInRange(gomock.Any(), user1, gomock.Any(), gomock.Any()).
+		Return(nil, errors.Errorf("planned fetch failed"))
+
+	repo.EXPECT().GetTasksByStatus(gomock.Any(), user2, domain.TaskStatusUnplanned).Return([]domain.Task{
+		{ID: "task-2", UserID: user2, Duration: 20 * time.Minute, Priority: 5, Status: domain.TaskStatusUnplanned},
+	}, nil)
+	repo.EXPECT().GetPlannedTasksInRange(gomock.Any(), user2, gomock.Any(), gomock.Any()).Return(nil, nil)
+	repo.EXPECT().UpdateTaskSchedule(gomock.Any(), domain.TaskID("task-2"), gomock.Any(), gomock.Any(), domain.TaskStatusPlanned).Return(nil)
+
+	notificationSender := mock_domain.NewMockNotificationsService(ctrl)
+	notificationSender.EXPECT().Send(gomock.Any(), gomock.Any()).Return(nil).Times(1)
+
+	uc := NewUseCase(log.Stub{}, repo, notificationSender, 24*time.Hour, clock)
+
+	err := uc.SchedulePendingTasks(t.Context())
+	if err != nil {
+		t.Fatalf("expected no error (per-user failures are logged), got %v", err)
+	}
+}
+
 func TestSchedulePendingTasks_UpdateErrorFailsUserContinuesNext(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
@@ -215,6 +374,7 @@ func TestSchedulePendingTasks_UpdateErrorFailsUserContinuesNext(t *testing.T) {
 	repo.EXPECT().GetTasksByStatus(gomock.Any(), user1, domain.TaskStatusUnplanned).Return([]domain.Task{
 		{ID: "task-1", UserID: user1, Duration: 20 * time.Minute, Priority: 5, Status: domain.TaskStatusUnplanned},
 	}, nil)
+	repo.EXPECT().GetPlannedTasksInRange(gomock.Any(), user1, gomock.Any(), gomock.Any()).Return(nil, nil)
 	repo.EXPECT().UpdateTaskSchedule(gomock.Any(), domain.TaskID("task-1"), gomock.Any(), gomock.Any(), domain.TaskStatusPlanned).
 		Return(errors.Errorf("simulated update failure"))
 
@@ -222,6 +382,7 @@ func TestSchedulePendingTasks_UpdateErrorFailsUserContinuesNext(t *testing.T) {
 	repo.EXPECT().GetTasksByStatus(gomock.Any(), user2, domain.TaskStatusUnplanned).Return([]domain.Task{
 		{ID: "task-2", UserID: user2, Duration: 20 * time.Minute, Priority: 5, Status: domain.TaskStatusUnplanned},
 	}, nil)
+	repo.EXPECT().GetPlannedTasksInRange(gomock.Any(), user2, gomock.Any(), gomock.Any()).Return(nil, nil)
 	repo.EXPECT().UpdateTaskSchedule(gomock.Any(), domain.TaskID("task-2"), gomock.Any(), gomock.Any(), domain.TaskStatusPlanned).
 		Return(nil)
 
