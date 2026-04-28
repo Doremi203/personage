@@ -369,6 +369,27 @@ export async function fetchCurrentUser(): Promise<UserApiResponse> {
   return (await response.json()) as UserApiResponse;
 }
 
+export async function updateUserName(name: string): Promise<void> {
+  const response = await fetchWithTokenRefresh((accessToken) =>
+    fetch(`${AUTH_API_URL}/user`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ name }),
+    }),
+  );
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(
+      (error as { message?: string }).message ??
+        `Не удалось изменить имя: ${response.status}`,
+    );
+  }
+}
+
 export function getCurrentUserId(): string | null {
   const tokens = getTokens();
   if (!tokens?.accessToken) return null;

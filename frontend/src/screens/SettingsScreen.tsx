@@ -6,6 +6,7 @@ import {
   ChevronRight,
   Loader2,
   Mail,
+  Pencil,
   Send,
   type LucideIcon,
 } from 'lucide-react';
@@ -18,6 +19,7 @@ import {
   revokeIntegrationAccess,
   startGmailAuth,
   startGoogleCalendarAuth,
+  updateUserName,
   type UserApiResponse,
 } from '../utils/authService';
 import { clearUserCache } from '../utils/userCache';
@@ -26,6 +28,7 @@ import {
   toggleNotification,
 } from '../utils/notificatorService';
 import { TelegramConnectModal } from '../components/TelegramConnectModal';
+import { EditNameModal } from '../components/EditNameModal';
 
 interface SettingsScreenProps {
   onLogout: () => void;
@@ -83,6 +86,7 @@ const SettingsScreen = ({ onLogout }: SettingsScreenProps) => {
   const [telegramLoading, setTelegramLoading] = useState(false);
   const [telegramModalOpen, setTelegramModalOpen] = useState(false);
   const [telegramError, setTelegramError] = useState<string | null>(null);
+  const [editNameOpen, setEditNameOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -227,6 +231,12 @@ const SettingsScreen = ({ onLogout }: SettingsScreenProps) => {
     } : prev);
   };
 
+  const handleSaveName = async (name: string) => {
+    await updateUserName(name);
+    setUser((prev) => (prev ? { ...prev, name } : prev));
+    clearUserCache();
+  };
+
   const handleToggle = (type: string) => {
     setSettings((prev) => prev.map((s) => s.type === type ? { ...s, toggling: true } : s));
     void toggleNotification(type)
@@ -279,7 +289,21 @@ const SettingsScreen = ({ onLogout }: SettingsScreenProps) => {
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
             }}>{displayEmail}</div>
           </div>
-          <ChevronRight size={18} strokeWidth={1.8} style={{ color: T.ink4 }} />
+          <button
+            type="button"
+            onClick={() => setEditNameOpen(true)}
+            disabled={userLoading}
+            aria-label="Изменить имя"
+            style={{
+              background: 'transparent', border: 'none',
+              padding: 8, borderRadius: 8,
+              color: T.ink2, cursor: userLoading ? 'default' : 'pointer',
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              opacity: userLoading ? 0.5 : 1,
+            }}
+          >
+            <Pencil size={17} strokeWidth={1.9} />
+          </button>
         </div>
       </div>
 
@@ -403,6 +427,14 @@ const SettingsScreen = ({ onLogout }: SettingsScreenProps) => {
           />
         )}
       </SetGroup>
+
+      {editNameOpen && (
+        <EditNameModal
+          currentName={user?.name ?? ''}
+          onClose={() => setEditNameOpen(false)}
+          onSave={handleSaveName}
+        />
+      )}
 
       {telegramModalOpen && (() => {
         const userId = getCurrentUserId();
