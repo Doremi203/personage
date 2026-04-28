@@ -24,7 +24,7 @@ test.describe('Notifications', () => {
     if (await markAll.isVisible({ timeout: 2_000 }).catch(() => false)) {
       await markAll.click();
       await expect(markAll).toBeHidden();
-      await expect(page.getByText('Всё прочитано')).toBeVisible();
+      await expect(page.getByText('Всё прочитано').first()).toBeVisible();
     } else {
       await expect(emptyHeading).toBeVisible();
     }
