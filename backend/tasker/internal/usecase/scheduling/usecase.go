@@ -2,6 +2,7 @@ package scheduling
 
 import (
 	"context"
+	"slices"
 	"time"
 
 	"github.com/Doremi203/personage/backend/libs/go/errors"
@@ -68,16 +69,34 @@ func (uc *UseCase) scheduleForUser(ctx context.Context, userID domain.UserID) er
 		return nil
 	}
 
+	now := uc.clock().Truncate(domain.TimeSlotSize)
+	windowEnd := now.Add(uc.windowDuration)
+
+	existingPlanned, err := uc.taskRepo.GetPlannedTasksInRange(ctx, userID, now, windowEnd)
+	if err != nil {
+		return errors.WrapFail(err, "get existing planned tasks")
+	}
+
 	uc.logger.Infof(
-		"scheduling %s for user %s",
+		"scheduling %s with %s existing planned for user %s",
 		errors.Token("pending_tasks", pendingTasks),
+		errors.Token("existing_planned_count", len(existingPlanned)),
 		errors.Token("user_id", userID.String()),
 	)
 
-	now := uc.clock().Truncate(domain.TimeSlotSize)
-	schedule := scheduler.CalculateSchedule(pendingTasks, now, uc.windowDuration)
+	unplannedIDs := make(map[domain.TaskID]struct{}, len(pendingTasks))
+	for _, t := range pendingTasks {
+		unplannedIDs[t.ID] = struct{}{}
+	}
 
+	inputTasks := slices.Concat(pendingTasks, existingPlanned)
+	schedule := scheduler.CalculateSchedule(inputTasks, now, uc.windowDuration)
+
+	persistedCount := 0
 	for _, planned := range schedule.Planned {
+		if _, isNew := unplannedIDs[planned.ID]; !isNew {
+			continue
+		}
 		if err := uc.taskRepo.UpdateTaskSchedule(
 			ctx,
 			planned.ID,
@@ -91,9 +110,10 @@ func (uc *UseCase) scheduleForUser(ctx context.Context, userID domain.UserID) er
 				errors.Token("task_id", planned.ID.String()),
 			)
 		}
+		persistedCount++
 	}
 
-	if len(schedule.Planned) > 0 {
+	if persistedCount > 0 {
 		err := uc.notifier.Send(ctx, domain.Notification{
 			UserID: userID,
 			Title:  "📅 Ваше расписание изменилось",
@@ -108,7 +128,7 @@ func (uc *UseCase) scheduleForUser(ctx context.Context, userID domain.UserID) er
 	uc.logger.Infof(
 		"scheduled tasks for user %s %s %s",
 		errors.Token("user_id", userID.String()),
-		errors.Token("scheduled_count", len(schedule.Planned)),
+		errors.Token("scheduled_count", persistedCount),
 		errors.Token("unscheduled_count", len(schedule.Unscheduled)),
 	)
 
