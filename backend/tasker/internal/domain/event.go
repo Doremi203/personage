@@ -58,13 +58,26 @@ func ParseEventSource(s string) EventSource {
 	}
 }
 
+func eventSourceFromPB(ct eventsPb.ConnectorType) EventSource {
+	switch ct {
+	case eventsPb.ConnectorType_CONNECTOR_TYPE_GMAIL:
+		return EventSourceGmail
+	case eventsPb.ConnectorType_CONNECTOR_TYPE_TELEGRAM:
+		return EventSourceTelegram
+	case eventsPb.ConnectorType_CONNECTOR_TYPE_GOOGLE_CALENDAR:
+		return EventSourceGoogleCalendar
+	default:
+		return EventSourceUnknown
+	}
+}
+
 type NormalizedEventContext string
 
 func FromPB(e *eventsPb.Event) (Event, error) {
 	eventModel := Event{
 		ID:         EventID(e.GetId()),
 		UserID:     UserID(e.GetUserId()),
-		Source:     EventSource(e.GetConnectorType()),
+		Source:     eventSourceFromPB(e.GetConnectorType()),
 		OccurredAt: e.GetOccurredAt().AsTime(),
 	}
 

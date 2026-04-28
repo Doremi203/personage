@@ -6,6 +6,7 @@ class BusinessErrorCode(Enum):
     DuplicateUserProcessingInfo = 1
     DuplicateTraitEncountered = 2
     ProcessingSnapshotNotFound = 3
+    EventTooLarge = 4
 
     def __str__(self) -> str    :
         return self.name

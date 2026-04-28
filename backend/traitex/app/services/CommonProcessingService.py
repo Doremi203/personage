@@ -53,22 +53,31 @@ class CommonProcessingService(ICommonProcessingService):
             self.logger.warning(f"Attempted to resend too many events. Only sent {max_events_count} events, the rest is trimmed")
             events = events[:max_events_count]
 
-        sent_events_count = 0
-        try:
-            #TODO: batch send to queue?
-            for event in events:
-                await self.event_producer.send(event, target_queue_url=target_queue_url)
-                sent_events_count += 1
-        except Exception:
-            self.logger.exception(
-                "Failed to resend processing snapshot %s after %s/%s events",
+        result = await self.event_producer.send_batch(events, target_queue_url=target_queue_url)
+
+        if result.failed:
+            sample_size = min(len(result.failed), 10)
+            sample = [
+                f"{f.id}:{f.code}:{f.message}" for f in result.failed[:sample_size]
+            ]
+            self.logger.warning(
+                "resend_processing_snapshot %s: %s/%s delivered, %s failed (first %s: %s)",
                 snapshot_id,
-                sent_events_count,
+                len(result.successful_ids),
+                len(events),
+                len(result.failed),
+                sample_size,
+                sample,
+            )
+        else:
+            self.logger.info(
+                "resend_processing_snapshot %s: %s/%s delivered",
+                snapshot_id,
+                len(result.successful_ids),
                 len(events),
             )
-            raise
 
-        return len(events)
+        return len(result.successful_ids)
 
     async def get_processing_snapshots(self) -> list[SnapshotModel]:
         return await self.snapshot_repository.get_all_snapshots()
