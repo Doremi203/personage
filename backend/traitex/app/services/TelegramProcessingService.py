@@ -1,6 +1,5 @@
 import datetime
 import logging
-import uuid
 from datetime import timezone
 from typing import List
 from uuid import UUID
@@ -11,11 +10,16 @@ from app.domain.interfaces.messaging.IEventProducer import IEventProducer
 from app.domain.models.ConnectorTypeModel import ConnectorTypeModel
 from app.domain.models.events.enriched.EnrichedEventModel import EnrichedEventModel
 from app.domain.models.events.raw.telegram.RawTelegramMessage import RawTelegramMessage
-from app.domain.models.traits.SenderTrait import SenderTrait
-from app.domain.models.traits.base.TraitModel import TraitModel
-from app.domain.models.traits.common.UserIdentifier import UserIdentifier
 from app.domain.models.users.ProcessedUserModel import ProcessedUserModel
 from app.domain.models.users.UserForProcessingModel import UserForProcessingModel
+from app.services.segmentation import (
+    BufferedMessage,
+    ConversationSegment,
+    SegmentBuffer,
+    SegmentationConfig,
+    build_segment_event,
+    collapse_albums,
+)
 from dataAccess.interfaces.IProcessingResultsRepository import IProcessingResultsRepository
 from dataAccess.interfaces.IProcessingSnapshotRepository import IProcessingSnapshotRepository
 from dataAccess.interfaces.ITelegramProcessingRepository import ITelegramProcessingRepository
@@ -37,6 +41,7 @@ class TelegramProcessingService(ITelegramProcessingService):
             state_tracking_client: StateTrackingClient,
             telegram_api_client: TelegramApiClient,
             event_producer: IEventProducer,
+            segment_buffer: SegmentBuffer | None = None,
     ):
         self.telegram_processing_repository = telegram_processing_repository
         self.processing_results_repository = processing_results_repository
@@ -44,6 +49,7 @@ class TelegramProcessingService(ITelegramProcessingService):
         self.state_tracking_client = state_tracking_client
         self.telegram_api_client = telegram_api_client
         self.event_producer = event_producer
+        self._segment_buffer = segment_buffer or SegmentBuffer(SegmentationConfig())
         self.logger = logging.getLogger("[TelegramProcessingService]")
 
     async def get_users_for_processing(self) -> List[UserForProcessingModel]:
@@ -89,6 +95,20 @@ class TelegramProcessingService(ITelegramProcessingService):
             retain_processed_messages=should_mark_processed_with_retained
         )
 
+    async def flush_stale_segments(self) -> None:
+        """Emit segments whose silence window elapsed even if no new messages
+        arrived for the user this polling cycle. Called by the consumer on
+        every tick to bound flush latency.
+        """
+        now = datetime.datetime.now(timezone.utc)
+        stale = self._segment_buffer.flush_stale(now)
+        if not stale:
+            return
+
+        retain = await self.processing_snapshot_repository.belongs_to_snapshot(now)
+        for segment in stale:
+            await self._emit_segment(segment, retain_processed_messages=retain)
+
     async def _process_fetch_results(
             self,
             results: dict[UUID, UserTelegramFetchResult],
@@ -108,13 +128,12 @@ class TelegramProcessingService(ITelegramProcessingService):
                 user_processed_at_map[user_id] = datetime.datetime.now(timezone.utc)
                 continue
 
-            if result.messages:
-                await self._process_user_messages(
-                    user_id,
-                    result.messages,
-                    retain_processed_messages
-                )
-                user_processed_at_map[user_id] = datetime.datetime.now(timezone.utc)
+            await self._process_user_messages(
+                user_id,
+                result.messages,
+                retain_processed_messages
+            )
+            user_processed_at_map[user_id] = datetime.datetime.now(timezone.utc)
 
             if result.new_last_message_id:
                 successful_fetches.append(
@@ -146,42 +165,94 @@ class TelegramProcessingService(ITelegramProcessingService):
             self,
             user_id: UUID,
             messages: List[RawTelegramMessage],
-            retain_processed_messages: bool
+            retain_processed_messages: bool,
     ) -> None:
-        """Process and enrich messages for a user"""
-        self.logger.info(f"Processing {len(messages)} Telegram messages for user {user_id}")
-
-        for message in messages:
-            enriched_message = self._enrich_message(user_id, message)
-
-            processed_at = datetime.datetime.now(timezone.utc)
-
-            if retain_processed_messages:
-                await self.processing_results_repository.save_processing_result(
-                    processed_at,
-                    enriched_message
-                )
-
-            await self.event_producer.send(enriched_message)
-
-    @staticmethod
-    def _enrich_message(user_id: UUID, raw_message: RawTelegramMessage) -> EnrichedEventModel:
-        """Enrich raw Telegram message with traits"""
-        traits: List[TraitModel] = [
-            SenderTrait(
-                identifier=UserIdentifier(
-                    telegram_id=str(raw_message.sender_id) if raw_message.sender_id else None,
-                    telegram_tag=raw_message.sender_username,
-                    telegram_name=f"{raw_message.sender_first_name or ''} {raw_message.sender_last_name or ''}".strip()
-                )
-            )
-        ]
-
-        return EnrichedEventModel(
-            id=uuid.uuid4(),
-            user_id=user_id,
-            connector_type=ConnectorTypeModel.Telegram,
-            occurred_at=raw_message.date,
-            main_body=raw_message.text,
-            traits=traits,
+        """Group messages into conversation segments and emit closed ones."""
+        self.logger.info(
+            f"Processing {len(messages)} Telegram messages for user {user_id} "
+            f"through segmentation buffer"
         )
+
+        segments_to_emit: list[ConversationSegment] = []
+
+        # Sort by chat then by message_id so albums sit next to each other —
+        # collapse_albums tolerates any ordering, but predictable order keeps
+        # logs and tests readable.
+        messages = sorted(messages, key=lambda m: (m.chat_id, m.message_id))
+        by_chat: dict[int, list[RawTelegramMessage]] = {}
+        for m in messages:
+            by_chat.setdefault(m.chat_id, []).append(m)
+
+        for chat_id, chat_messages in by_chat.items():
+            sample = chat_messages[0]
+            chat_title = sample.chat_title
+            chat_type = sample.chat_type
+
+            buffered = collapse_albums(chat_messages)
+
+            if chat_type == "channel":
+                # Per-post emission for broadcast channels: each (album-collapsed)
+                # message becomes its own one-message segment. We bypass the
+                # silence buffer entirely so news posts surface immediately.
+                for bm in buffered:
+                    if bm.is_noise:
+                        continue
+                    segments_to_emit.append(
+                        self._wrap_single_message(user_id, sample, bm)
+                    )
+                continue
+
+            for bm in buffered:
+                _, overflow = self._segment_buffer.add(
+                    user_id=user_id,
+                    chat_id=chat_id,
+                    chat_title=chat_title,
+                    chat_type=chat_type,
+                    message=bm,
+                )
+                if overflow is not None:
+                    segments_to_emit.append(overflow)
+
+        # After ingesting this batch, also drain segments whose silence window
+        # has lapsed (e.g. an idle chat with no new messages this tick is
+        # handled by the periodic consumer hook, but a quiet chat that just
+        # received its final message should close right away).
+        now = datetime.datetime.now(timezone.utc)
+        segments_to_emit.extend(self._segment_buffer.flush_stale(now))
+
+        for segment in segments_to_emit:
+            await self._emit_segment(segment, retain_processed_messages=retain_processed_messages)
+
+    def _wrap_single_message(
+            self,
+            user_id: UUID,
+            sample: RawTelegramMessage,
+            buffered: BufferedMessage,
+    ) -> ConversationSegment:
+        seg = ConversationSegment(
+            user_id=user_id,
+            chat_id=sample.chat_id,
+            chat_title=sample.chat_title,
+            chat_type=sample.chat_type,
+        )
+        seg.add(buffered)
+        return seg
+
+    async def _emit_segment(
+            self,
+            segment: ConversationSegment,
+            retain_processed_messages: bool,
+    ) -> None:
+        event: EnrichedEventModel | None = build_segment_event(segment)
+        if event is None:
+            return
+
+        processed_at = datetime.datetime.now(timezone.utc)
+
+        if retain_processed_messages:
+            await self.processing_results_repository.save_processing_result(
+                processed_at,
+                event,
+            )
+
+        await self.event_producer.send(event)

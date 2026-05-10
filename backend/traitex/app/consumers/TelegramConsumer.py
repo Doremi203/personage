@@ -49,9 +49,14 @@ class TelegramConsumer(BaseConsumer):
     async def run_iteration(self) -> None:
         users_for_processing = await self.telegram_processing_service.get_users_for_processing()
 
-        if len(users_for_processing) == 0:
+        if users_for_processing:
+            logger.info(f"Start processing Telegram events for {len(users_for_processing)} users")
+            await self.telegram_processing_service.process_users_events(users_for_processing)
+        else:
             logger.info("No Telegram users found for processing")
-            return
 
-        logger.info(f"Start processing Telegram events for {len(users_for_processing)} users")
-        await self.telegram_processing_service.process_users_events(users_for_processing)
+        # Drain segments that went idle for users who weren't in this batch.
+        # Without this hook, a chat that received its last message right after
+        # its owner was processed would wait until the owner re-enters the
+        # processing batch (5 min by default) before its segment closes.
+        await self.telegram_processing_service.flush_stale_segments()

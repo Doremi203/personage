@@ -6,7 +6,17 @@ from datetime import datetime, timezone
 from telethon import TelegramClient
 from telethon.errors import FloodWaitError
 from telethon.sessions import StringSession
-from telethon.tl.types import Message, User, Chat, Channel
+from telethon.tl.types import (
+    Channel,
+    Chat,
+    DocumentAttributeAudio,
+    DocumentAttributeSticker,
+    DocumentAttributeVideo,
+    Message,
+    MessageMediaDocument,
+    MessageMediaPhoto,
+    User,
+)
 
 from app.domain.models.events.raw.telegram.RawTelegramMessage import RawTelegramMessage
 from app.domain.models.users.UserForProcessingModel import UserForProcessingModel
@@ -120,7 +130,7 @@ class TelegramApiClient:
                         wait_time=2,
                         **kwargs
                 ):
-                    if msg.text:
+                    if msg.text or msg.media:
                         messages.append(msg)
 
                     if len(messages) >= 100:
@@ -175,12 +185,18 @@ class TelegramApiClient:
         """Convert Telethon Message to our domain model"""
         chat_title = None
         chat_id = None
+        chat_type = "unknown"
         if msg.chat:
             chat_id = msg.chat.id
-            if isinstance(msg.chat, (Chat, Channel)):
-                chat_title = msg.chat.title
-            elif isinstance(msg.chat, User):
+            if isinstance(msg.chat, User):
                 chat_title = f"{msg.chat.first_name or ''} {msg.chat.last_name or ''}".strip()
+                chat_type = "dm"
+            elif isinstance(msg.chat, Channel):
+                chat_title = msg.chat.title
+                chat_type = "channel" if getattr(msg.chat, "broadcast", False) else "group"
+            elif isinstance(msg.chat, Chat):
+                chat_title = msg.chat.title
+                chat_type = "group"
 
         sender_id = None
         sender_username = None
@@ -203,6 +219,7 @@ class TelegramApiClient:
             message_id=msg.id,
             chat_id=chat_id or 0,
             chat_title=chat_title,
+            chat_type=chat_type,
             sender_id=sender_id,
             sender_username=sender_username,
             sender_first_name=sender_first_name,
@@ -212,5 +229,29 @@ class TelegramApiClient:
             is_reply=msg.reply_to is not None,
             reply_to_msg_id=msg.reply_to.reply_to_msg_id if msg.reply_to else None,
             is_forward=msg.forward is not None,
-            forward_from=forward_from
+            forward_from=forward_from,
+            grouped_id=getattr(msg, "grouped_id", None),
+            media_kind=TelegramApiClient.__detect_media_kind(msg),
         )
+
+    @staticmethod
+    def __detect_media_kind(msg: Message) -> str | None:
+        media = getattr(msg, "media", None)
+        if media is None:
+            return None
+        if isinstance(media, MessageMediaPhoto):
+            return "photo"
+        if isinstance(media, MessageMediaDocument):
+            doc = getattr(media, "document", None)
+            attributes = list(getattr(doc, "attributes", []) or [])
+            for attr in attributes:
+                if isinstance(attr, DocumentAttributeSticker):
+                    return "sticker"
+            for attr in attributes:
+                if isinstance(attr, DocumentAttributeVideo):
+                    return "video"
+            for attr in attributes:
+                if isinstance(attr, DocumentAttributeAudio):
+                    return "voice" if getattr(attr, "voice", False) else "audio"
+            return "document"
+        return "other"

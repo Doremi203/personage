@@ -72,6 +72,17 @@ def create_application_container(config: Configuration) -> ApplicationContainer:
         "telegram": {
             "api_id": config.get("Telegram.ApiId"),
             "api_hash": config.get("Telegram.ApiHash"),
+            "segmentation": {
+                "silence_window_seconds": config.get(
+                    "Telegram.Segmentation.SilenceWindowSeconds", 300
+                ),
+                "max_segment_messages": config.get(
+                    "Telegram.Segmentation.MaxSegmentMessages", 50
+                ),
+                "max_segment_span_seconds": config.get(
+                    "Telegram.Segmentation.MaxSegmentSpanSeconds", 1800
+                ),
+            },
         },
         "calendar": {
             "max_events_per_user": config.get("Calendar.MaxEventsPerUser", 100),
