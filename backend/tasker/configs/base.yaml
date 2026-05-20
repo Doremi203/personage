@@ -27,7 +27,7 @@ database:
   options: sslmode=disable
 
 llm:
-  model: nvidia/nemotron-3-super-120b-a12b:free
+  model: nvidia/nemotron-3-super-120b-a12b
   apiKey: "secret:e6qd2ljggdrvefjgg0gf:e6qiflr6buvueiikcs8t:open-router"
 
 embedding:
