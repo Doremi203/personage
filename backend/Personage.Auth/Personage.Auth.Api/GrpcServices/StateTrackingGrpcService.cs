@@ -75,10 +75,7 @@ public class StateTrackingGrpcService(
             },
             TelegramProcessingCredentials telegramCredentials => new ProcessingCredentials
             {
-                TelegramSession = new TelegramSession
-                {
-                    SessionString = telegramCredentials.SessionString
-                }
+                TelegramSession = BuildTelegramSession(telegramCredentials)
             },
             GoogleCalendarProcessingCredentials googleCalendarCredentials => new ProcessingCredentials
             {
@@ -86,5 +83,17 @@ public class StateTrackingGrpcService(
             },
             _ => throw new ArgumentOutOfRangeException(nameof(model), model, null)
         };
+    }
+
+    private static TelegramSession BuildTelegramSession(TelegramProcessingCredentials credentials)
+    {
+        var session = new TelegramSession { SessionString = credentials.SessionString };
+        session.Chats.AddRange(credentials.Chats.Select(c => new ChatInfo
+        {
+            Id = c.ChatId,
+            Name = c.ChatName,
+            IsActive = c.IsActive,
+        }));
+        return session;
     }
 }

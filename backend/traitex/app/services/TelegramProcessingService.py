@@ -12,6 +12,8 @@ from app.domain.models.events.enriched.EnrichedEventModel import EnrichedEventMo
 from app.domain.models.events.raw.telegram.RawTelegramMessage import RawTelegramMessage
 from app.domain.models.users.ProcessedUserModel import ProcessedUserModel
 from app.domain.models.users.UserForProcessingModel import UserForProcessingModel
+from app.domain.models.users.processingCredentials.TelegramProcessingCredentialsModel import \
+    TelegramProcessingCredentialsModel
 from app.services.segmentation import (
     BufferedMessage,
     ConversationSegment,
@@ -65,8 +67,28 @@ class TelegramProcessingService(ITelegramProcessingService):
         if not users_for_processing:
             return
 
+        active_chat_ids_by_user: dict[UUID, frozenset[int]] = {}
+        for user in users_for_processing:
+            credentials = user.credentials
+            if isinstance(credentials, TelegramProcessingCredentialsModel):
+                active_chat_ids_by_user[user.user_id] = credentials.active_chat_ids
+            else:
+                active_chat_ids_by_user[user.user_id] = frozenset()
+
+        users_to_process = [
+            u for u in users_for_processing
+            if active_chat_ids_by_user.get(u.user_id)
+        ]
+        skipped = len(users_for_processing) - len(users_to_process)
+        if skipped:
+            self.logger.debug(
+                f"Skipping {skipped} Telegram users with no active chats"
+            )
+        if not users_to_process:
+            return
+
         processing_info = await self.telegram_processing_repository.get_users_processing_info(
-            user_ids=[u.user_id for u in users_for_processing]
+            user_ids=[u.user_id for u in users_to_process]
         )
 
         last_processing_map = {}
@@ -80,7 +102,7 @@ class TelegramProcessingService(ITelegramProcessingService):
             last_processing_map[info.user_id] = info.last_message_id
 
         users_with_last_ids = []
-        for user in users_for_processing:
+        for user in users_to_process:
             last_id = last_processing_map.get(user.user_id)
             users_with_last_ids.append((user, last_id))
 
@@ -92,7 +114,8 @@ class TelegramProcessingService(ITelegramProcessingService):
 
         await self._process_fetch_results(
             fetch_results,
-            retain_processed_messages=should_mark_processed_with_retained
+            retain_processed_messages=should_mark_processed_with_retained,
+            active_chat_ids_by_user=active_chat_ids_by_user,
         )
 
     async def flush_stale_segments(self) -> None:
@@ -112,7 +135,8 @@ class TelegramProcessingService(ITelegramProcessingService):
     async def _process_fetch_results(
             self,
             results: dict[UUID, UserTelegramFetchResult],
-            retain_processed_messages: bool
+            retain_processed_messages: bool,
+            active_chat_ids_by_user: dict[UUID, frozenset[int]],
     ) -> None:
         """Process fetch results and update state"""
         successful_fetches = []
@@ -131,7 +155,8 @@ class TelegramProcessingService(ITelegramProcessingService):
             await self._process_user_messages(
                 user_id,
                 result.messages,
-                retain_processed_messages
+                retain_processed_messages,
+                active_chat_ids=active_chat_ids_by_user.get(user_id, frozenset()),
             )
             user_processed_at_map[user_id] = datetime.datetime.now(timezone.utc)
 
@@ -166,6 +191,7 @@ class TelegramProcessingService(ITelegramProcessingService):
             user_id: UUID,
             messages: List[RawTelegramMessage],
             retain_processed_messages: bool,
+            active_chat_ids: frozenset[int],
     ) -> None:
         """Group messages into conversation segments and emit closed ones."""
         self.logger.info(
@@ -184,6 +210,8 @@ class TelegramProcessingService(ITelegramProcessingService):
             by_chat.setdefault(m.chat_id, []).append(m)
 
         for chat_id, chat_messages in by_chat.items():
+            if chat_id not in active_chat_ids:
+                continue
             sample = chat_messages[0]
             chat_title = sample.chat_title
             chat_type = sample.chat_type

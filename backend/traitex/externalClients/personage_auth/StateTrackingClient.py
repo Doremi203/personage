@@ -89,7 +89,15 @@ class StateTrackingClient(BaseGrpcClient):
                 return GmailProcessingCredentialsModel(
                     tokens=StateTrackingClient.__to_domain_gmail_tokens(credentials.gmail_tokens))
             case "telegram_session":
-                return TelegramProcessingCredentialsModel(session_string=credentials.telegram_session.session_string)
+                active_chat_ids = frozenset(
+                    int(chat.id)
+                    for chat in credentials.telegram_session.chats
+                    if chat.is_active
+                )
+                return TelegramProcessingCredentialsModel(
+                    session_string=credentials.telegram_session.session_string,
+                    active_chat_ids=active_chat_ids,
+                )
             case "google_calendar_tokens":
                 return CalendarProcessingCredentialsModel(
                     tokens=StateTrackingClient.__to_domain_calendar_tokens(credentials.google_calendar_tokens))

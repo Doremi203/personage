@@ -19,6 +19,7 @@ from app.models import (
     VerifyCodeRequest,
     VerifyCodeResponse,
 )
+from app.grpc_server import grpc_server
 from app.redis_client import redis_client
 from app.telegram_client import client_manager
 
@@ -42,8 +43,15 @@ async def lifespan(_: FastAPI):
         logger.error("Failed to connect to gRPC auth service", error=str(e))
         raise
 
+    try:
+        await grpc_server.start()
+    except Exception as e:
+        logger.error("Failed to start gRPC server", error=str(e))
+        raise
+
     yield
     logger.info("Shutting down Telegram Auth Service")
+    await grpc_server.stop()
     await redis_client.close()
     await auth_service_grpc_client.close()
 

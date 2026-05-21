@@ -27,6 +27,13 @@ message GoogleCalendarTokens {
   string gmail_email = 4;
 }
 
+message ChatInfo {
+  int64 id = 1;
+  string name = 2;
+  bool is_active = 3;
+}
+
 message TelegramSession {
   string session_string = 1;
+  repeated ChatInfo chats = 2;
 }
