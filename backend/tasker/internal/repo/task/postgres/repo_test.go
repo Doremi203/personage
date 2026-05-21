@@ -24,6 +24,7 @@ func newTask(t *testing.T, userID domain.UserID) domain.Task {
 		Priority:    5,
 		Status:      domain.TaskStatusUnplanned,
 		Category:    domain.TaskCategoryPersonal,
+		IsApproved:  true,
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}
