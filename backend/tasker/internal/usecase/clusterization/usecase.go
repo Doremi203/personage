@@ -17,6 +17,7 @@ func NewUseCase(
 	embedder domain.EmbeddingService,
 	eventsRepo domain.EventRepo,
 	clusterRepo domain.ClusterRepo,
+	pauseRepo domain.ProcessingPauseRepo,
 	minSimilarity float64,
 	topK int,
 	clock func() time.Time,
@@ -27,6 +28,7 @@ func NewUseCase(
 		embedder:      embedder,
 		eventsRepo:    eventsRepo,
 		clusterRepo:   clusterRepo,
+		pauseRepo:     pauseRepo,
 		minSimilarity: minSimilarity,
 		topK:          topK,
 		clock:         clock,
@@ -37,6 +39,7 @@ type UseCase struct {
 	embedder      domain.EmbeddingService
 	eventsRepo    domain.EventRepo
 	clusterRepo   domain.ClusterRepo
+	pauseRepo     domain.ProcessingPauseRepo
 	minSimilarity float64
 	topK          int
 
@@ -47,6 +50,24 @@ type UseCase struct {
 
 func (uc *UseCase) ProcessEvent(ctx context.Context, e domain.Event) error {
 	uc.logger.Infof("processing event with id %s", errors.Token("id", e.ID.String()))
+
+	paused, err := uc.pauseRepo.IsPaused(ctx, e.UserID)
+	if err != nil {
+		return errors.WrapFailf(
+			err,
+			"check processing pause for user %s",
+			errors.Token("user_id", e.UserID.String()),
+		)
+	}
+	if paused {
+		return errors.WrapFailf(
+			domain.ErrProcessingPaused,
+			"skip event %s",
+			errors.Token("id", e.ID.String()),
+			errors.Token("user_id", e.UserID.String()),
+		)
+	}
+
 	embeddings, err := uc.embedder.GenerateEmbeddings(ctx, []string{string(e.Context)})
 	if err != nil {
 		return errors.WrapFailf(

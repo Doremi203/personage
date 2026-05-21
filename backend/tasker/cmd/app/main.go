@@ -16,6 +16,7 @@ import (
 	"github.com/Doremi203/personage/backend/tasker/internal/handlers/sqs/event"
 	clusterpostgres "github.com/Doremi203/personage/backend/tasker/internal/repo/cluster/postgres"
 	eventpostgres "github.com/Doremi203/personage/backend/tasker/internal/repo/event/postgres"
+	pausepostgres "github.com/Doremi203/personage/backend/tasker/internal/repo/pause/postgres"
 	taskpostgres "github.com/Doremi203/personage/backend/tasker/internal/repo/task/postgres"
 	"github.com/Doremi203/personage/backend/tasker/internal/services/embedding"
 	"github.com/Doremi203/personage/backend/tasker/internal/services/llm"
@@ -70,6 +71,7 @@ func main() {
 		postgresEventRepo := eventpostgres.NewRepo(dbClient, time.Now)
 		postgresClusterRepo := clusterpostgres.NewRepo(dbClient, time.Now)
 		postgresTaskRepo := taskpostgres.NewRepo(dbClient)
+		postgresPauseRepo := pausepostgres.NewRepo(dbClient, time.Now)
 
 		type LLMConfig struct {
 			ApiKey string
@@ -117,6 +119,7 @@ func main() {
 			embeddingService,
 			postgresEventRepo,
 			postgresClusterRepo,
+			postgresPauseRepo,
 			0.65,
 			5,
 			time.Now,
