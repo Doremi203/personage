@@ -132,7 +132,7 @@ func TestService_GetSettings(t *testing.T) {
 		wantErr require.ErrorAssertionFunc
 	}{
 		{
-			name: "success",
+			name: "missing types are returned as enabled by default",
 			args: args{userID: notifUserID},
 			setup: func(m mocks, a args) {
 				m.repo.EXPECT().
@@ -140,14 +140,27 @@ func TestService_GetSettings(t *testing.T) {
 					Return([]notification.Setting{{
 						UserID:  notifUserID,
 						Type:    notification.SettingTypeScheduleChange,
-						Enabled: true,
+						Enabled: false,
 					}}, nil)
 			},
-			want: []notification.Setting{{
-				UserID:  notifUserID,
-				Type:    notification.SettingTypeScheduleChange,
-				Enabled: true,
-			}},
+			want: []notification.Setting{
+				{UserID: notifUserID, Type: notification.SettingTypeScheduleChange, Enabled: false},
+				{UserID: notifUserID, Type: notification.SettingTypeUpcomingEvent, Enabled: true},
+			},
+			wantErr: require.NoError,
+		},
+		{
+			name: "empty store returns defaults for every available type",
+			args: args{userID: notifUserID},
+			setup: func(m mocks, a args) {
+				m.repo.EXPECT().
+					GetSettings(gomock.Any(), notifUserID).
+					Return(nil, nil)
+			},
+			want: []notification.Setting{
+				{UserID: notifUserID, Type: notification.SettingTypeScheduleChange, Enabled: true},
+				{UserID: notifUserID, Type: notification.SettingTypeUpcomingEvent, Enabled: true},
+			},
 			wantErr: require.NoError,
 		},
 		{

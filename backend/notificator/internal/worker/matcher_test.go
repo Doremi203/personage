@@ -72,39 +72,15 @@ func TestNotificationHandler_Process(t *testing.T) {
 		wantErr require.ErrorAssertionFunc
 	}{
 		{
-			name: "invalid recipient id",
-			args: args{data: &pushpb.Notification{RecipientId: "not-a-uuid"}},
-			setup: func(m mocks, a args) {
-			},
+			name:    "invalid recipient id",
+			args:    args{data: &pushpb.Notification{RecipientId: "not-a-uuid"}},
+			setup:   func(m mocks, a args) {},
 			wantErr: require.Error,
 		},
 		{
-			name: "get recipient error wraps",
+			name: "setting disabled skips everything without persist",
 			args: args{data: newPushNotif()},
 			setup: func(m mocks, a args) {
-				m.subscriptions.EXPECT().
-					GetRecipient(gomock.Any(), push.RecipientID(matcherUUID)).
-					Return(push.Recipient{}, assert.AnError)
-			},
-			wantErr: require.Error,
-		},
-		{
-			name: "no subscriptions returns nil without persisting",
-			args: args{data: newPushNotif()},
-			setup: func(m mocks, a args) {
-				m.subscriptions.EXPECT().
-					GetRecipient(gomock.Any(), push.RecipientID(matcherUUID)).
-					Return(recipientWith(), nil)
-			},
-			wantErr: require.NoError,
-		},
-		{
-			name: "setting disabled skips push without rate limit or persist",
-			args: args{data: newPushNotif()},
-			setup: func(m mocks, a args) {
-				m.subscriptions.EXPECT().
-					GetRecipient(gomock.Any(), push.RecipientID(matcherUUID)).
-					Return(withSub, nil)
 				m.repo.EXPECT().
 					IsSettingEnabled(gomock.Any(), matcherUUID, notification.SettingTypeScheduleChange).
 					Return(false, nil)
@@ -115,11 +91,75 @@ func TestNotificationHandler_Process(t *testing.T) {
 			name: "setting check error wraps",
 			args: args{data: newPushNotif()},
 			setup: func(m mocks, a args) {
-				m.subscriptions.EXPECT().
-					GetRecipient(gomock.Any(), push.RecipientID(matcherUUID)).
-					Return(withSub, nil)
 				m.repo.EXPECT().
 					IsSettingEnabled(gomock.Any(), matcherUUID, notification.SettingTypeScheduleChange).
+					Return(false, assert.AnError)
+			},
+			wantErr: require.Error,
+		},
+		{
+			name: "get recipient error wraps",
+			args: args{data: newPushNotif()},
+			setup: func(m mocks, a args) {
+				m.repo.EXPECT().
+					IsSettingEnabled(gomock.Any(), matcherUUID, notification.SettingTypeScheduleChange).
+					Return(true, nil)
+				m.subscriptions.EXPECT().
+					GetRecipient(gomock.Any(), push.RecipientID(matcherUUID)).
+					Return(push.Recipient{}, assert.AnError)
+			},
+			wantErr: require.Error,
+		},
+		{
+			name: "no subscriptions persists as sent for in-app",
+			args: args{data: newPushNotif()},
+			setup: func(m mocks, a args) {
+				m.repo.EXPECT().
+					IsSettingEnabled(gomock.Any(), matcherUUID, notification.SettingTypeScheduleChange).
+					Return(true, nil)
+				m.subscriptions.EXPECT().
+					GetRecipient(gomock.Any(), push.RecipientID(matcherUUID)).
+					Return(recipientWith(), nil)
+				m.repo.EXPECT().
+					CreateIfAbsent(gomock.Any(), gomock.AssignableToTypeOf(notification.Notification{})).
+					DoAndReturn(func(_ context.Context, n notification.Notification) (bool, error) {
+						require.Equal(t, notification.StatusSent, n.Status)
+						require.Equal(t, "key-1", n.IdempotencyKey)
+						require.NotNil(t, n.SentAt)
+						require.True(t, n.SentAt.Equal(matcherNow))
+						return true, nil
+					})
+			},
+			wantErr: require.NoError,
+		},
+		{
+			name: "no subscriptions duplicate is logged and returns nil",
+			args: args{data: newPushNotif()},
+			setup: func(m mocks, a args) {
+				m.repo.EXPECT().
+					IsSettingEnabled(gomock.Any(), matcherUUID, notification.SettingTypeScheduleChange).
+					Return(true, nil)
+				m.subscriptions.EXPECT().
+					GetRecipient(gomock.Any(), push.RecipientID(matcherUUID)).
+					Return(recipientWith(), nil)
+				m.repo.EXPECT().
+					CreateIfAbsent(gomock.Any(), gomock.Any()).
+					Return(false, nil)
+			},
+			wantErr: require.NoError,
+		},
+		{
+			name: "no subscriptions persist error wraps",
+			args: args{data: newPushNotif()},
+			setup: func(m mocks, a args) {
+				m.repo.EXPECT().
+					IsSettingEnabled(gomock.Any(), matcherUUID, notification.SettingTypeScheduleChange).
+					Return(true, nil)
+				m.subscriptions.EXPECT().
+					GetRecipient(gomock.Any(), push.RecipientID(matcherUUID)).
+					Return(recipientWith(), nil)
+				m.repo.EXPECT().
+					CreateIfAbsent(gomock.Any(), gomock.Any()).
 					Return(false, assert.AnError)
 			},
 			wantErr: require.Error,
@@ -128,12 +168,12 @@ func TestNotificationHandler_Process(t *testing.T) {
 			name: "rate limited persists pending and returns nil",
 			args: args{data: newPushNotif()},
 			setup: func(m mocks, a args) {
-				m.subscriptions.EXPECT().
-					GetRecipient(gomock.Any(), push.RecipientID(matcherUUID)).
-					Return(withSub, nil)
 				m.repo.EXPECT().
 					IsSettingEnabled(gomock.Any(), matcherUUID, notification.SettingTypeScheduleChange).
 					Return(true, nil)
+				m.subscriptions.EXPECT().
+					GetRecipient(gomock.Any(), push.RecipientID(matcherUUID)).
+					Return(withSub, nil)
 				m.rateLimiter.EXPECT().
 					Allow(gomock.Any(), matcherUUID, notification.SettingTypeScheduleChange).
 					Return(false, nil)
@@ -142,6 +182,8 @@ func TestNotificationHandler_Process(t *testing.T) {
 					DoAndReturn(func(_ context.Context, n notification.Notification) (bool, error) {
 						require.Equal(t, notification.StatusPending, n.Status)
 						require.Equal(t, "key-1", n.IdempotencyKey)
+						require.NotNil(t, n.SentAt)
+						require.True(t, n.SentAt.Equal(matcherNow))
 						require.NotNil(t, n.RetryAfter)
 						require.True(t, n.RetryAfter.Equal(matcherNow.Add(matcherRetryInterval)))
 						require.NotNil(t, n.ExpiresAt)
@@ -155,12 +197,12 @@ func TestNotificationHandler_Process(t *testing.T) {
 			name: "rate limited duplicate is logged and returns nil",
 			args: args{data: newPushNotif()},
 			setup: func(m mocks, a args) {
-				m.subscriptions.EXPECT().
-					GetRecipient(gomock.Any(), push.RecipientID(matcherUUID)).
-					Return(withSub, nil)
 				m.repo.EXPECT().
 					IsSettingEnabled(gomock.Any(), matcherUUID, notification.SettingTypeScheduleChange).
 					Return(true, nil)
+				m.subscriptions.EXPECT().
+					GetRecipient(gomock.Any(), push.RecipientID(matcherUUID)).
+					Return(withSub, nil)
 				m.rateLimiter.EXPECT().
 					Allow(gomock.Any(), matcherUUID, notification.SettingTypeScheduleChange).
 					Return(false, nil)
@@ -174,12 +216,12 @@ func TestNotificationHandler_Process(t *testing.T) {
 			name: "rate limited persist error wraps",
 			args: args{data: newPushNotif()},
 			setup: func(m mocks, a args) {
-				m.subscriptions.EXPECT().
-					GetRecipient(gomock.Any(), push.RecipientID(matcherUUID)).
-					Return(withSub, nil)
 				m.repo.EXPECT().
 					IsSettingEnabled(gomock.Any(), matcherUUID, notification.SettingTypeScheduleChange).
 					Return(true, nil)
+				m.subscriptions.EXPECT().
+					GetRecipient(gomock.Any(), push.RecipientID(matcherUUID)).
+					Return(withSub, nil)
 				m.rateLimiter.EXPECT().
 					Allow(gomock.Any(), matcherUUID, notification.SettingTypeScheduleChange).
 					Return(false, nil)
@@ -193,12 +235,12 @@ func TestNotificationHandler_Process(t *testing.T) {
 			name: "allowed sends and persists sent",
 			args: args{data: newPushNotif()},
 			setup: func(m mocks, a args) {
-				m.subscriptions.EXPECT().
-					GetRecipient(gomock.Any(), push.RecipientID(matcherUUID)).
-					Return(withSub, nil)
 				m.repo.EXPECT().
 					IsSettingEnabled(gomock.Any(), matcherUUID, notification.SettingTypeScheduleChange).
 					Return(true, nil)
+				m.subscriptions.EXPECT().
+					GetRecipient(gomock.Any(), push.RecipientID(matcherUUID)).
+					Return(withSub, nil)
 				m.rateLimiter.EXPECT().
 					Allow(gomock.Any(), matcherUUID, notification.SettingTypeScheduleChange).
 					Return(true, nil)
@@ -218,12 +260,12 @@ func TestNotificationHandler_Process(t *testing.T) {
 			name: "allowed duplicate skips send",
 			args: args{data: newPushNotif()},
 			setup: func(m mocks, a args) {
-				m.subscriptions.EXPECT().
-					GetRecipient(gomock.Any(), push.RecipientID(matcherUUID)).
-					Return(withSub, nil)
 				m.repo.EXPECT().
 					IsSettingEnabled(gomock.Any(), matcherUUID, notification.SettingTypeScheduleChange).
 					Return(true, nil)
+				m.subscriptions.EXPECT().
+					GetRecipient(gomock.Any(), push.RecipientID(matcherUUID)).
+					Return(withSub, nil)
 				m.rateLimiter.EXPECT().
 					Allow(gomock.Any(), matcherUUID, notification.SettingTypeScheduleChange).
 					Return(true, nil)
@@ -237,12 +279,12 @@ func TestNotificationHandler_Process(t *testing.T) {
 			name: "allowed persist error wraps",
 			args: args{data: newPushNotif()},
 			setup: func(m mocks, a args) {
-				m.subscriptions.EXPECT().
-					GetRecipient(gomock.Any(), push.RecipientID(matcherUUID)).
-					Return(withSub, nil)
 				m.repo.EXPECT().
 					IsSettingEnabled(gomock.Any(), matcherUUID, notification.SettingTypeScheduleChange).
 					Return(true, nil)
+				m.subscriptions.EXPECT().
+					GetRecipient(gomock.Any(), push.RecipientID(matcherUUID)).
+					Return(withSub, nil)
 				m.rateLimiter.EXPECT().
 					Allow(gomock.Any(), matcherUUID, notification.SettingTypeScheduleChange).
 					Return(true, nil)
@@ -256,12 +298,12 @@ func TestNotificationHandler_Process(t *testing.T) {
 			name: "allowed send error wraps",
 			args: args{data: newPushNotif()},
 			setup: func(m mocks, a args) {
-				m.subscriptions.EXPECT().
-					GetRecipient(gomock.Any(), push.RecipientID(matcherUUID)).
-					Return(withSub, nil)
 				m.repo.EXPECT().
 					IsSettingEnabled(gomock.Any(), matcherUUID, notification.SettingTypeScheduleChange).
 					Return(true, nil)
+				m.subscriptions.EXPECT().
+					GetRecipient(gomock.Any(), push.RecipientID(matcherUUID)).
+					Return(withSub, nil)
 				m.rateLimiter.EXPECT().
 					Allow(gomock.Any(), matcherUUID, notification.SettingTypeScheduleChange).
 					Return(true, nil)

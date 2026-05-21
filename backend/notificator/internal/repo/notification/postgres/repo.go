@@ -75,7 +75,7 @@ func (r *repo) ListByUserID(ctx context.Context, userID uuid.UUID, limit, offset
 	const query = `
 		SELECT id, recipient_id, title, type, text, status, sent_at, retry_after, expires_at, read_at, push_payload, idempotency_key
 		FROM notifications
-		WHERE recipient_id = $1 AND status = 'sent'
+		WHERE recipient_id = $1
 		ORDER BY sent_at DESC
 		LIMIT $2 OFFSET $3
 	`
@@ -168,7 +168,7 @@ func (r *repo) MarkAsRead(ctx context.Context, id, userID uuid.UUID, readAt time
 	const query = `
 		UPDATE notifications
 		SET read_at = COALESCE(read_at, $1)
-		WHERE id = $2 AND recipient_id = $3 AND status = 'sent'
+		WHERE id = $2 AND recipient_id = $3
 	`
 	tag, err := r.db.Exec(ctx, query, readAt, id, userID)
 	if err != nil {
@@ -184,7 +184,7 @@ func (r *repo) MarkAllAsRead(ctx context.Context, userID uuid.UUID, readAt time.
 	const query = `
 		UPDATE notifications
 		SET read_at = $1
-		WHERE recipient_id = $2 AND status = 'sent' AND read_at IS NULL
+		WHERE recipient_id = $2 AND read_at IS NULL
 	`
 	_, err := r.db.Exec(ctx, query, readAt, userID)
 	if err != nil {

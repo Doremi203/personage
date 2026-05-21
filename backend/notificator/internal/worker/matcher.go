@@ -60,24 +60,6 @@ func (p *notificationHandler) Process(
 		)
 	}
 
-	pushRecipientID := push.RecipientID(recipientUUID)
-
-	pushRecipient, err := p.subscriptionUseCase.GetRecipient(ctx, pushRecipientID)
-	if err != nil {
-		return errors.WrapFailf(
-			err,
-			"get push recipient with id %v",
-			errors.Token("id", pushRecipientID),
-		)
-	}
-	if len(pushRecipient.Subscriptions) == 0 {
-		p.logger.Infof(
-			"no subscriptions for recipient %v, skipping push",
-			errors.Token("id", pushRecipientID),
-		)
-		return nil
-	}
-
 	typ := notification.SettingType(data.GetType())
 	enabled, err := p.notificationRepo.IsSettingEnabled(ctx, recipientUUID, typ)
 	if err != nil {
@@ -90,10 +72,57 @@ func (p *notificationHandler) Process(
 	}
 	if !enabled {
 		p.logger.Infof(
-			"notification type %v disabled for recipient %v, skipping push",
+			"notification type %v disabled for recipient %v, skipping",
 			errors.Token("type", string(typ)),
+			errors.Token("id", recipientUUID),
+		)
+		return nil
+	}
+
+	pushRecipientID := push.RecipientID(recipientUUID)
+	pushRecipient, err := p.subscriptionUseCase.GetRecipient(ctx, pushRecipientID)
+	if err != nil {
+		return errors.WrapFailf(
+			err,
+			"get push recipient with id %v",
 			errors.Token("id", pushRecipientID),
 		)
+	}
+
+	now := p.clock()
+
+	if len(pushRecipient.Subscriptions) == 0 {
+		sent, err := notification.NewSent(
+			recipientUUID,
+			data.GetTitle(),
+			data.GetType(),
+			data.GetDetailedText(),
+			now,
+			data.GetIdempotencyKey(),
+		)
+		if err != nil {
+			return errors.WrapFailf(err, "build notification for recipient %v", errors.Token("id", pushRecipientID))
+		}
+		inserted, err := p.notificationRepo.CreateIfAbsent(ctx, sent)
+		if err != nil {
+			return errors.WrapFailf(
+				err,
+				"persist in-app notification for recipient %v",
+				errors.Token("id", pushRecipientID),
+			)
+		}
+		if !inserted {
+			p.logger.Infof(
+				"duplicate notification skipped for recipient %v key %v",
+				errors.Token("id", pushRecipientID),
+				errors.Token("idempotency_key", data.GetIdempotencyKey()),
+			)
+		} else {
+			p.logger.Infof(
+				"no subscriptions for recipient %v, stored for in-app only",
+				errors.Token("id", pushRecipientID),
+			)
+		}
 		return nil
 	}
 
@@ -103,12 +132,12 @@ func (p *notificationHandler) Process(
 	}
 
 	if !allowed {
-		now := p.clock()
 		pending, err := notification.NewPending(
 			recipientUUID,
 			data.GetTitle(),
 			data.GetType(),
 			data.GetDetailedText(),
+			now,
 			now.Add(p.retryInterval),
 			now.Add(p.maxAge),
 			&notification.PushPayload{
@@ -140,7 +169,7 @@ func (p *notificationHandler) Process(
 		data.GetTitle(),
 		data.GetType(),
 		data.GetDetailedText(),
-		p.clock(),
+		now,
 		data.GetIdempotencyKey(),
 	)
 	if err != nil {
