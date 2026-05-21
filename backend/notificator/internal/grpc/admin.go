@@ -8,8 +8,11 @@ import (
 	pushpb "github.com/Doremi203/personage/backend/notificator/gen/api/push"
 	"github.com/Doremi203/personage/backend/notificator/internal/domain/push"
 	"github.com/Doremi203/personage/backend/notificator/internal/usecase"
+	"github.com/google/uuid"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func NewAdminService(
@@ -49,17 +52,19 @@ func (s *adminService) SendPushV1(
 	ctx context.Context,
 	req *pushpb.SendPushV1Request,
 ) (*pushpb.SendPushV1Response, error) {
-	recipients, err := s.pushRepo.GetAllRecipients(ctx)
+	n := req.GetNotification()
+
+	recipients, err := s.resolveRecipients(ctx, n.GetRecipientId())
 	if err != nil {
 		return nil, err
 	}
 
 	for _, recipient := range recipients {
 		err = s.pushSender.Send(ctx, recipient, push.Push{
-			Title: req.GetNotification().GetTitle(),
-			Body:  req.GetNotification().GetBody(),
-			Url:   req.GetNotification().GetUrl(),
-			Icon:  req.GetNotification().GetIcon(),
+			Title: n.GetTitle(),
+			Body:  n.GetBody(),
+			Url:   n.GetUrl(),
+			Icon:  n.GetIcon(),
 		})
 		if err != nil {
 			s.logger.Error(errors.WrapFailf(
@@ -72,4 +77,34 @@ func (s *adminService) SendPushV1(
 	}
 
 	return &pushpb.SendPushV1Response{}, nil
+}
+
+func (s *adminService) resolveRecipients(ctx context.Context, recipientIDStr string) ([]push.Recipient, error) {
+	if recipientIDStr == "" {
+		all, err := s.pushRepo.GetAllRecipients(ctx)
+		if err != nil {
+			return nil, errors.WrapFail(err, "get all recipients")
+		}
+		return all, nil
+	}
+
+	recipientUUID, err := uuid.Parse(recipientIDStr)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "invalid recipient_id: must be a UUID")
+	}
+	recipientID := push.RecipientID(recipientUUID)
+
+	subs, err := s.pushRepo.GetSubscriptionsByRecipientID(ctx, recipientID)
+	if err != nil {
+		return nil, errors.WrapFailf(
+			err,
+			"get subscriptions by recipient id",
+			errors.Token("recipient_id", recipientID),
+		)
+	}
+	if len(subs) == 0 {
+		s.logger.Infof("no push subscriptions for recipient %s", recipientID)
+		return nil, nil
+	}
+	return []push.Recipient{{ID: recipientID, Subscriptions: subs}}, nil
 }

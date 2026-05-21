@@ -6,6 +6,7 @@ import {
 } from '../utils/adminService';
 import { SANS, SERIF, T } from '../mobile/tokens';
 import { AdminTaskDetailSheet } from '../mobile/AdminTaskDetailSheet';
+import { AdminSendPushSheet } from '../mobile/AdminSendPushSheet';
 
 interface AdminUserTasksScreenProps {
   userId: string;
@@ -36,6 +37,7 @@ export function AdminUserTasksScreen({ userId, onBack }: AdminUserTasksScreenPro
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<AdminTaskItem | null>(null);
+  const [pushOpen, setPushOpen] = useState(false);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -121,22 +123,41 @@ export function AdminUserTasksScreen({ userId, onBack }: AdminUserTasksScreenPro
               </div>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => void reload()}
-            style={{
-              padding: '8px 14px',
-              borderRadius: 10,
-              border: `0.5px solid ${T.hairline}`,
-              background: T.surface,
-              color: T.ink2,
-              fontSize: 13,
-              cursor: 'pointer',
-              fontFamily: SANS,
-            }}
-          >
-            Обновить
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <button
+              type="button"
+              onClick={() => setPushOpen(true)}
+              style={{
+                padding: '8px 14px',
+                borderRadius: 10,
+                border: 'none',
+                background: T.ink,
+                color: T.bg,
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: 'pointer',
+                fontFamily: SANS,
+              }}
+            >
+              Отправить пуш
+            </button>
+            <button
+              type="button"
+              onClick={() => void reload()}
+              style={{
+                padding: '8px 14px',
+                borderRadius: 10,
+                border: `0.5px solid ${T.hairline}`,
+                background: T.surface,
+                color: T.ink2,
+                fontSize: 13,
+                cursor: 'pointer',
+                fontFamily: SANS,
+              }}
+            >
+              Обновить
+            </button>
+          </div>
         </div>
 
         {error && (
@@ -306,6 +327,10 @@ export function AdminUserTasksScreen({ userId, onBack }: AdminUserTasksScreenPro
             setSelected(updated);
           }}
         />
+      )}
+
+      {pushOpen && (
+        <AdminSendPushSheet userId={userId} onClose={() => setPushOpen(false)} />
       )}
     </div>
   );

@@ -9,6 +9,10 @@ const TASKER_API_URL =
   (import.meta.env.VITE_TASKER_API_URL as string | undefined) ??
   'https://tasker.persomanage.ru';
 
+const NOTIFICATOR_API_URL =
+  (import.meta.env.VITE_NOTIFICATOR_API_URL as string | undefined) ??
+  'https://notificator.persomanage.ru';
+
 export const ADMIN_KEY_STORAGE_KEY = 'personage_admin_key';
 export const ADMIN_KEY_CHANGE_EVENT = 'personage-admin-key-change';
 
@@ -36,6 +40,7 @@ async function fetchAdmin<T>(url: string, options: RequestInit = {}): Promise<T>
     headers: {
       ...options.headers,
       'X-Admin-Key': key,
+      'x-api-key': key,
     },
   });
   if (response.status === 401) {
@@ -144,4 +149,30 @@ export async function setUserModeration(userId: string, enabled: boolean): Promi
       body: JSON.stringify({ enabled }),
     },
   );
+}
+
+export interface AdminPushPayload {
+  title: string;
+  body: string;
+  url?: string;
+  icon?: string;
+}
+
+export async function sendAdminPushToUser(
+  userId: string,
+  payload: AdminPushPayload,
+): Promise<void> {
+  await fetchAdmin<Record<string, never>>(`${NOTIFICATOR_API_URL}/v1/push/admin/send`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      notification: {
+        recipientId: userId,
+        title: payload.title,
+        body: payload.body,
+        url: payload.url,
+        icon: payload.icon,
+      },
+    }),
+  });
 }
