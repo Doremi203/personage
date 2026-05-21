@@ -41,8 +41,8 @@ ENV REDIS_HOST=valkey \
     LOGIN_TIMEOUT_SECONDS=300 \
     ENVIRONMENT=production
 
-# Expose port
-EXPOSE 8000
+# Expose ports (HTTP + gRPC)
+EXPOSE 8000 50061
 
 # Run with single worker for stateful service (Redis, gRPC, Telegram clients)
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -6,11 +6,13 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Personage.Auth.Api.Configuration;
 using Personage.Auth.Api.Contracts.Common;
+using Personage.Auth.Api.GrpcClients;
 using Personage.Auth.Api.GrpcServices;
 using Personage.Auth.Api.Logging;
 using Personage.Auth.Api.Middleware;
 using Personage.Auth.Api.Middleware.Rest;
 using Personage.Auth.Bll.Services;
+using TelegramChatsGrpcServiceClient = Personage.Auth.Api.Grpc.TelegramChats.TelegramChatsService.TelegramChatsServiceClient;
 using Personage.Auth.DataAccess;
 using Personage.Auth.DataAccess.Interfaces;
 using Personage.Auth.DataAccess.Interfaces.Repositories;
@@ -44,6 +46,8 @@ public class Program
         var useMetadataService = builder.Configuration.GetValue<bool>("YandexCloud:UseMetadataService");
         builder.Configuration.AddLockboxSecrets(useMetadataService);
 
+        EnableHttp2CleartextIfNeeded(builder.Configuration);
+
         builder.Services.AddGrpc(options =>
         {
             options.EnableDetailedErrors = true;
@@ -67,6 +71,18 @@ public class Program
         ConfigureMiddleware(app);
 
         await app.RunAsync();
+    }
+
+    private static void EnableHttp2CleartextIfNeeded(IConfiguration configuration)
+    {
+        var grpcUrl = configuration.GetSection(nameof(TelegramAuthGrpcSettings))["Url"];
+        if (!string.IsNullOrEmpty(grpcUrl)
+            && Uri.TryCreate(grpcUrl, UriKind.Absolute, out var uri)
+            && uri.Scheme == Uri.UriSchemeHttp)
+        {
+            AppContext.SetSwitch(
+                "System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
+        }
     }
 
     /// <summary>
@@ -220,6 +236,7 @@ public class Program
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         services.AddScoped<IPasswordResetTokenRepository, PasswordResetTokenRepository>();
         services.AddScoped<ITelegramSessionRepository, TelegramSessionRepository>();
+        services.AddScoped<ITelegramChatRepository, TelegramChatRepository>();
     }
 
     private static void AddBllServices(IServiceCollection services)
@@ -230,11 +247,19 @@ public class Program
         services.AddScoped<IGoogleOAuthService, GoogleOAuthService>();
         services.AddScoped<IPostboxService, PostboxService>();
         services.AddScoped<ITelegramAuthService, TelegramAuthService>();
+        services.AddScoped<ITelegramChatsService, TelegramChatsService>();
         services.AddScoped<IClaimValues, ClaimValues>();
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<IUserProfileService, UserProfileService>();
         services.AddScoped<IIntegrationsService, IntegrationsService>();
         services.AddHttpClient<IGoogleOAuthService, GoogleOAuthService>();
+        services.AddScoped<ITelegramChatsGrpcClient, TelegramChatsGrpcClient>();
+        services
+            .AddGrpcClient<TelegramChatsGrpcServiceClient>((sp, options) =>
+            {
+                var grpcSettings = sp.GetRequiredService<IOptions<TelegramAuthGrpcSettings>>().Value;
+                options.Address = new Uri(grpcSettings.Url);
+            });
     }
 
     private static void ConfigureSettings(
@@ -267,6 +292,7 @@ public class Program
         services.Configure<JwtSettings>(configuration.GetSection(nameof(JwtSettings)));
         services.Configure<PostboxSettings>(configuration.GetSection(nameof(PostboxSettings)));
         services.Configure<AdminSettings>(configuration.GetSection(nameof(AdminSettings)));
+        services.Configure<TelegramAuthGrpcSettings>(configuration.GetSection(nameof(TelegramAuthGrpcSettings)));
     }
 
     private static void AddCors(IServiceCollection services, ConfigurationManager configuration)

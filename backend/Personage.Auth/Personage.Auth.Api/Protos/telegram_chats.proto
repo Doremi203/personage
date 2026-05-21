@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package auth;
+option csharp_namespace = "Personage.Auth.Api.Grpc.TelegramChats";
+
+service TelegramChatsService {
+  rpc GetUserChats (GetUserChatsRequest) returns (GetUserChatsResponse);
+}
+
+message GetUserChatsRequest {
+  string session_string = 1;
+}
+
+message GetUserChatsResponse {
+  message Chat {
+    int64 id = 1;
+    string name = 2;
+  }
+  repeated Chat chats = 1;
+}

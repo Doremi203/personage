@@ -8,12 +8,14 @@ using Personage.Auth.Domain.Models.Common;
 using Personage.Auth.Domain.Models.StateTracking;
 using Personage.Auth.Domain.Models.StateTracking.Requests;
 using Personage.Auth.Domain.Models.StateTracking.Responses;
+using Personage.Auth.Domain.Models.TelegramAuth;
 
 namespace Personage.Auth.Bll.Services;
 
 public class StateTrackingService(
     IGmailTokenRepository gmailTokenRepository,
     ITelegramSessionRepository telegramSessionRepository,
+    ITelegramChatRepository telegramChatRepository,
     IGoogleCalendarTokenRepository googleCalendarTokenRepository,
     IGoogleOAuthService googleOAuthService,
     IUserRepository userRepository,
@@ -90,10 +92,14 @@ public class StateTrackingService(
     {
         var users = await userRepository.GetUsersTelegramProcessedBeforeMoment(
             processedUntilMoment, batchSize, ct);
+
+        var chatsByUser = await telegramChatRepository.GetChatsForUsers(
+            users.Select(u => u.UserId).ToArray(), ct);
+
         return new GetUsersForProcessingResponseModel
         {
             Users = users
-                .Select(MapTelegramUser)
+                .Select(u => MapTelegramUser(u, chatsByUser))
                 .ToArray()
         };
     }
@@ -215,15 +221,22 @@ public class StateTrackingService(
         };
     }
 
-    private static UserForProcessingModel MapTelegramUser(UserWithTelegramSession model)
+    private static UserForProcessingModel MapTelegramUser(
+        UserWithTelegramSession model,
+        IReadOnlyDictionary<Guid, IReadOnlyList<TelegramChatModel>> chatsByUser)
     {
+        var chats = chatsByUser.TryGetValue(model.UserId, out var userChats)
+            ? userChats
+            : [];
+
         return new UserForProcessingModel
         {
             UserId = model.UserId,
             LastProcessedAt = model.LastProcessedAt,
             Credentials = new TelegramProcessingCredentials
             {
-                SessionString = model.SessionString
+                SessionString = model.SessionString,
+                Chats = chats
             }
         };
     }

@@ -1,4 +1,5 @@
 using Personage.Auth.Domain.Models.Common;
+using Personage.Auth.Domain.Models.TelegramAuth;
 
 namespace Personage.Auth.Domain.Models.StateTracking;
 
@@ -17,4 +18,5 @@ public sealed class GoogleCalendarProcessingCredentials : ProcessingCredentialsB
 public sealed class TelegramProcessingCredentials : ProcessingCredentialsBase
 {
     public string SessionString { get; init; } = null!;
+    public IReadOnlyList<TelegramChatModel> Chats { get; init; } = [];
 }

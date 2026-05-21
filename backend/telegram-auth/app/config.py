@@ -40,6 +40,8 @@ class Settings(BaseSettings):
     AUTH_SERVICE_GRPC_PORT: int = Field(50051, env='AUTH_SERVICE_GRPC_PORT')
     AUTH_SERVICE_GRPC_TLS: bool = Field(False, env='AUTH_SERVICE_GRPC_TLS')
 
+    GRPC_SERVER_PORT: int = Field(50061, env='GRPC_SERVER_PORT')
+
     TELEGRAM_API_HASH: str | None = None
     TELEGRAM_API_ID: str | None = None
 

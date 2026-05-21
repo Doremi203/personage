@@ -22,4 +22,5 @@ public enum ErrorCode
     TelegramSessionNotFound = 14,
     InvalidClaims = 15,
     UserNotFound = 16,
+    TelegramChatNotFound = 17,
 }
