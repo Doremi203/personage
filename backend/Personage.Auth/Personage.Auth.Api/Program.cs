@@ -265,6 +265,7 @@ public class Program
         services.Configure<ConnectionFactorySettings>(configuration.GetSection(nameof(ConnectionFactorySettings)));
         services.Configure<JwtSettings>(configuration.GetSection(nameof(JwtSettings)));
         services.Configure<PostboxSettings>(configuration.GetSection(nameof(PostboxSettings)));
+        services.Configure<AdminSettings>(configuration.GetSection(nameof(AdminSettings)));
     }
 
     private static void AddCors(IServiceCollection services, ConfigurationManager configuration)

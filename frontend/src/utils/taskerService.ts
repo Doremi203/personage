@@ -51,6 +51,7 @@ export interface ApiTaskItem {
   priority: string;
   status: string;
   category: string;
+  isApproved?: boolean;
   updatedAt: string;
   createdAt: string;
 }
@@ -103,6 +104,18 @@ export interface UpdateTaskPatch {
   startTime?: string; // ISO 8601 — omit to leave unchanged
   endTime?: string;   // ISO 8601 — omit to leave unchanged
   category?: string;  // ApiTaskCategory enum value
+}
+
+export interface AdminUpdateTaskPatch {
+  title?: string;
+  description?: string;
+  startTime?: string;      // ISO 8601
+  endTime?: string;        // ISO 8601
+  deadline?: string;       // ISO 8601
+  priority?: number;       // 1-10
+  status?: string;         // lowercase: "unplanned" | "planned" | "completed"
+  category?: string;       // lowercase: "work" | "study" | "personal"
+  isApproved?: boolean;
 }
 
 export async function updateTask(

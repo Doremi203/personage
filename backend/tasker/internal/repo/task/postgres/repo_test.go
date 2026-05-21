@@ -378,4 +378,49 @@ func Test_repo_ListTasks(t *testing.T) {
 			assert.Len(t, tasks, 2)
 		},
 	)
+
+	tester.Run(t, "IncludeUnapproved exposes unapproved tasks", nil, 15*time.Second,
+		func(t *testing.T, ctx context.Context, db postgres.Client) {
+			r := NewRepo(db)
+
+			approved := newTask(t, userA)
+			unapproved := newTask(t, userA)
+			unapproved.IsApproved = false
+
+			require.NoError(t, r.CreateTask(ctx, approved))
+			require.NoError(t, r.CreateTask(ctx, unapproved))
+
+			defaultList, _, err := r.ListTasks(ctx,
+				domain.TaskFilter{UserID: userA},
+				domain.Pagination{Page: 1, PageSize: 10},
+			)
+			require.NoError(t, err)
+			require.Len(t, defaultList, 1)
+			assert.Equal(t, approved.ID, defaultList[0].ID)
+
+			adminList, total, err := r.ListTasks(ctx,
+				domain.TaskFilter{UserID: userA, IncludeUnapproved: true},
+				domain.Pagination{Page: 1, PageSize: 10},
+			)
+			require.NoError(t, err)
+			assert.Equal(t, 2, total)
+			ids := []domain.TaskID{adminList[0].ID, adminList[1].ID}
+			assert.ElementsMatch(t, []domain.TaskID{approved.ID, unapproved.ID}, ids)
+		},
+	)
+
+	tester.Run(t, "UpdateTask IsApproved toggle", nil, 15*time.Second,
+		func(t *testing.T, ctx context.Context, db postgres.Client) {
+			r := NewRepo(db)
+
+			task := newTask(t, userA)
+			task.IsApproved = false
+			require.NoError(t, r.CreateTask(ctx, task))
+
+			approved := true
+			updated, err := r.UpdateTask(ctx, task.ID, userA, domain.TaskUpdate{IsApproved: &approved})
+			require.NoError(t, err)
+			assert.True(t, updated.IsApproved)
+		},
+	)
 }

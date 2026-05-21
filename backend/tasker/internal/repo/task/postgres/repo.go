@@ -364,6 +364,30 @@ func (r *repo) UpdateTask(ctx context.Context, taskID domain.TaskID, userID doma
 		argIdx++
 	}
 
+	if update.Deadline != nil {
+		setClauses = append(setClauses, fmt.Sprintf("deadline = $%d", argIdx))
+		args = append(args, *update.Deadline)
+		argIdx++
+	}
+
+	if update.Priority != nil {
+		setClauses = append(setClauses, fmt.Sprintf("priority = $%d", argIdx))
+		args = append(args, *update.Priority)
+		argIdx++
+	}
+
+	if update.Status != nil {
+		setClauses = append(setClauses, fmt.Sprintf("status = $%d", argIdx))
+		args = append(args, string(*update.Status))
+		argIdx++
+	}
+
+	if update.IsApproved != nil {
+		setClauses = append(setClauses, fmt.Sprintf("is_approved = $%d", argIdx))
+		args = append(args, *update.IsApproved)
+		argIdx++
+	}
+
 	if len(setClauses) == 0 {
 		// Nothing to update — just return the current task.
 		return r.GetTaskByID(ctx, taskID, userID)
@@ -422,7 +446,9 @@ func (r *repo) ListTasks(ctx context.Context, filter domain.TaskFilter, paginati
 	args = append(args, filter.UserID)
 	argIdx++
 
-	conditions = append(conditions, "is_approved = TRUE")
+	if !filter.IncludeUnapproved {
+		conditions = append(conditions, "is_approved = TRUE")
+	}
 
 	if filter.Status != nil {
 		conditions = append(conditions, fmt.Sprintf("status = $%d", argIdx))

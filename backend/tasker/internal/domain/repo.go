@@ -45,6 +45,9 @@ type ProcessingPauseRepo interface {
 
 type ManualModerationRepo interface {
 	RequiresModeration(ctx context.Context, userID UserID) (bool, error)
+	AddUser(ctx context.Context, userID UserID) error
+	RemoveUser(ctx context.Context, userID UserID) error
+	ListUsers(ctx context.Context) ([]UserID, error)
 }
 
 type TaskRepo interface {

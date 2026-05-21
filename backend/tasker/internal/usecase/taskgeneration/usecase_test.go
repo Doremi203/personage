@@ -255,3 +255,8 @@ type stubModerationRepo struct {
 func (s stubModerationRepo) RequiresModeration(context.Context, domain.UserID) (bool, error) {
 	return s.required, s.err
 }
+func (s stubModerationRepo) AddUser(context.Context, domain.UserID) error    { return nil }
+func (s stubModerationRepo) RemoveUser(context.Context, domain.UserID) error { return nil }
+func (s stubModerationRepo) ListUsers(context.Context) ([]domain.UserID, error) {
+	return nil, nil
+}

@@ -104,12 +104,13 @@ type Schedule struct {
 }
 
 type TaskFilter struct {
-	UserID   UserID
-	Status   *TaskStatus   // nil means "all"
-	Category *TaskCategory // nil means "all"
-	Text     string        // full-text search query
-	From     *time.Time    // inclusive lower bound on created_at
-	Till     *time.Time    // inclusive upper bound on created_at
+	UserID            UserID
+	Status            *TaskStatus   // nil means "all"
+	Category          *TaskCategory // nil means "all"
+	Text              string        // full-text search query
+	From              *time.Time    // inclusive lower bound on created_at
+	Till              *time.Time    // inclusive upper bound on created_at
+	IncludeUnapproved bool          // when true, the is_approved = TRUE constraint is dropped (admin-only)
 }
 
 // Pagination holds page-based pagination parameters.
@@ -125,5 +126,9 @@ type TaskUpdate struct {
 	Description *string
 	StartTime   *time.Time
 	EndTime     *time.Time
+	Deadline    *time.Time
+	Priority    *int
+	Status      *TaskStatus
 	Category    *TaskCategory
+	IsApproved  *bool
 }
