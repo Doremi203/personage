@@ -8,6 +8,7 @@ import {
   ChevronRight,
   Loader2,
   Mail,
+  MessageSquare,
   Pencil,
   Send,
   type LucideIcon,
@@ -36,6 +37,7 @@ import {
   type PushSubscriptionStatus,
 } from '../utils/pushNotifications';
 import { TelegramConnectModal } from '../components/TelegramConnectModal';
+import { TelegramChatsSheet } from '../components/TelegramChatsSheet';
 
 const NAME_PATTERN = /^[\p{L}\s\-']+$/u;
 
@@ -105,6 +107,7 @@ const SettingsScreen = ({ onLogout }: SettingsScreenProps) => {
   const [telegramLoading, setTelegramLoading] = useState(false);
   const [telegramModalOpen, setTelegramModalOpen] = useState(false);
   const [telegramError, setTelegramError] = useState<string | null>(null);
+  const [chatsSheetOpen, setChatsSheetOpen] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState('');
   const [nameSaving, setNameSaving] = useState(false);
@@ -562,17 +565,27 @@ const SettingsScreen = ({ onLogout }: SettingsScreenProps) => {
           }}>{telegramError}</div>
         )}
         {user?.telegramIntegration.enabled ? (
-          <NavRow
-            icon={Send}
-            iconBg={T.infoFill}
-            iconInk={T.info}
-            title="Telegram"
-            value="Подключён"
-            actionLabel={telegramLoading ? 'Отключение…' : 'Отключить'}
-            actionDisabled={telegramLoading}
-            onAction={() => void handleDisconnectTelegram()}
-            last
-          />
+          <>
+            <NavRow
+              icon={Send}
+              iconBg={T.infoFill}
+              iconInk={T.info}
+              title="Telegram"
+              value="Подключён"
+              actionLabel={telegramLoading ? 'Отключение…' : 'Отключить'}
+              actionDisabled={telegramLoading}
+              onAction={() => void handleDisconnectTelegram()}
+            />
+            <TappableRow
+              icon={MessageSquare}
+              iconBg={T.infoFill}
+              iconInk={T.info}
+              title="Чаты"
+              subtitle="Выбор чатов для обработки"
+              onClick={() => setChatsSheetOpen(true)}
+              last
+            />
+          </>
         ) : (
           <ActionRow
             icon={Send}
@@ -599,6 +612,10 @@ const SettingsScreen = ({ onLogout }: SettingsScreenProps) => {
           />
         );
       })()}
+
+      {chatsSheetOpen && (
+        <TelegramChatsSheet onClose={() => setChatsSheetOpen(false)} />
+      )}
 
       {/* Logout */}
       <div style={{ padding: '0 16px 24px' }}>
@@ -728,6 +745,33 @@ function NavRow({ value, actionLabel, actionDisabled, onAction, ...rest }: NavRo
         <ChevronRight size={16} strokeWidth={1.8} style={{ color: T.ink4 }} />
       )}
     </RowFrame>
+  );
+}
+
+interface TappableRowProps extends Omit<RowFrameProps, 'children'> {
+  onClick: () => void;
+  disabled?: boolean;
+}
+
+function TappableRow({ onClick, disabled, last, ...rest }: TappableRowProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      style={{
+        display: 'block', width: '100%',
+        background: 'transparent', border: 'none', padding: 0,
+        textAlign: 'left',
+        cursor: disabled ? 'default' : 'pointer',
+        opacity: disabled ? 0.6 : 1,
+        borderBottom: last ? 'none' : `0.5px solid ${T.hairline}`,
+      }}
+    >
+      <RowFrame {...rest} last>
+        <ChevronRight size={16} strokeWidth={1.8} style={{ color: T.ink4 }} />
+      </RowFrame>
+    </button>
   );
 }
 
