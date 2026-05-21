@@ -469,7 +469,7 @@ func TestUseCase_GetTasks(t *testing.T) {
 	wantFrom := time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC)
 	wantTill := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 
-	returnedTasks := []domain.Task{{ID: "task-1", IsApproved: true}}
+	returnedTasks := []domain.Task{{ID: "task-1"}}
 
 	tests := []struct {
 		name    string
@@ -576,29 +576,6 @@ func TestUseCase_GetTasks(t *testing.T) {
 			},
 			want:    tasklist.ListTasksResult{},
 			wantErr: require.Error,
-		},
-		{
-			name: "drops tasks awaiting manual moderation",
-			args: args{params: tasklist.ListTasksParams{
-				UserID:   testUserID,
-				Page:     1,
-				PageSize: 10,
-			}},
-			setup: func(m mocks, a args) {
-				m.taskRepo.EXPECT().
-					ListTasks(gomock.Any(), gomock.Any(), gomock.Any()).
-					Return([]domain.Task{
-						{ID: "approved", IsApproved: true},
-						{ID: "pending", IsApproved: false},
-					}, 2, nil)
-			},
-			want: tasklist.ListTasksResult{
-				Tasks:    []domain.Task{{ID: "approved", IsApproved: true}},
-				Total:    2,
-				Page:     1,
-				PageSize: 10,
-			},
-			wantErr: require.NoError,
 		},
 	}
 

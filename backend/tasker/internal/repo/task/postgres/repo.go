@@ -422,6 +422,8 @@ func (r *repo) ListTasks(ctx context.Context, filter domain.TaskFilter, paginati
 	args = append(args, filter.UserID)
 	argIdx++
 
+	conditions = append(conditions, "is_approved = TRUE")
+
 	if filter.Status != nil {
 		conditions = append(conditions, fmt.Sprintf("status = $%d", argIdx))
 		args = append(args, *filter.Status)
