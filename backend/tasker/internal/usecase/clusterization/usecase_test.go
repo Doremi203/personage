@@ -60,14 +60,14 @@ func TestUseCase_ProcessEvent(t *testing.T) {
 			wantErr: require.Error,
 		},
 		{
-			name: "empty embeddings returns error",
+			name: "empty embeddings skip",
 			args: args{event: defaultEvent},
 			setup: func(m mocks, a args) {
 				m.embedder.EXPECT().
 					GenerateEmbeddings(gomock.Any(), []string{string(a.event.Context)}).
 					Return([][]float32{}, nil)
 			},
-			wantErr: require.Error,
+			wantErr: require.NoError,
 		},
 		{
 			name: "find similar clusters error",
