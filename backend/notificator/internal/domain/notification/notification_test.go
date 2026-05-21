@@ -17,6 +17,7 @@ var (
 )
 
 func TestNewPending(t *testing.T) {
+	receivedAt := testNow
 	retryAfter := testNow.Add(time.Minute)
 	expiresAt := testNow.Add(time.Hour)
 	payload := &notification.PushPayload{Body: "b", Icon: "i", URL: "u"}
@@ -26,6 +27,7 @@ func TestNewPending(t *testing.T) {
 		title          string
 		typ            string
 		text           string
+		receivedAt     time.Time
 		retryAfter     time.Time
 		expiresAt      time.Time
 		payload        *notification.PushPayload
@@ -44,6 +46,7 @@ func TestNewPending(t *testing.T) {
 				title:          "Title",
 				typ:            string(notification.SettingTypeScheduleChange),
 				text:           "Text",
+				receivedAt:     receivedAt,
 				retryAfter:     retryAfter,
 				expiresAt:      expiresAt,
 				payload:        payload,
@@ -55,6 +58,7 @@ func TestNewPending(t *testing.T) {
 				Type:           string(notification.SettingTypeScheduleChange),
 				Text:           "Text",
 				Status:         notification.StatusPending,
+				SentAt:         &receivedAt,
 				RetryAfter:     &retryAfter,
 				ExpiresAt:      &expiresAt,
 				PushPayload:    payload,
@@ -103,6 +107,7 @@ func TestNewPending(t *testing.T) {
 				tt.args.title,
 				tt.args.typ,
 				tt.args.text,
+				tt.args.receivedAt,
 				tt.args.retryAfter,
 				tt.args.expiresAt,
 				tt.args.payload,
