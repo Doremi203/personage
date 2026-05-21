@@ -15,6 +15,7 @@ func NewUseCase(
 	clusterRepo domain.ClusterRepo,
 	eventRepo domain.EventRepo,
 	taskRepo domain.TaskRepo,
+	moderationRepo domain.ManualModerationRepo,
 	actionabilityService domain.ClusterClassificatorService,
 	taskGenService domain.TaskGenerationService,
 	txProvider tx.Provider,
@@ -27,6 +28,7 @@ func NewUseCase(
 		clusterRepo:                 clusterRepo,
 		eventRepo:                   eventRepo,
 		taskRepo:                    taskRepo,
+		moderationRepo:              moderationRepo,
 		clusterClassificatorService: actionabilityService,
 		taskGenService:              taskGenService,
 		txProvider:                  txProvider,
@@ -41,6 +43,7 @@ type UseCase struct {
 	clusterRepo                 domain.ClusterRepo
 	eventRepo                   domain.EventRepo
 	taskRepo                    domain.TaskRepo
+	moderationRepo              domain.ManualModerationRepo
 	clusterClassificatorService domain.ClusterClassificatorService
 	taskGenService              domain.TaskGenerationService
 	txProvider                  tx.Provider
@@ -137,6 +140,15 @@ func (uc *UseCase) processCluster(ctx context.Context, cluster domain.Cluster) e
 		return errors.WrapFail(err, "generate task")
 	}
 
+	requiresModeration, err := uc.moderationRepo.RequiresModeration(ctx, cluster.UserID)
+	if err != nil {
+		return errors.WrapFailf(
+			err,
+			"check manual moderation for user %s",
+			errors.Token("user_id", cluster.UserID.String()),
+		)
+	}
+
 	now := uc.clock()
 	task := domain.Task{
 		ID:               domain.TaskID(uuid.New().String()),
@@ -151,6 +163,7 @@ func (uc *UseCase) processCluster(ctx context.Context, cluster domain.Cluster) e
 		Status:           domain.TaskStatusUnplanned,
 		Category:         domain.NewTaskCategory(generatedTask.Category),
 		EvidenceEventIDs: generatedTask.EvidenceEventIDs,
+		IsApproved:       !requiresModeration,
 		CreatedAt:        now,
 		UpdatedAt:        now,
 	}

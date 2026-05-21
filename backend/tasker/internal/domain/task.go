@@ -85,6 +85,7 @@ type Task struct {
 	Status           TaskStatus
 	Category         TaskCategory
 	EvidenceEventIDs []EventID
+	IsApproved       bool // false when the task awaits manual moderation; hidden from task list reads
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
 }

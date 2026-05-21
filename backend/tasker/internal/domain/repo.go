@@ -43,6 +43,10 @@ type ProcessingPauseRepo interface {
 	IsPaused(ctx context.Context, userID UserID) (bool, error)
 }
 
+type ManualModerationRepo interface {
+	RequiresModeration(ctx context.Context, userID UserID) (bool, error)
+}
+
 type TaskRepo interface {
 	CreateTask(ctx context.Context, task Task) error
 	GetTaskByID(ctx context.Context, taskID TaskID, userID UserID) (Task, error)

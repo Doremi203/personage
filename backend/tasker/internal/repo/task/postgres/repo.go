@@ -41,10 +41,11 @@ func (r *repo) CreateTask(ctx context.Context, task domain.Task) error {
 			status,
 			category,
 			evidence_event_ids,
+			is_approved,
 			created_at,
 			updated_at
 		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16
 		)
 		ON CONFLICT (cluster_id) DO NOTHING
 	`
@@ -74,6 +75,7 @@ func (r *repo) CreateTask(ctx context.Context, task domain.Task) error {
 		task.Status,
 		task.Category,
 		evidenceEventIDs,
+		task.IsApproved,
 		task.CreatedAt,
 		task.UpdatedAt,
 	)
@@ -101,6 +103,7 @@ func (r *repo) GetTaskByID(ctx context.Context, taskID domain.TaskID, userID dom
 			status,
 			category,
 			evidence_event_ids,
+			is_approved,
 			created_at,
 			updated_at
 		FROM tasks
@@ -126,7 +129,7 @@ func (r *repo) GetTaskByID(ctx context.Context, taskID domain.TaskID, userID dom
 
 func (r *repo) GetTasksByUserID(ctx context.Context, userID domain.UserID) ([]domain.Task, error) {
 	query := `
-		SELECT 
+		SELECT
 			task_id,
 			user_id,
 			cluster_id,
@@ -140,6 +143,7 @@ func (r *repo) GetTasksByUserID(ctx context.Context, userID domain.UserID) ([]do
 			status,
 			category,
 			evidence_event_ids,
+			is_approved,
 			created_at,
 			updated_at
 		FROM tasks
@@ -163,7 +167,7 @@ func (r *repo) GetTasksByUserID(ctx context.Context, userID domain.UserID) ([]do
 
 func (r *repo) GetTasksByStatus(ctx context.Context, userID domain.UserID, status domain.TaskStatus) ([]domain.Task, error) {
 	query := `
-		SELECT 
+		SELECT
 			task_id,
 			user_id,
 			cluster_id,
@@ -177,6 +181,7 @@ func (r *repo) GetTasksByStatus(ctx context.Context, userID domain.UserID, statu
 			status,
 			category,
 			evidence_event_ids,
+			is_approved,
 			created_at,
 			updated_at
 		FROM tasks
@@ -219,6 +224,7 @@ func (r *repo) GetPlannedTasksInRange(
 			status,
 			category,
 			evidence_event_ids,
+			is_approved,
 			created_at,
 			updated_at
 		FROM tasks
@@ -383,6 +389,7 @@ func (r *repo) UpdateTask(ctx context.Context, taskID domain.TaskID, userID doma
 			status,
 			category,
 			evidence_event_ids,
+			is_approved,
 			created_at,
 			updated_at
 	`, strings.Join(setClauses, ", "), argIdx, argIdx+1)
@@ -414,6 +421,8 @@ func (r *repo) ListTasks(ctx context.Context, filter domain.TaskFilter, paginati
 	conditions = append(conditions, fmt.Sprintf("user_id = $%d", argIdx))
 	args = append(args, filter.UserID)
 	argIdx++
+
+	conditions = append(conditions, "is_approved = TRUE")
 
 	if filter.Status != nil {
 		conditions = append(conditions, fmt.Sprintf("status = $%d", argIdx))
@@ -456,7 +465,7 @@ func (r *repo) ListTasks(ctx context.Context, filter domain.TaskFilter, paginati
 
 	offset := (pagination.Page - 1) * pagination.PageSize
 	dataQuery := `
-		SELECT 
+		SELECT
 			task_id,
 			user_id,
 			cluster_id,
@@ -470,6 +479,7 @@ func (r *repo) ListTasks(ctx context.Context, filter domain.TaskFilter, paginati
 			status,
 			category,
 			evidence_event_ids,
+			is_approved,
 			created_at,
 			updated_at
 		FROM tasks
@@ -507,6 +517,7 @@ type taskEntity struct {
 	Status           string      `db:"status"`
 	Category         string      `db:"category"`
 	EvidenceEventIDs []uuid.UUID `db:"evidence_event_ids"`
+	IsApproved       bool        `db:"is_approved"`
 	CreatedAt        time.Time   `db:"created_at"`
 	UpdatedAt        time.Time   `db:"updated_at"`
 }
@@ -537,6 +548,7 @@ func (e taskEntity) ToDomain() domain.Task {
 		Status:           domain.TaskStatus(e.Status),
 		Category:         domain.TaskCategory(e.Category),
 		EvidenceEventIDs: evidenceEventIDs,
+		IsApproved:       e.IsApproved,
 		CreatedAt:        e.CreatedAt,
 		UpdatedAt:        e.UpdatedAt,
 	}
