@@ -14,11 +14,13 @@ type stubChatModelResult struct {
 }
 
 type stubChatModel struct {
-	results []stubChatModelResult
-	calls   int
+	results      []stubChatModelResult
+	calls        int
+	lastMessages []*schema.Message
 }
 
-func (s *stubChatModel) Generate(context.Context, []*schema.Message, ...model.Option) (*schema.Message, error) {
+func (s *stubChatModel) Generate(_ context.Context, messages []*schema.Message, _ ...model.Option) (*schema.Message, error) {
+	s.lastMessages = messages
 	if s.calls >= len(s.results) {
 		return nil, errors.Error("unexpected Generate call")
 	}

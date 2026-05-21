@@ -5,10 +5,12 @@ package auth;
 option go_package = "github.com/Doremi203/personage/backend/libs/go/auth/gen/api/auth";
 
 import "api/auth/common.proto";
+import "google/protobuf/timestamp.proto";
 
 service AuthService {
   rpc GetGmailTokens(GetGmailTokensRequest) returns (GmailTokens) {}
   rpc VerifyToken(VerifyTokenRequest) returns (VerifyTokenResponse) {}
+  rpc GetUserProfile(GetUserProfileRequest) returns (UserProfile) {}
 }
 
 message GetGmailTokensRequest {
@@ -21,4 +23,15 @@ message VerifyTokenRequest {
 
 message VerifyTokenResponse {
   bool is_valid = 1;
+}
+
+message GetUserProfileRequest {
+  string user_id = 1;
+}
+
+message UserProfile {
+  string user_id = 1;
+  string email = 2;
+  string name = 3;
+  google.protobuf.Timestamp created_at = 4;
 }

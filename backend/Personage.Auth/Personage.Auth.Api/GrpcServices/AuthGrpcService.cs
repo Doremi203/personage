@@ -6,7 +6,10 @@ using Personage.Auth.Domain.Interfaces;
 
 namespace Personage.Auth.Api.GrpcServices;
 
-public class AuthGrpcService(ITokenService tokenService) : AuthService.AuthServiceBase
+public class AuthGrpcService(
+    ITokenService tokenService,
+    IUserProfileService userProfileService
+) : AuthService.AuthServiceBase
 {
     public override async Task<GmailTokens> GetGmailTokens(GetGmailTokensRequest request, ServerCallContext context)
     {
@@ -27,5 +30,21 @@ public class AuthGrpcService(ITokenService tokenService) : AuthService.AuthServi
         {
             IsValid = isValid
         });
+    }
+
+    public override async Task<UserProfile> GetUserProfile(GetUserProfileRequest request, ServerCallContext context)
+    {
+        if (!Guid.TryParse(request.UserId, out var userId))
+            throw new RpcException(new Status(StatusCode.InvalidArgument, "user_id must be a UUID"));
+
+        var profile = await userProfileService.GetUserById(userId, context.CancellationToken);
+
+        return new UserProfile
+        {
+            UserId = profile.Id.ToString(),
+            Email = profile.Email,
+            Name = profile.Name ?? string.Empty,
+            CreatedAt = Timestamp.FromDateTime(DateTime.SpecifyKind(profile.CreatedAt, DateTimeKind.Utc)),
+        };
     }
 }

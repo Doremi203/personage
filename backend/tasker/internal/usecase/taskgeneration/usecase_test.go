@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Doremi203/personage/backend/libs/go/errors"
 	"github.com/Doremi203/personage/backend/libs/go/log"
 	"github.com/Doremi203/personage/backend/libs/go/tx"
 	"github.com/Doremi203/personage/backend/tasker/internal/domain"
@@ -20,6 +21,7 @@ func TestProcessClusterFinalizesNonActionableCluster(t *testing.T) {
 		stubModerationRepo{},
 		stubActionabilityService{result: domain.TaskGenerationDecision{ShouldGenerate: false, Reason: new("promo email")}},
 		stubTaskGenerationService{},
+		stubUserProfileService{profile: domain.UserProfile{Email: "owner@example.com", Name: "Owner"}},
 		stubTxProvider{},
 		log.Stub{},
 		5,
@@ -72,6 +74,7 @@ func TestProcessClusterStoresGeneratedEvidenceEventIDs(t *testing.T) {
 			Category:         "work",
 			EvidenceEventIDs: []domain.EventID{"event-1", "event-3"},
 		}},
+		stubUserProfileService{profile: domain.UserProfile{Email: "owner@example.com", Name: "Owner"}},
 		stubTxProvider{},
 		log.Stub{},
 		5,
@@ -116,6 +119,7 @@ func TestProcessClusterMarksTaskUnapprovedWhenUserRequiresModeration(t *testing.
 		stubModerationRepo{required: true},
 		stubActionabilityService{result: domain.TaskGenerationDecision{ShouldGenerate: true}},
 		stubTaskGenerationService{result: domain.GeneratedTask{Title: "Reply to invite"}},
+		stubUserProfileService{profile: domain.UserProfile{Email: "owner@example.com", Name: "Owner"}},
 		stubTxProvider{},
 		log.Stub{},
 		5,
@@ -134,6 +138,66 @@ func TestProcessClusterMarksTaskUnapprovedWhenUserRequiresModeration(t *testing.
 
 	if taskRepo.createdTasks[0].IsApproved {
 		t.Fatalf("expected task to be unapproved for moderated user")
+	}
+}
+
+func TestProcessClusterPassesUserProfileToClassifier(t *testing.T) {
+	clusterRepo := &stubClusterRepo{}
+	taskRepo := &stubTaskRepo{}
+	actionability := &recordingActionabilityService{result: domain.TaskGenerationDecision{ShouldGenerate: false, Reason: new("no addressee")}}
+	uc := NewUseCase(
+		clusterRepo,
+		stubEventRepo{events: []domain.Event{{ID: "event-1", ClusterID: "cluster-1"}}},
+		taskRepo,
+		stubModerationRepo{},
+		actionability,
+		stubTaskGenerationService{},
+		stubUserProfileService{profile: domain.UserProfile{Email: "owner@example.com", Name: "Owner"}},
+		stubTxProvider{},
+		log.Stub{},
+		5,
+		time.Minute,
+		time.Now,
+	)
+
+	if err := uc.processCluster(t.Context(), domain.Cluster{ID: "cluster-1", UserID: "user-1"}); err != nil {
+		t.Fatalf("processCluster returned error: %v", err)
+	}
+
+	if actionability.received.Email != "owner@example.com" || actionability.received.Name != "Owner" {
+		t.Fatalf("classifier did not receive owner profile: %#v", actionability.received)
+	}
+}
+
+func TestProcessClusterDegradesWhenUserProfileLookupFails(t *testing.T) {
+	clusterRepo := &stubClusterRepo{}
+	taskRepo := &stubTaskRepo{}
+	actionability := &recordingActionabilityService{result: domain.TaskGenerationDecision{ShouldGenerate: false, Reason: new("no addressee")}}
+	uc := NewUseCase(
+		clusterRepo,
+		stubEventRepo{events: []domain.Event{{ID: "event-1", ClusterID: "cluster-1"}}},
+		taskRepo,
+		stubModerationRepo{},
+		actionability,
+		stubTaskGenerationService{},
+		stubUserProfileService{err: domain.ErrUserProfileNotFound},
+		stubTxProvider{},
+		log.Stub{},
+		5,
+		time.Minute,
+		time.Now,
+	)
+
+	if err := uc.processCluster(t.Context(), domain.Cluster{ID: "cluster-1", UserID: "user-1"}); err != nil {
+		t.Fatalf("processCluster returned error: %v", err)
+	}
+
+	if actionability.received != (domain.UserProfile{}) {
+		t.Fatalf("expected empty profile on lookup failure, got %#v", actionability.received)
+	}
+
+	if len(clusterRepo.finalized) != 1 || clusterRepo.finalized[0].outcome != domain.ClusterGenerationOutcomeNonActionable {
+		t.Fatalf("expected non-actionable finalize, got %#v", clusterRepo.finalized)
 	}
 }
 
@@ -228,7 +292,18 @@ type stubActionabilityService struct {
 	err    error
 }
 
-func (s stubActionabilityService) GetTaskGenerationDecision(context.Context, []domain.Event) (domain.TaskGenerationDecision, error) {
+func (s stubActionabilityService) GetTaskGenerationDecision(context.Context, []domain.Event, domain.UserProfile) (domain.TaskGenerationDecision, error) {
+	return s.result, s.err
+}
+
+type recordingActionabilityService struct {
+	result   domain.TaskGenerationDecision
+	err      error
+	received domain.UserProfile
+}
+
+func (s *recordingActionabilityService) GetTaskGenerationDecision(_ context.Context, _ []domain.Event, profile domain.UserProfile) (domain.TaskGenerationDecision, error) {
+	s.received = profile
 	return s.result, s.err
 }
 
@@ -239,6 +314,18 @@ type stubTaskGenerationService struct {
 
 func (s stubTaskGenerationService) GenerateTask(context.Context, []domain.Event) (domain.GeneratedTask, error) {
 	return s.result, s.err
+}
+
+type stubUserProfileService struct {
+	profile domain.UserProfile
+	err     error
+}
+
+func (s stubUserProfileService) GetUserProfile(context.Context, domain.UserID) (domain.UserProfile, error) {
+	if s.err != nil {
+		return domain.UserProfile{}, errors.WrapFail(s.err, "stub user profile")
+	}
+	return s.profile, nil
 }
 
 type stubTxProvider struct{}
