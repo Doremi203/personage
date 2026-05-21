@@ -19,6 +19,7 @@ const AUTH_ERROR_MESSAGES: Record<string, string> = {
   InvalidRefreshToken: 'Сессия истекла. Войдите заново.',
   TokenNotFound: 'Токен авторизации не найден.',
   TelegramSessionNotFound: 'Сессия Telegram не найдена.',
+  TelegramChatNotFound: 'Чат Telegram не найден.',
   ServiceTypeNotSupported: 'Этот тип интеграции не поддерживается.',
   OAuthError: 'Не удалось завершить авторизацию.',
   InvalidClaims: 'Сессия истекла. Войдите заново.',
