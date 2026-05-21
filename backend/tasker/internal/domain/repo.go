@@ -7,7 +7,10 @@ import (
 	"github.com/Doremi203/personage/backend/libs/go/errors"
 )
 
-var ErrTaskNotFound = errors.Error("task not found")
+var (
+	ErrTaskNotFound     = errors.Error("task not found")
+	ErrProcessingPaused = errors.Error("processing stopped")
+)
 
 type EventRepo interface {
 	UpsertEvent(ctx context.Context, event EventWithEmbedding) error
@@ -35,6 +38,10 @@ type ClusterRepo interface {
 }
 
 //go:generate mockgen -source=repo.go -destination=mock/repo_mock.go -typed
+
+type ProcessingPauseRepo interface {
+	IsPaused(ctx context.Context, userID UserID) (bool, error)
+}
 
 type TaskRepo interface {
 	CreateTask(ctx context.Context, task Task) error

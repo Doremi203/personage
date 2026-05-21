@@ -20,6 +20,7 @@ func TestUseCase_ProcessEvent(t *testing.T) {
 		embedder    *mock_domain.MockEmbeddingService
 		eventsRepo  *mock_domain.MockEventRepo
 		clusterRepo *mock_domain.MockClusterRepo
+		pauseRepo   *mock_domain.MockProcessingPauseRepo
 		txProvider  *stubTxProvider
 	}
 	type args struct {
@@ -50,9 +51,35 @@ func TestUseCase_ProcessEvent(t *testing.T) {
 		wantErr require.ErrorAssertionFunc
 	}{
 		{
+			name: "processing paused returns ErrProcessingPaused",
+			args: args{event: defaultEvent},
+			setup: func(m mocks, a args) {
+				m.pauseRepo.EXPECT().
+					IsPaused(gomock.Any(), a.event.UserID).
+					Return(true, nil)
+			},
+			assert: func(t *testing.T, _ mocks) {},
+			wantErr: func(t require.TestingT, err error, _ ...any) {
+				require.ErrorIs(t, err, domain.ErrProcessingPaused)
+			},
+		},
+		{
+			name: "pause repo error",
+			args: args{event: defaultEvent},
+			setup: func(m mocks, a args) {
+				m.pauseRepo.EXPECT().
+					IsPaused(gomock.Any(), a.event.UserID).
+					Return(false, assert.AnError)
+			},
+			wantErr: require.Error,
+		},
+		{
 			name: "embedder error",
 			args: args{event: defaultEvent},
 			setup: func(m mocks, a args) {
+				m.pauseRepo.EXPECT().
+					IsPaused(gomock.Any(), a.event.UserID).
+					Return(false, nil)
 				m.embedder.EXPECT().
 					GenerateEmbeddings(gomock.Any(), []string{string(a.event.Context)}).
 					Return(nil, assert.AnError)
@@ -63,6 +90,9 @@ func TestUseCase_ProcessEvent(t *testing.T) {
 			name: "empty embeddings returns error",
 			args: args{event: defaultEvent},
 			setup: func(m mocks, a args) {
+				m.pauseRepo.EXPECT().
+					IsPaused(gomock.Any(), a.event.UserID).
+					Return(false, nil)
 				m.embedder.EXPECT().
 					GenerateEmbeddings(gomock.Any(), []string{string(a.event.Context)}).
 					Return([][]float32{}, nil)
@@ -73,6 +103,9 @@ func TestUseCase_ProcessEvent(t *testing.T) {
 			name: "find similar clusters error",
 			args: args{event: defaultEvent},
 			setup: func(m mocks, a args) {
+				m.pauseRepo.EXPECT().
+					IsPaused(gomock.Any(), a.event.UserID).
+					Return(false, nil)
 				m.embedder.EXPECT().
 					GenerateEmbeddings(gomock.Any(), []string{string(a.event.Context)}).
 					Return([][]float32{embedding}, nil)
@@ -95,6 +128,9 @@ func TestUseCase_ProcessEvent(t *testing.T) {
 					CreatedAt:  fixedNow.Add(-time.Hour),
 					UpdatedAt:  fixedNow.Add(-time.Hour),
 				}
+				m.pauseRepo.EXPECT().
+					IsPaused(gomock.Any(), a.event.UserID).
+					Return(false, nil)
 				m.embedder.EXPECT().
 					GenerateEmbeddings(gomock.Any(), []string{string(a.event.Context)}).
 					Return([][]float32{embedding}, nil)
@@ -134,6 +170,9 @@ func TestUseCase_ProcessEvent(t *testing.T) {
 					CreatedAt:  fixedNow.Add(-time.Hour),
 					UpdatedAt:  fixedNow.Add(-time.Hour),
 				}
+				m.pauseRepo.EXPECT().
+					IsPaused(gomock.Any(), a.event.UserID).
+					Return(false, nil)
 				m.embedder.EXPECT().
 					GenerateEmbeddings(gomock.Any(), []string{string(a.event.Context)}).
 					Return([][]float32{embedding}, nil)
@@ -165,6 +204,9 @@ func TestUseCase_ProcessEvent(t *testing.T) {
 			name: "no similar clusters creates new cluster",
 			args: args{event: defaultEvent},
 			setup: func(m mocks, a args) {
+				m.pauseRepo.EXPECT().
+					IsPaused(gomock.Any(), a.event.UserID).
+					Return(false, nil)
 				m.embedder.EXPECT().
 					GenerateEmbeddings(gomock.Any(), []string{string(a.event.Context)}).
 					Return([][]float32{embedding}, nil)
@@ -192,6 +234,9 @@ func TestUseCase_ProcessEvent(t *testing.T) {
 			name: "upsert cluster error",
 			args: args{event: defaultEvent},
 			setup: func(m mocks, a args) {
+				m.pauseRepo.EXPECT().
+					IsPaused(gomock.Any(), a.event.UserID).
+					Return(false, nil)
 				m.embedder.EXPECT().
 					GenerateEmbeddings(gomock.Any(), []string{string(a.event.Context)}).
 					Return([][]float32{embedding}, nil)
@@ -208,6 +253,9 @@ func TestUseCase_ProcessEvent(t *testing.T) {
 			name: "upsert event error",
 			args: args{event: defaultEvent},
 			setup: func(m mocks, a args) {
+				m.pauseRepo.EXPECT().
+					IsPaused(gomock.Any(), a.event.UserID).
+					Return(false, nil)
 				m.embedder.EXPECT().
 					GenerateEmbeddings(gomock.Any(), []string{string(a.event.Context)}).
 					Return([][]float32{embedding}, nil)
@@ -227,6 +275,9 @@ func TestUseCase_ProcessEvent(t *testing.T) {
 			name: "tx provider error skips callback",
 			args: args{event: defaultEvent},
 			setup: func(m mocks, a args) {
+				m.pauseRepo.EXPECT().
+					IsPaused(gomock.Any(), a.event.UserID).
+					Return(false, nil)
 				m.embedder.EXPECT().
 					GenerateEmbeddings(gomock.Any(), []string{string(a.event.Context)}).
 					Return([][]float32{embedding}, nil)
@@ -242,6 +293,9 @@ func TestUseCase_ProcessEvent(t *testing.T) {
 			args: args{event: defaultEvent},
 			setup: func(m mocks, a args) {
 				var capturedClusterID domain.ClusterID
+				m.pauseRepo.EXPECT().
+					IsPaused(gomock.Any(), a.event.UserID).
+					Return(false, nil)
 				m.embedder.EXPECT().
 					GenerateEmbeddings(gomock.Any(), []string{string(a.event.Context)}).
 					Return([][]float32{embedding}, nil)
@@ -275,6 +329,7 @@ func TestUseCase_ProcessEvent(t *testing.T) {
 				embedder:    mock_domain.NewMockEmbeddingService(ctrl),
 				eventsRepo:  mock_domain.NewMockEventRepo(ctrl),
 				clusterRepo: mock_domain.NewMockClusterRepo(ctrl),
+				pauseRepo:   mock_domain.NewMockProcessingPauseRepo(ctrl),
 				txProvider:  &stubTxProvider{},
 			}
 			tt.setup(m, tt.args)
@@ -285,6 +340,7 @@ func TestUseCase_ProcessEvent(t *testing.T) {
 				m.embedder,
 				m.eventsRepo,
 				m.clusterRepo,
+				m.pauseRepo,
 				minSimilarity,
 				topK,
 				clock,
