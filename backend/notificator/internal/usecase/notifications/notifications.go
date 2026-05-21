@@ -39,7 +39,7 @@ func (s *Service) List(ctx context.Context, params usecase.ListNotificationsPara
 }
 
 func (s *Service) GetSettings(ctx context.Context, userID uuid.UUID) ([]notification.Setting, error) {
-	settings, err := s.repo.GetSettings(ctx, userID)
+	stored, err := s.repo.GetSettings(ctx, userID)
 	if err != nil {
 		return nil, errors.WrapFailf(
 			err,
@@ -48,6 +48,23 @@ func (s *Service) GetSettings(ctx context.Context, userID uuid.UUID) ([]notifica
 		)
 	}
 
+	byType := make(map[notification.SettingType]notification.Setting, len(stored))
+	for _, st := range stored {
+		byType[st.Type] = st
+	}
+
+	settings := make([]notification.Setting, 0, len(notification.AvailableSettingTypes))
+	for _, typ := range notification.AvailableSettingTypes {
+		if st, ok := byType[typ]; ok {
+			settings = append(settings, st)
+			continue
+		}
+		settings = append(settings, notification.Setting{
+			UserID:  userID,
+			Type:    typ,
+			Enabled: true,
+		})
+	}
 	return settings, nil
 }
 
