@@ -67,6 +67,24 @@ func TestNotificationsService_ListNotificationsV1(t *testing.T) {
 			wantLen:  2,
 		},
 		{
+			name:  "nil SentAt does not panic",
+			ctxFn: authedNotifCtx,
+			req:   &pushpb.ListNotificationsV1Request{Page: 1, PageSize: 5},
+			setup: func(uc *mock_usecase.MockNotifications) {
+				uc.EXPECT().
+					List(gomock.Any(), usecase.ListNotificationsParams{
+						UserID:   notifGrpcUserID,
+						Page:     1,
+						PageSize: 5,
+					}).
+					Return([]notification.Notification{
+						{ID: notifID, Title: "t", Type: "x", Text: "body"},
+					}, nil)
+			},
+			wantCode: codes.OK,
+			wantLen:  1,
+		},
+		{
 			name:     "missing token",
 			ctxFn:    func(t *testing.T) context.Context { return t.Context() },
 			req:      &pushpb.ListNotificationsV1Request{Page: 1, PageSize: 5},
