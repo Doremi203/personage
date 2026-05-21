@@ -32,6 +32,30 @@ export function getNotificationPermission():
   return Notification.permission;
 }
 
+export type PushSubscriptionStatus =
+  | 'unsupported'
+  | 'denied'
+  | 'subscribed'
+  | 'not-subscribed';
+
+export async function getPushSubscriptionStatus(): Promise<PushSubscriptionStatus> {
+  if (!isPushSupported()) return 'unsupported';
+  const perm = Notification.permission;
+  if (perm === 'denied') return 'denied';
+  if (perm !== 'granted') return 'not-subscribed';
+  try {
+    // Use getRegistration() instead of navigator.serviceWorker.ready: the
+    // latter never resolves when the SW is blocked or never activates, which
+    // would leave the settings UI stuck waiting for a status forever.
+    const registration = await navigator.serviceWorker.getRegistration();
+    if (!registration) return 'not-subscribed';
+    const sub = await registration.pushManager.getSubscription();
+    return sub ? 'subscribed' : 'not-subscribed';
+  } catch {
+    return 'not-subscribed';
+  }
+}
+
 
 function withTimeout<T>(
   promise: Promise<T>,
