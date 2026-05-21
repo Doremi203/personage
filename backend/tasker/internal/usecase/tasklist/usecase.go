@@ -160,8 +160,15 @@ func (uc *UseCase) GetTasks(ctx context.Context, params ListTasksParams) (ListTa
 		return ListTasksResult{}, errors.WrapFail(err, "list tasks")
 	}
 
+	approved := tasks[:0]
+	for _, t := range tasks {
+		if t.IsApproved {
+			approved = append(approved, t)
+		}
+	}
+
 	return ListTasksResult{
-		Tasks:    tasks,
+		Tasks:    approved,
 		Total:    total,
 		Page:     pagination.Page,
 		PageSize: pagination.PageSize,

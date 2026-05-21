@@ -185,7 +185,7 @@ func (r *repo) GetTasksByStatus(ctx context.Context, userID domain.UserID, statu
 			created_at,
 			updated_at
 		FROM tasks
-		WHERE user_id = $1 AND status = $2 AND is_approved = TRUE
+		WHERE user_id = $1 AND status = $2
 		ORDER BY created_at DESC
 	`
 
@@ -230,7 +230,6 @@ func (r *repo) GetPlannedTasksInRange(
 		FROM tasks
 		WHERE user_id = $1
 		  AND status = $2
-		  AND is_approved = TRUE
 		  AND start_time IS NOT NULL
 		  AND end_time IS NOT NULL
 		  AND start_time < $4
@@ -256,7 +255,7 @@ func (r *repo) GetUsersWithUnplannedTasks(ctx context.Context) ([]domain.UserID,
 	query := `
 		SELECT DISTINCT user_id
 		FROM tasks
-		WHERE status = $1 AND is_approved = TRUE
+		WHERE status = $1
 	`
 
 	rows, err := r.client.Query(ctx, query, domain.TaskStatusUnplanned)
@@ -422,8 +421,6 @@ func (r *repo) ListTasks(ctx context.Context, filter domain.TaskFilter, paginati
 	conditions = append(conditions, fmt.Sprintf("user_id = $%d", argIdx))
 	args = append(args, filter.UserID)
 	argIdx++
-
-	conditions = append(conditions, "is_approved = TRUE")
 
 	if filter.Status != nil {
 		conditions = append(conditions, fmt.Sprintf("status = $%d", argIdx))
