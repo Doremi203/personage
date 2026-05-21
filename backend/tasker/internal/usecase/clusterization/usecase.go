@@ -56,11 +56,12 @@ func (uc *UseCase) ProcessEvent(ctx context.Context, e domain.Event) error {
 		)
 	}
 	if len(embeddings) == 0 {
-		return errors.Errorf(
+		uc.logger.Infof(
 			"generated embeddings are empty for event %s %s",
 			errors.Token("id", e.ID.String()),
 			errors.Token("context", e.Context),
 		)
+		return nil
 	}
 
 	embedding := embeddings[0]
