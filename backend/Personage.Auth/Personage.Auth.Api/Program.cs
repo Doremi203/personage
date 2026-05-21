@@ -46,6 +46,8 @@ public class Program
         var useMetadataService = builder.Configuration.GetValue<bool>("YandexCloud:UseMetadataService");
         builder.Configuration.AddLockboxSecrets(useMetadataService);
 
+        EnableHttp2CleartextIfNeeded(builder.Configuration);
+
         builder.Services.AddGrpc(options =>
         {
             options.EnableDetailedErrors = true;
@@ -69,6 +71,18 @@ public class Program
         ConfigureMiddleware(app);
 
         await app.RunAsync();
+    }
+
+    private static void EnableHttp2CleartextIfNeeded(IConfiguration configuration)
+    {
+        var grpcUrl = configuration.GetSection(nameof(TelegramAuthGrpcSettings))["Url"];
+        if (!string.IsNullOrEmpty(grpcUrl)
+            && Uri.TryCreate(grpcUrl, UriKind.Absolute, out var uri)
+            && uri.Scheme == Uri.UriSchemeHttp)
+        {
+            AppContext.SetSwitch(
+                "System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
+        }
     }
 
     /// <summary>

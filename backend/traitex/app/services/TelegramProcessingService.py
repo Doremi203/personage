@@ -79,10 +79,21 @@ class TelegramProcessingService(ITelegramProcessingService):
             u for u in users_for_processing
             if active_chat_ids_by_user.get(u.user_id)
         ]
-        skipped = len(users_for_processing) - len(users_to_process)
-        if skipped:
+        skipped_users = [
+            u for u in users_for_processing
+            if not active_chat_ids_by_user.get(u.user_id)
+        ]
+        if skipped_users:
             self.logger.debug(
-                f"Skipping {skipped} Telegram users with no active chats"
+                f"Skipping {len(skipped_users)} Telegram users with no active chats"
+            )
+            now = datetime.datetime.now(timezone.utc)
+            await self.state_tracking_client.mark_processed_users(
+                [
+                    ProcessedUserModel(user_id=u.user_id, processed_at=now)
+                    for u in skipped_users
+                ],
+                service_type=ConnectorTypeModel.Telegram,
             )
         if not users_to_process:
             return

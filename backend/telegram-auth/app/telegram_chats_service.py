@@ -49,6 +49,6 @@ class TelegramChatsServicer(telegram_chats_pb2_grpc.TelegramChatsServiceServicer
             raise
         except Exception as e:
             logger.error("Failed to list Telegram dialogs", error=str(e))
-            await context.abort(grpc.StatusCode.UNAVAILABLE, f"Failed to list chats: {e}")
+            await context.abort(grpc.StatusCode.UNAVAILABLE, "Failed to list Telegram chats")
         finally:
             await client.disconnect()
