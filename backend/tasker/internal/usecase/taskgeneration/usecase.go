@@ -18,6 +18,7 @@ func NewUseCase(
 	moderationRepo domain.ManualModerationRepo,
 	actionabilityService domain.ClusterClassificatorService,
 	taskGenService domain.TaskGenerationService,
+	userProfileService domain.UserProfileService,
 	txProvider tx.Provider,
 	logger log.Logger,
 	maxEventCount int,
@@ -31,6 +32,7 @@ func NewUseCase(
 		moderationRepo:              moderationRepo,
 		clusterClassificatorService: actionabilityService,
 		taskGenService:              taskGenService,
+		userProfileService:          userProfileService,
 		txProvider:                  txProvider,
 		logger:                      logger,
 		maxEventCount:               maxEventCount,
@@ -46,6 +48,7 @@ type UseCase struct {
 	moderationRepo              domain.ManualModerationRepo
 	clusterClassificatorService domain.ClusterClassificatorService
 	taskGenService              domain.TaskGenerationService
+	userProfileService          domain.UserProfileService
 	txProvider                  tx.Provider
 	logger                      log.Logger
 	maxEventCount               int
@@ -118,7 +121,17 @@ func (uc *UseCase) processCluster(ctx context.Context, cluster domain.Cluster) e
 		return nil
 	}
 
-	generationDecision, err := uc.clusterClassificatorService.GetTaskGenerationDecision(ctx, events)
+	profile, err := uc.userProfileService.GetUserProfile(ctx, cluster.UserID)
+	if err != nil {
+		uc.logger.Warn(errors.WrapFailf(
+			err,
+			"fetch user profile for cluster classification %s",
+			errors.Token("user_id", cluster.UserID.String()),
+		))
+		profile = domain.UserProfile{}
+	}
+
+	generationDecision, err := uc.clusterClassificatorService.GetTaskGenerationDecision(ctx, events, profile)
 	if err != nil {
 		return errors.WrapFail(err, "classify cluster actionability")
 	}

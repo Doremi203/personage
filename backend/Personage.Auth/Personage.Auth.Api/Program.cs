@@ -232,6 +232,7 @@ public class Program
         services.AddScoped<ITelegramAuthService, TelegramAuthService>();
         services.AddScoped<IClaimValues, ClaimValues>();
         services.AddScoped<IUserService, UserService>();
+        services.AddScoped<IUserProfileService, UserProfileService>();
         services.AddScoped<IIntegrationsService, IntegrationsService>();
         services.AddHttpClient<IGoogleOAuthService, GoogleOAuthService>();
     }

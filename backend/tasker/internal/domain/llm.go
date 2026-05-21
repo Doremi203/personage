@@ -22,7 +22,7 @@ type TaskGenerationDecision struct {
 }
 
 type ClusterClassificatorService interface {
-	GetTaskGenerationDecision(ctx context.Context, events []Event) (TaskGenerationDecision, error)
+	GetTaskGenerationDecision(ctx context.Context, events []Event, profile UserProfile) (TaskGenerationDecision, error)
 }
 
 type TaskGenerationService interface {

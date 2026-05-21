@@ -1,6 +1,7 @@
 package llm
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/Doremi203/personage/backend/libs/go/log"
@@ -8,11 +9,48 @@ import (
 	"github.com/cloudwego/eino/schema"
 )
 
-func TestParseActionabilityResponseRequiresReasonForNonActionable(t *testing.T) {
-	response := `{"actionable": false, "reason": "   "}`
+func TestParseActionabilityResponseRequiresReasonRegardlessOfDecision(t *testing.T) {
+	tests := []struct {
+		name     string
+		response string
+	}{
+		{name: "missing reason on reject", response: `{"actionable": false, "reason": "   "}`},
+		{name: "missing reason on accept", response: `{"actionable": true, "reason": ""}`},
+	}
 
-	if _, err := parseActionabilityResponse(response); err == nil {
-		t.Fatal("parseActionabilityResponse succeeded without non-actionable reason")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if _, err := parseActionabilityResponse(tt.response); err == nil {
+				t.Fatal("parseActionabilityResponse succeeded without reason")
+			}
+		})
+	}
+}
+
+func TestParseActionabilityResponseAcceptsBothBranchesWithReason(t *testing.T) {
+	tests := []struct {
+		name       string
+		response   string
+		actionable bool
+		reason     string
+	}{
+		{name: "reject with reason", response: `{"actionable": false, "reason": "group broadcast"}`, actionable: false, reason: "group broadcast"},
+		{name: "accept with reason", response: `{"actionable": true, "reason": "direct DM with ask"}`, actionable: true, reason: "direct DM with ask"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			decision, err := parseActionabilityResponse(tt.response)
+			if err != nil {
+				t.Fatalf("parseActionabilityResponse returned error: %v", err)
+			}
+			if decision.ShouldGenerate != tt.actionable {
+				t.Fatalf("ShouldGenerate=%v want %v", decision.ShouldGenerate, tt.actionable)
+			}
+			if decision.Reason == nil || *decision.Reason != tt.reason {
+				t.Fatalf("Reason=%v want %s", decision.Reason, tt.reason)
+			}
+		})
 	}
 }
 
@@ -32,7 +70,11 @@ func TestGetTaskGenerationDecisionRetriesInvalidModelOutput(t *testing.T) {
 	}}
 
 	service := NewClusterActionabilityService(chatModel, log.Stub{})
-	decision, err := service.GetTaskGenerationDecision(t.Context(), []domain.Event{{ID: "event-1", Context: "Please review PR #47."}})
+	decision, err := service.GetTaskGenerationDecision(
+		t.Context(),
+		[]domain.Event{{ID: "event-1", Context: "Please review PR #47."}},
+		domain.UserProfile{},
+	)
 	if err != nil {
 		t.Fatalf("GetTaskGenerationDecision returned error: %v", err)
 	}
@@ -44,4 +86,41 @@ func TestGetTaskGenerationDecisionRetriesInvalidModelOutput(t *testing.T) {
 	if !decision.ShouldGenerate {
 		t.Fatal("expected actionable decision")
 	}
+}
+
+func TestGetTaskGenerationDecisionInjectsOwnerIdentity(t *testing.T) {
+	chatModel := &stubChatModel{results: []stubChatModelResult{
+		{message: &schema.Message{Content: `{"actionable": true, "reason": "direct DM with ask"}`}},
+	}}
+
+	service := NewClusterActionabilityService(chatModel, log.Stub{})
+	_, err := service.GetTaskGenerationDecision(
+		t.Context(),
+		[]domain.Event{{ID: "event-1", Context: "Hi Owner, please review PR #47."}},
+		domain.UserProfile{Email: "owner@example.com", Name: "Owner Smith"},
+	)
+	if err != nil {
+		t.Fatalf("GetTaskGenerationDecision returned error: %v", err)
+	}
+
+	if len(chatModel.lastMessages) == 0 {
+		t.Fatal("expected stubChatModel to capture messages")
+	}
+
+	rendered := joinMessages(chatModel.lastMessages)
+	if !strings.Contains(rendered, "owner@example.com") {
+		t.Fatalf("expected rendered prompt to contain owner email, got: %s", rendered)
+	}
+	if !strings.Contains(rendered, "Owner Smith") {
+		t.Fatalf("expected rendered prompt to contain owner name, got: %s", rendered)
+	}
+}
+
+func joinMessages(messages []*schema.Message) string {
+	var b strings.Builder
+	for _, m := range messages {
+		b.WriteString(m.Content)
+		b.WriteString("\n")
+	}
+	return b.String()
 }

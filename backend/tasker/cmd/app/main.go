@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	authpb "github.com/Doremi203/personage/backend/libs/go/auth/gen/api/auth"
 	"github.com/Doremi203/personage/backend/libs/go/errors"
 	"github.com/Doremi203/personage/backend/libs/go/postgres"
 	"github.com/Doremi203/personage/backend/libs/go/sqs"
@@ -22,6 +23,7 @@ import (
 	"github.com/Doremi203/personage/backend/tasker/internal/services/embedding"
 	"github.com/Doremi203/personage/backend/tasker/internal/services/llm"
 	"github.com/Doremi203/personage/backend/tasker/internal/services/notifications"
+	"github.com/Doremi203/personage/backend/tasker/internal/services/userprofile"
 	"github.com/Doremi203/personage/backend/tasker/internal/usecase/admin"
 	"github.com/Doremi203/personage/backend/tasker/internal/usecase/clusterization"
 	"github.com/Doremi203/personage/backend/tasker/internal/usecase/scheduling"
@@ -151,6 +153,38 @@ func main() {
 		actionabilityService := llm.NewClusterActionabilityService(llmModel, app.Log)
 		taskGenerationService := llm.NewTaskGenerationService(llmModel, app.Log)
 
+		isTestEnv := app.Env == webapp.TestsEnvironment || app.Env == webapp.EvalEnvironment
+
+		var authConn *grpc.ClientConn
+		var userProfileSvc domain.UserProfileService
+		if isTestEnv {
+			userProfileSvc = userprofile.NewStub()
+		} else {
+			type AuthConfig struct {
+				Address string
+			}
+			authConfig := AuthConfig{}
+			if err = app.Config.ReadSection(ctx, "auth", &authConfig); err != nil {
+				return err
+			}
+
+			authConn, err = grpc.NewClient(
+				authConfig.Address,
+				grpc.WithTransportCredentials(credentials.NewClientTLSFromCert(nil, "")),
+			)
+			if err != nil {
+				return errors.WrapFail(err, "create auth grpc client")
+			}
+			app.AddCloser(authConn.Close)
+
+			userProfileSvc = userprofile.NewCachedService(
+				userprofile.NewGRPCService(authpb.NewAuthServiceClient(authConn)),
+				30*time.Minute,
+				5*time.Minute,
+				time.Now,
+			)
+		}
+
 		type ClusterClosureConfig struct {
 			MaxEventCount     int
 			InactivityMinutes int
@@ -176,6 +210,7 @@ func main() {
 			postgresModerationRepo,
 			actionabilityService,
 			taskGenerationService,
+			userProfileSvc,
 			postgresTxProvider,
 			app.Log,
 			clusterClosureConfig.MaxEventCount,
@@ -325,7 +360,7 @@ func main() {
 		app.AddHTTPHandler("GET /admin/moderation", taskergrpc.NewAdminListModerationHandler(adminUseCase, adminConfig.ApiKey))
 		app.AddHTTPHandler("PUT /admin/moderation/{userId}", taskergrpc.NewAdminSetModerationHandler(adminUseCase, adminConfig.ApiKey))
 
-		if app.Env == webapp.TestsEnvironment || app.Env == webapp.EvalEnvironment {
+		if isTestEnv {
 			app.AddGRPCUnaryInterceptor(
 				token.NewUnaryTokenInterceptor(
 					token.NewVerifierStub(),
@@ -334,24 +369,6 @@ func main() {
 				),
 			)
 		} else {
-			type AuthConfig struct {
-				Address string
-			}
-			authConfig := AuthConfig{}
-			err = app.Config.ReadSection(ctx, "auth", &authConfig)
-			if err != nil {
-				return err
-			}
-
-			authConn, err := grpc.NewClient(
-				authConfig.Address,
-				grpc.WithTransportCredentials(credentials.NewClientTLSFromCert(nil, "")),
-			)
-			if err != nil {
-				return errors.WrapFail(err, "create auth grpc client")
-			}
-			app.AddCloser(authConn.Close)
-
 			app.AddGRPCUnaryInterceptor(
 				token.NewUnaryTokenInterceptor(
 					token.NewGRPCVerifier(authConn),
