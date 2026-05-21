@@ -481,7 +481,7 @@ const SettingsScreen = ({ onLogout }: SettingsScreenProps) => {
                 title={meta.title}
                 subtitle={meta.subtitle}
                 value={s.enabled}
-                disabled={s.toggling || pushStatus !== 'subscribed'}
+                disabled={s.toggling || pushToggling || pushStatus !== 'subscribed'}
                 onChange={() => handleToggle(s.type)}
                 last={i === settings.length - 1}
               />
