@@ -46,6 +46,22 @@ public class UserRepository(IDbConnectionFactory connectionFactory) : IUserRepos
             new { userId });
     }
 
+    public async Task<User[]> GetAllUsers(CancellationToken ct)
+    {
+        using var connection = await connectionFactory.CreateConnection(ct);
+
+        var users = await connection.QueryAsync<User>(
+            $"""
+            --UserRepository.GetAllUsers
+            SELECT
+            {UserFields}
+            FROM "user" u
+            ORDER BY u.created_at DESC;
+            """);
+
+        return users.ToArray();
+    }
+
     public async Task<User> CreateShortUser(string email, CancellationToken ct)
     {
         using var connection = await connectionFactory.CreateConnection(ct);

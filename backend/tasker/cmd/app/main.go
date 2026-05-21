@@ -22,6 +22,7 @@ import (
 	"github.com/Doremi203/personage/backend/tasker/internal/services/embedding"
 	"github.com/Doremi203/personage/backend/tasker/internal/services/llm"
 	"github.com/Doremi203/personage/backend/tasker/internal/services/notifications"
+	"github.com/Doremi203/personage/backend/tasker/internal/usecase/admin"
 	"github.com/Doremi203/personage/backend/tasker/internal/usecase/clusterization"
 	"github.com/Doremi203/personage/backend/tasker/internal/usecase/scheduling"
 	"github.com/Doremi203/personage/backend/tasker/internal/usecase/taskgeneration"
@@ -305,6 +306,24 @@ func main() {
 			app.AddHTTPHandler("/v1/test/tasks/list", taskergrpc.NewTestListTasksHandler(postgresTaskRepo))
 			app.AddHTTPHandler("/v1/test/clusters/list", taskergrpc.NewTestListClusterGenerationDiagnosticsHandler(postgresClusterRepo))
 		}
+
+		type AdminConfig struct {
+			ApiKey string
+		}
+		adminConfig := AdminConfig{}
+		err = app.Config.ReadSection(ctx, "admin", &adminConfig)
+		if err != nil {
+			return err
+		}
+
+		adminUseCase := admin.NewUseCase(postgresTaskRepo, postgresModerationRepo)
+
+		app.AddHTTPHandler("GET /admin/users/{userId}/tasks", taskergrpc.NewAdminListTasksHandler(adminUseCase, adminConfig.ApiKey))
+		app.AddHTTPHandler("GET /admin/users/{userId}/tasks/{taskId}", taskergrpc.NewAdminGetTaskHandler(adminUseCase, adminConfig.ApiKey))
+		app.AddHTTPHandler("PATCH /admin/users/{userId}/tasks/{taskId}", taskergrpc.NewAdminUpdateTaskHandler(adminUseCase, adminConfig.ApiKey))
+		app.AddHTTPHandler("POST /admin/users/{userId}/tasks/{taskId}/approve", taskergrpc.NewAdminApproveTaskHandler(adminUseCase, adminConfig.ApiKey))
+		app.AddHTTPHandler("GET /admin/moderation", taskergrpc.NewAdminListModerationHandler(adminUseCase, adminConfig.ApiKey))
+		app.AddHTTPHandler("PUT /admin/moderation/{userId}", taskergrpc.NewAdminSetModerationHandler(adminUseCase, adminConfig.ApiKey))
 
 		if app.Env == webapp.TestsEnvironment || app.Env == webapp.EvalEnvironment {
 			app.AddGRPCUnaryInterceptor(

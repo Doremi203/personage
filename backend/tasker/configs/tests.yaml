@@ -27,3 +27,6 @@ llm:
 embedding:
   model: dummy
   apiKey: dummy
+
+admin:
+  apiKey: dummy-admin-key
