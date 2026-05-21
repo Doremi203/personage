@@ -116,6 +116,7 @@ func insertUserData(
 			StartTime:   nil,
 			Status:      domain.TaskStatusUnplanned,
 			Category:    domain.TaskCategoryPersonal,
+			IsApproved:  true,
 			CreatedAt:   now,
 			UpdatedAt:   now,
 		}

@@ -236,6 +236,7 @@ func NewTestCreateTaskHandler(repo testTaskCreator, clock func() time.Time) http
 			Status:      status,
 			Priority:    priority,
 			Category:    category,
+			IsApproved:  true,
 			CreatedAt:   now,
 			UpdatedAt:   now,
 		}

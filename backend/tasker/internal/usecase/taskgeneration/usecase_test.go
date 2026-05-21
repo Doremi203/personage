@@ -17,6 +17,7 @@ func TestProcessClusterFinalizesNonActionableCluster(t *testing.T) {
 		clusterRepo,
 		stubEventRepo{events: []domain.Event{{ID: "event-1", ClusterID: "cluster-1"}}},
 		taskRepo,
+		stubModerationRepo{},
 		stubActionabilityService{result: domain.TaskGenerationDecision{ShouldGenerate: false, Reason: new("promo email")}},
 		stubTaskGenerationService{},
 		stubTxProvider{},
@@ -61,6 +62,7 @@ func TestProcessClusterStoresGeneratedEvidenceEventIDs(t *testing.T) {
 		clusterRepo,
 		stubEventRepo{events: events},
 		taskRepo,
+		stubModerationRepo{},
 		stubActionabilityService{result: domain.TaskGenerationDecision{ShouldGenerate: true}},
 		stubTaskGenerationService{result: domain.GeneratedTask{
 			Title:            "Review PR #47",
@@ -95,8 +97,43 @@ func TestProcessClusterStoresGeneratedEvidenceEventIDs(t *testing.T) {
 		t.Fatalf("unexpected evidence ids: %#v", createdTask.EvidenceEventIDs)
 	}
 
+	if !createdTask.IsApproved {
+		t.Fatalf("expected task to be auto-approved for user without manual moderation")
+	}
+
 	if len(clusterRepo.finalized) != 1 || clusterRepo.finalized[0].outcome != domain.ClusterGenerationOutcomeTaskGenerated {
 		t.Fatalf("unexpected finalize calls: %#v", clusterRepo.finalized)
+	}
+}
+
+func TestProcessClusterMarksTaskUnapprovedWhenUserRequiresModeration(t *testing.T) {
+	clusterRepo := &stubClusterRepo{}
+	taskRepo := &stubTaskRepo{}
+	uc := NewUseCase(
+		clusterRepo,
+		stubEventRepo{events: []domain.Event{{ID: "event-1", ClusterID: "cluster-1"}}},
+		taskRepo,
+		stubModerationRepo{required: true},
+		stubActionabilityService{result: domain.TaskGenerationDecision{ShouldGenerate: true}},
+		stubTaskGenerationService{result: domain.GeneratedTask{Title: "Reply to invite"}},
+		stubTxProvider{},
+		log.Stub{},
+		5,
+		time.Minute,
+		time.Now,
+	)
+
+	err := uc.processCluster(t.Context(), domain.Cluster{ID: "cluster-1", UserID: "user-1"})
+	if err != nil {
+		t.Fatalf("processCluster returned error: %v", err)
+	}
+
+	if len(taskRepo.createdTasks) != 1 {
+		t.Fatalf("expected 1 created task, got %d", len(taskRepo.createdTasks))
+	}
+
+	if taskRepo.createdTasks[0].IsApproved {
+		t.Fatalf("expected task to be unapproved for moderated user")
 	}
 }
 
@@ -208,4 +245,13 @@ type stubTxProvider struct{}
 
 func (stubTxProvider) RunWithTx(ctx context.Context, _ tx.Isolation, op func(context.Context) error) error {
 	return op(ctx)
+}
+
+type stubModerationRepo struct {
+	required bool
+	err      error
+}
+
+func (s stubModerationRepo) RequiresModeration(context.Context, domain.UserID) (bool, error) {
+	return s.required, s.err
 }
