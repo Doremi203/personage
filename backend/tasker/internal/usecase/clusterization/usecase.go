@@ -59,7 +59,7 @@ func (uc *UseCase) ProcessEvent(ctx context.Context, e domain.Event) error {
 		return errors.Errorf(
 			"generated embeddings are empty for event %s %s",
 			errors.Token("id", e.ID.String()),
-			errors.Token("context", e.Context)
+			errors.Token("context", e.Context),
 		)
 	}
 
