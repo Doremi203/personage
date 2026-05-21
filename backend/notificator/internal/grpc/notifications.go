@@ -72,11 +72,13 @@ func (s *notificationsService) ListNotificationsV1(
 	protoNotifications := make([]*pushpb.NotificationItem, 0, len(notifications))
 	for _, n := range notifications {
 		item := &pushpb.NotificationItem{
-			Id:     n.ID.String(),
-			Title:  n.Title,
-			Type:   n.Type,
-			Text:   n.Text,
-			SentAt: timestamppb.New(*n.SentAt),
+			Id:    n.ID.String(),
+			Title: n.Title,
+			Type:  n.Type,
+			Text:  n.Text,
+		}
+		if n.SentAt != nil {
+			item.SentAt = timestamppb.New(*n.SentAt)
 		}
 		if n.ReadAt != nil {
 			item.ReadAt = timestamppb.New(*n.ReadAt)
