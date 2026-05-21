@@ -8,14 +8,20 @@ const noAuthClient = new NotificatorClient(BASE_URL, '');
 
 describe('GET /notifications/settings', () => {
   describe('happy path', () => {
-    it('returns an empty settings array for a fresh user with no explicit settings', async () => {
+    it('returns every available type enabled by default for a fresh user', async () => {
       const client = new NotificatorClient(BASE_URL, makeToken(randomUUID()));
       const res = await client.getNotificationSettings();
       expect(res.status).toBe(200);
 
       const body = (await res.json()) as GetNotificationSettingsResponse;
       expect(Array.isArray(body.settings)).toBe(true);
-      expect(body.settings).toHaveLength(0);
+      expect(body.settings).toEqual(
+        expect.arrayContaining([
+          { type: 'schedule_change', enabled: true },
+          { type: 'upcoming_event', enabled: true },
+        ]),
+      );
+      expect(body.settings).toHaveLength(2);
     });
 
     it('returns settings with the correct shape after a toggle', async () => {
