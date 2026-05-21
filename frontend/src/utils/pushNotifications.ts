@@ -32,6 +32,26 @@ export function getNotificationPermission():
   return Notification.permission;
 }
 
+export type PushSubscriptionStatus =
+  | 'unsupported'
+  | 'denied'
+  | 'subscribed'
+  | 'not-subscribed';
+
+export async function getPushSubscriptionStatus(): Promise<PushSubscriptionStatus> {
+  if (!isPushSupported()) return 'unsupported';
+  const perm = Notification.permission;
+  if (perm === 'denied') return 'denied';
+  if (perm !== 'granted') return 'not-subscribed';
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    const sub = await registration.pushManager.getSubscription();
+    return sub ? 'subscribed' : 'not-subscribed';
+  } catch {
+    return 'not-subscribed';
+  }
+}
+
 
 function withTimeout<T>(
   promise: Promise<T>,

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   BarChart2,
   Bell,
+  BellOff,
   CalendarClock,
   Check,
   ChevronRight,
@@ -28,6 +29,12 @@ import {
   getNotificationSettings,
   toggleNotification,
 } from '../utils/notificatorService';
+import {
+  getPushSubscriptionStatus,
+  setupPushNotifications,
+  unsubscribeFromPush,
+  type PushSubscriptionStatus,
+} from '../utils/pushNotifications';
 import { TelegramConnectModal } from '../components/TelegramConnectModal';
 
 const NAME_PATTERN = /^[\p{L}\s\-']+$/u;
@@ -102,6 +109,9 @@ const SettingsScreen = ({ onLogout }: SettingsScreenProps) => {
   const [nameDraft, setNameDraft] = useState('');
   const [nameSaving, setNameSaving] = useState(false);
   const [nameError, setNameError] = useState<string | null>(null);
+  const [pushStatus, setPushStatus] = useState<PushSubscriptionStatus | null>(null);
+  const [pushToggling, setPushToggling] = useState(false);
+  const [pushError, setPushError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -114,6 +124,15 @@ const SettingsScreen = ({ onLogout }: SettingsScreenProps) => {
       } catch (err) {
         console.error('Failed to fetch notification settings:', err);
       }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const status = await getPushSubscriptionStatus();
+      if (!cancelled) setPushStatus(status);
     })();
     return () => { cancelled = true; };
   }, []);
@@ -288,6 +307,33 @@ const SettingsScreen = ({ onLogout }: SettingsScreenProps) => {
     }
   };
 
+  const handlePushToggle = async () => {
+    if (pushToggling || pushStatus === null) return;
+    setPushError(null);
+    setPushToggling(true);
+    try {
+      if (pushStatus === 'subscribed') {
+        await unsubscribeFromPush();
+        setPushStatus('not-subscribed');
+      } else {
+        const result = await setupPushNotifications();
+        switch (result.status) {
+          case 'subscribed':   setPushStatus('subscribed'); break;
+          case 'denied':       setPushStatus('denied'); break;
+          case 'unsupported':  setPushStatus('unsupported'); break;
+          case 'error':
+            setPushError(result.error.message);
+            setPushStatus(await getPushSubscriptionStatus());
+            break;
+        }
+      }
+    } catch (err) {
+      setPushError(err instanceof Error ? err.message : 'Не удалось изменить настройку');
+    } finally {
+      setPushToggling(false);
+    }
+  };
+
   const handleToggle = (type: string) => {
     setSettings((prev) => prev.map((s) => s.type === type ? { ...s, toggling: true } : s));
     void toggleNotification(type)
@@ -400,8 +446,30 @@ const SettingsScreen = ({ onLogout }: SettingsScreenProps) => {
       </div>
 
       {/* Notifications */}
-      {settings.length > 0 && (
+      {pushStatus && pushStatus !== 'unsupported' && (
         <SetGroup label="Уведомления">
+          <ToggleRow
+            icon={pushStatus === 'subscribed' ? Bell : BellOff}
+            iconBg={T.amberFill}
+            iconInk={T.amberDp}
+            title="Push-уведомления"
+            subtitle={
+              pushStatus === 'denied'
+                ? 'Разрешите уведомления в настройках браузера'
+                : 'Уведомления о задачах в этом браузере'
+            }
+            value={pushStatus === 'subscribed'}
+            disabled={pushToggling || pushStatus === 'denied'}
+            onChange={() => void handlePushToggle()}
+            last={settings.length === 0 && !pushError}
+          />
+          {pushError && (
+            <div style={{
+              padding: '8px 14px',
+              fontSize: 12.5, color: T.danger, background: T.dangerFill,
+              borderBottom: settings.length > 0 ? `0.5px solid ${T.hairline}` : 'none',
+            }}>{pushError}</div>
+          )}
           {settings.map((s, i) => {
             const meta = notifMeta(s.type);
             return (
@@ -413,7 +481,7 @@ const SettingsScreen = ({ onLogout }: SettingsScreenProps) => {
                 title={meta.title}
                 subtitle={meta.subtitle}
                 value={s.enabled}
-                disabled={s.toggling}
+                disabled={s.toggling || pushStatus !== 'subscribed'}
                 onChange={() => handleToggle(s.type)}
                 last={i === settings.length - 1}
               />
