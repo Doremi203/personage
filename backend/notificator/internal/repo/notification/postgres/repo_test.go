@@ -284,6 +284,32 @@ func Test_repo_MarkAsRead(t *testing.T) {
 			require.ErrorIs(t, err, notification.ErrNotificationNotFound)
 		},
 	)
+
+	tester.Run(t, "pending notification cannot be marked as read", nil, 10*time.Second,
+		func(t *testing.T, ctx context.Context, db postgres.Client) {
+			r := NewRepo(db)
+
+			retryAfter := time.Date(2026, 4, 26, 11, 0, 0, 0, time.UTC)
+			expiresAt := time.Date(2026, 4, 26, 13, 0, 0, 0, time.UTC)
+			require.NoError(t, r.Create(ctx, notification.Notification{
+				UserID: owner, Title: "pending", Type: "upcoming_event", Text: "body",
+				Status:     notification.StatusPending,
+				RetryAfter: &retryAfter, ExpiresAt: &expiresAt,
+			}))
+
+			pending, err := r.ListPending(ctx)
+			require.NoError(t, err)
+			require.Len(t, pending, 1)
+
+			err = r.MarkAsRead(ctx, pending[0].ID, owner, time.Date(2026, 4, 26, 12, 0, 0, 0, time.UTC))
+			require.ErrorIs(t, err, notification.ErrNotificationNotFound)
+
+			after, err := r.ListPending(ctx)
+			require.NoError(t, err)
+			require.Len(t, after, 1)
+			assert.Nil(t, after[0].ReadAt)
+		},
+	)
 }
 
 func Test_repo_MarkAllAsRead(t *testing.T) {
@@ -369,6 +395,48 @@ func Test_repo_MarkAllAsRead(t *testing.T) {
 			require.NoError(t, err)
 			require.Len(t, otherList, 1)
 			assert.Nil(t, otherList[0].ReadAt)
+		},
+	)
+
+	tester.Run(t, "leaves pending and dropped untouched", nil, 10*time.Second,
+		func(t *testing.T, ctx context.Context, db postgres.Client) {
+			r := NewRepo(db)
+
+			sentAt := time.Date(2026, 4, 26, 10, 0, 0, 0, time.UTC)
+			retryAfter := time.Date(2026, 4, 26, 11, 0, 0, 0, time.UTC)
+			expiresAt := time.Date(2026, 4, 26, 13, 0, 0, 0, time.UTC)
+			require.NoError(t, r.Create(ctx, notification.Notification{
+				UserID: owner, Title: "sent", Type: "upcoming_event", Text: "body",
+				Status: notification.StatusSent, SentAt: &sentAt,
+			}))
+			require.NoError(t, r.Create(ctx, notification.Notification{
+				UserID: owner, Title: "pending", Type: "upcoming_event", Text: "body",
+				Status:     notification.StatusPending,
+				RetryAfter: &retryAfter, ExpiresAt: &expiresAt,
+			}))
+			require.NoError(t, r.Create(ctx, notification.Notification{
+				UserID: owner, Title: "dropped", Type: "upcoming_event", Text: "body",
+				Status: notification.StatusDropped, SentAt: &sentAt,
+			}))
+
+			readAt := time.Date(2026, 4, 26, 12, 0, 0, 0, time.UTC)
+			require.NoError(t, r.MarkAllAsRead(ctx, owner, readAt))
+
+			var pendingReadAt, droppedReadAt *time.Time
+			require.NoError(t, db.QueryRow(ctx,
+				`SELECT read_at FROM notifications WHERE recipient_id = $1 AND status = 'pending'`, owner,
+			).Scan(&pendingReadAt))
+			require.NoError(t, db.QueryRow(ctx,
+				`SELECT read_at FROM notifications WHERE recipient_id = $1 AND status = 'dropped'`, owner,
+			).Scan(&droppedReadAt))
+			assert.Nil(t, pendingReadAt)
+			assert.Nil(t, droppedReadAt)
+
+			sentList, err := r.ListByUserID(ctx, owner, 10, 0)
+			require.NoError(t, err)
+			require.Len(t, sentList, 1)
+			require.NotNil(t, sentList[0].ReadAt)
+			assert.True(t, sentList[0].ReadAt.Equal(readAt))
 		},
 	)
 }
