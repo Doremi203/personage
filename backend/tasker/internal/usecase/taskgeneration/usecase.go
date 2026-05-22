@@ -186,7 +186,7 @@ func (uc *UseCase) processCluster(ctx context.Context, cluster domain.Cluster) e
 			return errors.WrapFail(err, "create task for cluster")
 		}
 
-		if err = uc.clusterRepo.FinalizeCluster(txCtx, cluster.ID, domain.ClusterGenerationOutcomeTaskGenerated, nil); err != nil {
+		if err = uc.clusterRepo.FinalizeCluster(txCtx, cluster.ID, domain.ClusterGenerationOutcomeTaskGenerated, generationDecision.Reason); err != nil {
 			return errors.WrapFail(err, "finalize cluster with generated task")
 		}
 

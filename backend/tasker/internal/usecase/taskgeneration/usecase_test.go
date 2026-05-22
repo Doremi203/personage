@@ -65,7 +65,7 @@ func TestProcessClusterStoresGeneratedEvidenceEventIDs(t *testing.T) {
 		stubEventRepo{events: events},
 		taskRepo,
 		stubModerationRepo{},
-		stubActionabilityService{result: domain.TaskGenerationDecision{ShouldGenerate: true}},
+		stubActionabilityService{result: domain.TaskGenerationDecision{ShouldGenerate: true, Reason: new("explicit task request")}},
 		stubTaskGenerationService{result: domain.GeneratedTask{
 			Title:            "Review PR #47",
 			Description:      "Review the API integration changes.",
@@ -106,6 +106,10 @@ func TestProcessClusterStoresGeneratedEvidenceEventIDs(t *testing.T) {
 
 	if len(clusterRepo.finalized) != 1 || clusterRepo.finalized[0].outcome != domain.ClusterGenerationOutcomeTaskGenerated {
 		t.Fatalf("unexpected finalize calls: %#v", clusterRepo.finalized)
+	}
+
+	if clusterRepo.finalized[0].reason == nil || *clusterRepo.finalized[0].reason != "explicit task request" {
+		t.Fatalf("unexpected finalize reason: %#v", clusterRepo.finalized[0].reason)
 	}
 }
 
