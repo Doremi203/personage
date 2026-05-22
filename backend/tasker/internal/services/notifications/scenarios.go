@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/Doremi203/personage/backend/libs/go/errors"
+	"github.com/Doremi203/personage/backend/libs/go/log"
 	"github.com/Doremi203/personage/backend/tasker/internal/domain"
 	"golang.org/x/text/feature/plural"
 	"golang.org/x/text/language"
@@ -15,6 +16,7 @@ import (
 const timeLayout = "15:04"
 
 func NewUpcomingEventNotifier(
+	logger log.Logger,
 	sender domain.NotificationsService,
 	config domain.NotificationConfig,
 	printer *message.Printer,
@@ -58,6 +60,7 @@ func NewUpcomingEventNotifier(
 		sender:  sender,
 		config:  config,
 		printer: printer,
+		logger:  logger,
 		now:     time.Now,
 	}, nil
 }
@@ -66,6 +69,7 @@ type upcomingEventNotifier struct {
 	sender  domain.NotificationsService
 	config  domain.NotificationConfig
 	printer *message.Printer
+	logger  log.Logger
 	now     func() time.Time
 }
 
@@ -76,41 +80,110 @@ func (n *upcomingEventNotifier) NotifyUpcomingEvents(
 ) error {
 	now := n.now()
 
+	n.logger.Infof(
+		"NotifyUpcomingEvents start for user %s %s %s",
+		errors.Token("user_id", userID.String()),
+		errors.Token("task_count", len(tasks)),
+		errors.Token("now", now.Format(time.RFC3339)),
+	)
+
+	sentCount := 0
 	for _, task := range tasks {
-		if task.StartTime == nil || task.Priority < n.config.UpcomingEventMinPriority {
+		if task.StartTime == nil {
+			n.logger.Infof(
+				"skip task without start_time %s %s",
+				errors.Token("user_id", userID.String()),
+				errors.Token("task_id", task.ID.String()),
+			)
+			continue
+		}
+		if task.Priority < n.config.UpcomingEventMinPriority {
+			n.logger.Infof(
+				"skip task below min priority %s %s %s %s",
+				errors.Token("user_id", userID.String()),
+				errors.Token("task_id", task.ID.String()),
+				errors.Token("priority", task.Priority),
+				errors.Token("min_priority", n.config.UpcomingEventMinPriority),
+			)
 			continue
 		}
 
 		if task.Status != domain.TaskStatusPlanned {
+			n.logger.Infof(
+				"skip non-planned task %s %s %s",
+				errors.Token("user_id", userID.String()),
+				errors.Token("task_id", task.ID.String()),
+				errors.Token("status", string(task.Status)),
+			)
 			continue
 		}
 
 		if !task.IsApproved {
+			n.logger.Infof(
+				"skip unapproved task %s %s",
+				errors.Token("user_id", userID.String()),
+				errors.Token("task_id", task.ID.String()),
+			)
 			continue
 		}
 
+		taskSent := false
 		for _, interval := range n.config.UpcomingEventIntervals {
 			notificationTime := task.StartTime.Add(-interval)
 
-			if now.After(notificationTime.Add(-time.Minute)) && now.Before(notificationTime.Add(time.Minute)) {
-				notification := domain.Notification{
-					UserID:           userID,
-					Title:            n.formatUpcomingEventTitle(task, interval),
-					Body:             n.formatUpcomingEventBody(task),
-					Type:             "upcoming_event",
-					NotificationTime: &notificationTime,
-				}
-
-				if err := n.sender.Send(ctx, notification); err != nil {
-					return errors.WrapFailf(
-						err,
-						"send upcoming event notification for %s",
-						errors.Token("task_id", task.ID),
-					)
-				}
+			if !now.After(notificationTime.Add(-time.Minute)) || !now.Before(notificationTime.Add(time.Minute)) {
+				n.logger.Infof(
+					"outside notification window %s %s %s %s %s",
+					errors.Token("user_id", userID.String()),
+					errors.Token("task_id", task.ID.String()),
+					errors.Token("interval", interval.String()),
+					errors.Token("notification_time", notificationTime.Format(time.RFC3339)),
+					errors.Token("diff", now.Sub(notificationTime).String()),
+				)
+				continue
 			}
+
+			notification := domain.Notification{
+				UserID:           userID,
+				Title:            n.formatUpcomingEventTitle(task, interval),
+				Body:             n.formatUpcomingEventBody(task),
+				Type:             "upcoming_event",
+				NotificationTime: &notificationTime,
+			}
+
+			n.logger.Infof(
+				"sending upcoming event notification %s %s %s %s",
+				errors.Token("user_id", userID.String()),
+				errors.Token("task_id", task.ID.String()),
+				errors.Token("interval", interval.String()),
+				errors.Token("notification_time", notificationTime.Format(time.RFC3339)),
+			)
+
+			if err := n.sender.Send(ctx, notification); err != nil {
+				return errors.WrapFailf(
+					err,
+					"send upcoming event notification for %s",
+					errors.Token("task_id", task.ID),
+				)
+			}
+			taskSent = true
+			sentCount++
+		}
+
+		if !taskSent {
+			n.logger.Infof(
+				"no notification window matched for task %s %s",
+				errors.Token("user_id", userID.String()),
+				errors.Token("task_id", task.ID.String()),
+			)
 		}
 	}
+
+	n.logger.Infof(
+		"NotifyUpcomingEvents done for user %s %s",
+		errors.Token("user_id", userID.String()),
+		errors.Token("sent_count", sentCount),
+	)
 
 	return nil
 }

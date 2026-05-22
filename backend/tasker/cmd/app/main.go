@@ -258,6 +258,7 @@ func main() {
 		notificationSender := notifications.NewNotificatorPushService(notificatorSQSClient, time.Now)
 
 		upcomingEventNotifier, err := notifications.NewUpcomingEventNotifier(
+			app.Log,
 			notificationSender,
 			notificationConfig,
 			ruPrinter,

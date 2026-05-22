@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Doremi203/personage/backend/libs/go/log"
 	"github.com/Doremi203/personage/backend/tasker/internal/domain"
 	mock_domain "github.com/Doremi203/personage/backend/tasker/internal/domain/mock"
 	"github.com/stretchr/testify/assert"
@@ -154,6 +155,7 @@ func TestFormatUpcomingEventTitle(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			notifier, err := NewUpcomingEventNotifier(
+				log.Stub{},
 				nil,
 				domain.NotificationConfig{},
 				message.NewPrinter(language.Russian),
@@ -401,6 +403,7 @@ func TestFormatUpcomingEventBody(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			notifier, err := NewUpcomingEventNotifier(
+				log.Stub{},
 				nil,
 				domain.NotificationConfig{},
 				message.NewPrinter(language.Russian),
@@ -558,7 +561,7 @@ func TestNotifyUpcomingEvents_SetsNotificationTimeAnchor(t *testing.T) {
 	}
 
 	sender := &testNotificationSender{}
-	notifier, err := NewUpcomingEventNotifier(sender, domain.NotificationConfig{
+	notifier, err := NewUpcomingEventNotifier(log.Stub{}, sender, domain.NotificationConfig{
 		UpcomingEventMinPriority: 0,
 		UpcomingEventIntervals:   []time.Duration{interval},
 	}, message.NewPrinter(language.Russian))
@@ -603,7 +606,7 @@ func TestNotifyUpcomingEvents_SkipsUnapprovedTasks(t *testing.T) {
 	}
 
 	sender := &testNotificationSender{}
-	notifier, err := NewUpcomingEventNotifier(sender, domain.NotificationConfig{
+	notifier, err := NewUpcomingEventNotifier(log.Stub{}, sender, domain.NotificationConfig{
 		UpcomingEventMinPriority: 0,
 		UpcomingEventIntervals:   []time.Duration{interval},
 	}, message.NewPrinter(language.Russian))
