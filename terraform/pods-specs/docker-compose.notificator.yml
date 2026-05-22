@@ -1,6 +1,6 @@
 services:
   app:
-    image: cr.yandex/crp77qhpsda1m6ian417/notificator:14
+    image: cr.yandex/crp77qhpsda1m6ian417/notificator:15
     environment:
       APP_ENV: prod
       CONFIGS_PATH: /app/configs
