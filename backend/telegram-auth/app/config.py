@@ -42,6 +42,9 @@ class Settings(BaseSettings):
 
     GRPC_SERVER_PORT: int = Field(5051, env='GRPC_SERVER_PORT')
 
+    CHATS_CACHE_TTL_SECONDS: int = Field(300, env='CHATS_CACHE_TTL_SECONDS')
+    CHATS_DIALOG_LIMIT: int = Field(100, env='CHATS_DIALOG_LIMIT')
+
     TELEGRAM_API_HASH: str | None = None
     TELEGRAM_API_ID: str | None = None
 

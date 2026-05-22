@@ -132,6 +132,17 @@ class RedisClient:
         await self.client.delete(key)
         logger.debug("Deleted login session", login_id=login_id)
 
+    async def get_chats_cache(self, cache_key: str) -> list | None:
+        key = f"chats:{cache_key}"
+        data = await self.client.get(key)
+        if data:
+            return json.loads(data)
+        return None
+
+    async def set_chats_cache(self, cache_key: str, chats: list, ttl: int) -> None:
+        key = f"chats:{cache_key}"
+        await self.client.setex(key, ttl, json.dumps(chats))
+
     async def close(self):
         """Close Redis/Valkey connection"""
         if self.client:
