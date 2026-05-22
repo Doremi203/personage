@@ -16,14 +16,21 @@ import {
   setupPushNotifications,
 } from '../utils/pushNotifications';
 
-const DISMISSED_KEY = 'personage_onboarding_completed';
+const IOS_INSTALL_DISMISSED_KEY = 'personage_ios_install_dismissed';
+const PUSH_DISMISSED_KEY = 'personage_push_dismissed';
 
 type Mode = 'ios-install' | 'push' | 'none';
 type PushState = 'idle' | 'loading' | 'granted' | 'denied' | 'unsupported' | 'error';
 
-function pickMode(): Mode {
-  if (localStorage.getItem(DISMISSED_KEY) === 'true') return 'none';
-  if (isIos() && !isStandalonePWA()) return 'ios-install';
+function pickMode(authenticated: boolean): Mode {
+  const iosInstallEligible =
+    isIos() &&
+    !isStandalonePWA() &&
+    localStorage.getItem(IOS_INSTALL_DISMISSED_KEY) !== 'true';
+  if (iosInstallEligible) return 'ios-install';
+
+  if (!authenticated) return 'none';
+  if (localStorage.getItem(PUSH_DISMISSED_KEY) === 'true') return 'none';
   if (!isPushSupported()) return 'none';
   const perm = getNotificationPermission();
   if (perm === 'unsupported' || perm === 'granted' || perm === 'denied') return 'none';
@@ -31,19 +38,30 @@ function pickMode(): Mode {
 }
 
 interface OnboardingPromptProps {
+  authenticated: boolean;
   onDismiss?: () => void;
 }
 
-export function OnboardingPrompt({ onDismiss }: OnboardingPromptProps) {
-  const [mode, setMode] = useState<Mode>(() => pickMode());
+export function OnboardingPrompt({ authenticated, onDismiss }: OnboardingPromptProps) {
+  const [mode, setMode] = useState<Mode>(() => pickMode(authenticated));
+  const [trackedAuthenticated, setTrackedAuthenticated] = useState(authenticated);
   const [pushState, setPushState] = useState<PushState>('idle');
   const [pushError, setPushError] = useState<string | null>(null);
+
+  if (authenticated !== trackedAuthenticated) {
+    setTrackedAuthenticated(authenticated);
+    if (mode === 'none') setMode(pickMode(authenticated));
+  }
 
   if (mode === 'none') return null;
 
   const dismiss = () => {
-    localStorage.setItem(DISMISSED_KEY, 'true');
-    setMode('none');
+    if (mode === 'ios-install') {
+      localStorage.setItem(IOS_INSTALL_DISMISSED_KEY, 'true');
+    } else if (mode === 'push') {
+      localStorage.setItem(PUSH_DISMISSED_KEY, 'true');
+    }
+    setMode(pickMode(authenticated));
     onDismiss?.();
   };
 

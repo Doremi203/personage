@@ -123,6 +123,7 @@ function App() {
     return (
       <Frame>
         <AuthScreen onAuthSuccess={handleAuthSuccess} />
+        <OnboardingPrompt authenticated={false} />
       </Frame>
     );
   }
@@ -143,7 +144,7 @@ function App() {
         onTabChange={setCurrentTab}
         renderScreen={renderScreen}
       />
-      <OnboardingPrompt />
+      <OnboardingPrompt authenticated />
     </Frame>
   );
 }
