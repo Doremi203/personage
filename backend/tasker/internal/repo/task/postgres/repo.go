@@ -272,6 +272,27 @@ func (r *repo) GetUsersWithUnplannedTasks(ctx context.Context) ([]domain.UserID,
 	return userIDs, nil
 }
 
+func (r *repo) GetUsersWithPlannedTasks(ctx context.Context) ([]domain.UserID, error) {
+	query := `
+		SELECT DISTINCT user_id
+		FROM tasks
+		WHERE status = $1
+	`
+
+	rows, err := r.client.Query(ctx, query, domain.TaskStatusPlanned)
+	if err != nil {
+		return nil, errors.WrapFail(err, "query users with planned tasks")
+	}
+	defer rows.Close()
+
+	userIDs, err := pgx.CollectRows(rows, pgx.RowTo[domain.UserID])
+	if err != nil {
+		return nil, errors.WrapFail(err, "collect user_id rows")
+	}
+
+	return userIDs, nil
+}
+
 func (r *repo) UpdateTaskSchedule(ctx context.Context, taskID domain.TaskID, startTime time.Time, endTime time.Time, status domain.TaskStatus) error {
 	query := `
 		UPDATE tasks

@@ -12,25 +12,22 @@ func NewWorker(
 	logger log.Logger,
 	taskRepo domain.TaskRepo,
 	upcomingEventNotifier domain.UpcomingEventNotifier,
-	scheduleChangeNotifier domain.ScheduleChangeNotifier,
 ) *Worker {
 	return &Worker{
-		logger:                 logger,
-		taskRepo:               taskRepo,
-		upcomingEventNotifier:  upcomingEventNotifier,
-		scheduleChangeNotifier: scheduleChangeNotifier,
+		logger:                logger,
+		taskRepo:              taskRepo,
+		upcomingEventNotifier: upcomingEventNotifier,
 	}
 }
 
 type Worker struct {
-	upcomingEventNotifier  domain.UpcomingEventNotifier
-	scheduleChangeNotifier domain.ScheduleChangeNotifier
-	taskRepo               domain.TaskRepo
-	logger                 log.Logger
+	upcomingEventNotifier domain.UpcomingEventNotifier
+	taskRepo              domain.TaskRepo
+	logger                log.Logger
 }
 
 func (w *Worker) Process(ctx context.Context) error {
-	userIDs, err := w.taskRepo.GetUsersWithUnplannedTasks(ctx)
+	userIDs, err := w.taskRepo.GetUsersWithPlannedTasks(ctx)
 	if err != nil {
 		return errors.WrapFail(err, "get users for notification check")
 	}
