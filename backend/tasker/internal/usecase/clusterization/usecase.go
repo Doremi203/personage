@@ -52,7 +52,11 @@ type UseCase struct {
 }
 
 func (uc *UseCase) ProcessEvent(ctx context.Context, e domain.Event) error {
-	uc.logger.Infof("processing event with id %s", errors.Token("id", e.ID.String()))
+	uc.logger.Infof(
+		"processing event %s for user %s",
+		errors.Token("event_id", e.ID.String()),
+		errors.Token("user_id", e.UserID.String()),
+	)
 
 	paused, err := uc.pauseRepo.IsPaused(ctx, e.UserID)
 	if err != nil {
@@ -66,7 +70,7 @@ func (uc *UseCase) ProcessEvent(ctx context.Context, e domain.Event) error {
 		return errors.WrapFailf(
 			domain.ErrProcessingPaused,
 			"skip event %s",
-			errors.Token("id", e.ID.String()),
+			errors.Token("event_id", e.ID.String()),
 			errors.Token("user_id", e.UserID.String()),
 		)
 	}
@@ -75,14 +79,16 @@ func (uc *UseCase) ProcessEvent(ctx context.Context, e domain.Event) error {
 	if err != nil {
 		return errors.WrapFailf(
 			err,
-			"generate embedding for event %s",
-			errors.Token("id", e.ID.String()),
+			"generate embedding for event %s for user %s",
+			errors.Token("event_id", e.ID.String()),
+			errors.Token("user_id", e.UserID.String()),
 		)
 	}
 	if len(embeddings) == 0 {
 		uc.logger.Infof(
-			"generated embeddings are empty for event %s %s",
-			errors.Token("id", e.ID.String()),
+			"generated embeddings are empty for event %s for user %s %s",
+			errors.Token("event_id", e.ID.String()),
+			errors.Token("user_id", e.UserID.String()),
 			errors.Token("context", e.Context),
 		)
 		return nil
@@ -98,14 +104,16 @@ func (uc *UseCase) ProcessEvent(ctx context.Context, e domain.Event) error {
 	if err != nil {
 		return errors.WrapFailf(
 			err,
-			"find similar closed clusters for event %s",
-			errors.Token("id", e.ID.String()),
+			"find similar closed clusters for event %s for user %s",
+			errors.Token("event_id", e.ID.String()),
+			errors.Token("user_id", e.UserID.String()),
 		)
 	}
 	if len(closedClusters) > 0 && closedClusters[0].Similarity >= uc.closedSimilarityThreshold {
 		uc.logger.Infof(
-			"skip event %s as near-duplicate of closed cluster %s with similarity %s",
-			errors.Token("id", e.ID.String()),
+			"skip event %s for user %s as near-duplicate of closed cluster %s with similarity %s",
+			errors.Token("event_id", e.ID.String()),
+			errors.Token("user_id", e.UserID.String()),
 			errors.Token("cluster_id", closedClusters[0].ID.String()),
 			errors.Token("similarity", closedClusters[0].Similarity),
 		)
@@ -116,22 +124,26 @@ func (uc *UseCase) ProcessEvent(ctx context.Context, e domain.Event) error {
 	if err != nil {
 		return errors.WrapFailf(
 			err,
-			"find similar clusters for event %s",
-			errors.Token("id", e.ID.String()),
+			"find similar clusters for event %s for user %s",
+			errors.Token("event_id", e.ID.String()),
+			errors.Token("user_id", e.UserID.String()),
 		)
 	}
 
 	if len(similarClusters) > 0 {
 		uc.logger.Infof(
-			"highest similarity for event %s is %s",
-			errors.Token("id", e.ID.String()),
+			"highest similarity for event %s for user %s is %s",
+			errors.Token("event_id", e.ID.String()),
+			errors.Token("user_id", e.UserID.String()),
 			errors.Token("similarity", similarClusters[0].Similarity),
 		)
 	}
 	var chosenCluster domain.Cluster
+	var attachedToExisting bool
 	if len(similarClusters) > 0 && similarClusters[0].Similarity >= uc.minSimilarity {
 		chosenCluster = similarClusters[0].Cluster
 		chosenCluster.AddEvent(eventWithEmbedding, uc.clock())
+		attachedToExisting = true
 	} else {
 		clusterID := domain.ClusterID(uuid.New().String())
 		now := uc.clock()
@@ -147,19 +159,38 @@ func (uc *UseCase) ProcessEvent(ctx context.Context, e domain.Event) error {
 	}
 	eventWithEmbedding.ClusterID = chosenCluster.ID
 
+	if attachedToExisting {
+		uc.logger.Infof(
+			"attached event %s for user %s to existing cluster %s (event_count=%s)",
+			errors.Token("event_id", e.ID.String()),
+			errors.Token("user_id", e.UserID.String()),
+			errors.Token("cluster_id", chosenCluster.ID.String()),
+			errors.Token("event_count", chosenCluster.EventCount),
+		)
+	} else {
+		uc.logger.Infof(
+			"created new cluster %s for user %s from event %s",
+			errors.Token("cluster_id", chosenCluster.ID.String()),
+			errors.Token("user_id", e.UserID.String()),
+			errors.Token("event_id", e.ID.String()),
+		)
+	}
+
 	err = uc.txProvider.RunWithTx(ctx, tx.IsolationReadCommitted, func(ctx context.Context) error {
 		if err := uc.clusterRepo.UpsertCluster(ctx, chosenCluster); err != nil {
 			return errors.WrapFailf(
 				err,
-				"upsert cluster with %s",
-				errors.Token("id", chosenCluster.ID.String()),
+				"upsert cluster %s for user %s",
+				errors.Token("cluster_id", chosenCluster.ID.String()),
+				errors.Token("user_id", e.UserID.String()),
 			)
 		}
 		if err := uc.eventsRepo.UpsertEvent(ctx, eventWithEmbedding); err != nil {
 			return errors.WrapFailf(
 				err,
-				"upsert event %s",
-				errors.Token("id", eventWithEmbedding.ID.String()),
+				"upsert event %s for user %s",
+				errors.Token("event_id", eventWithEmbedding.ID.String()),
+				errors.Token("user_id", e.UserID.String()),
 			)
 		}
 
@@ -168,10 +199,16 @@ func (uc *UseCase) ProcessEvent(ctx context.Context, e domain.Event) error {
 	if err != nil {
 		return errors.WrapFailf(
 			err,
-			"run process event tx",
+			"run process event tx for user %s",
+			errors.Token("user_id", e.UserID.String()),
 		)
 	}
 
-	uc.logger.Infof("event %s processed", errors.Token("id", e.ID.String()))
+	uc.logger.Infof(
+		"event %s processed for user %s into cluster %s",
+		errors.Token("event_id", e.ID.String()),
+		errors.Token("user_id", e.UserID.String()),
+		errors.Token("cluster_id", chosenCluster.ID.String()),
+	)
 	return nil
 }

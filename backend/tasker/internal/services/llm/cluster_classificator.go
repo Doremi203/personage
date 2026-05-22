@@ -88,7 +88,7 @@ func (s *clusterActionabilityService) GetTaskGenerationDecision(
 		return domain.TaskGenerationDecision{}, errors.WrapFail(err, "format messages for actionability llm")
 	}
 
-	return generateAndParseWithRetry(ctx, s.logger, s.model, messages, parseActionabilityResponse)
+	return generateAndParseWithRetry(ctx, s.logger, s.model, messages, userIDFromEvents(events), parseActionabilityResponse)
 }
 
 func parseActionabilityResponse(responseText string) (domain.TaskGenerationDecision, error) {
