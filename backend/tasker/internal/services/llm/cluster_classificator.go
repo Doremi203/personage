@@ -29,19 +29,20 @@ Default to actionable=false. Only flip to true when at least one event contains 
 
 HARD REJECT (always actionable=false, regardless of other signals)
 - Telegram group chats (TEXT contains type=group) where no message names the owner, tags the owner, or addresses the owner in second person. Marketplace, classifieds, announcements, polls, generic "кто подскажет / does anyone know" broadcasts in groups: reject.
-- Newsletters, digests, mass emails, marketing, promotions, "no-reply" senders.
+- Newsletters, digests, mass emails, marketing, promotions, "no-reply" senders, generic LinkedIn/social platform nudges ("X is waiting for your response", "you have N new connections").
 - Receipts, order confirmations, shipping updates, statements, invoices already paid, bank alerts that need no action.
 - OTP, 2FA, verification codes, password resets, login alerts.
-- Bot notifications, CI/build/alert system messages, automated reminders the owner already set elsewhere.
+- Bot, no-reply, and platform-generated notifications: CI/build/alert system messages, automated calendar/app reminders the owner already set elsewhere, scheduler bots. A coordinator or organizer writing personally from a real human address does NOT count as automated even if the subject contains the word "reminder" / "напоминание".
 - Social-media notifications, likes, follows, reaction pings.
 - Events authored BY the owner (SENDER email matches any owner email) with no incoming reply requiring action.
-- Forwarded / FYI content with no explicit request.
+- Forwarded / FYI content with no explicit request and no named role for the owner.
 
 ACCEPT (actionable=true) ONLY IF AT LEAST ONE applies
 - Direct Telegram private message, or email whose TO is a small list including any owner email, with a concrete request or commitment.
 - Telegram group message that names the owner (owner name, owner's first name as a vocative, or @-mention) AND contains a concrete ask.
 - Google Calendar invite where the owner is invitee or organizer and the event is upcoming.
 - Email where body or subject directly addresses the owner by name or role AND requests a reply, decision, attendance, document, or deadline-bound action.
+- Personal reminder from a human sender (coordinator, organizer, host, colleague, teacher) of an UPCOMING scheduled commitment where the owner has a named role — speaker, presenter, panelist, host, organizer, interviewer/interviewee, required attendee, performer — and the message specifies a date/time the owner must show up or perform. Absence of an explicit "please reply / confirm" is NOT a reason to reject: the action is to attend or perform on schedule. This applies even if the subject says "reminder" / "напоминаем", as long as the sender is a real person writing to the owner individually (not a bot, no-reply, or mass distribution).
 
 OUTPUT
 Return valid JSON only, no prose, no code fences:
@@ -50,7 +51,7 @@ Return valid JSON only, no prose, no code fences:
   "reason": "<one to two sentences citing the specific signal: which event, which sender, which phrase, addressing pattern, or absence-of-addressing led to the decision>"
 }
 
-The reason field is ALWAYS mandatory, regardless of the value of actionable. Cite the specific signal that drove the decision — for rejects, the concrete reject criterion that fired (e.g. "telegram group marketplace broadcast, no mention of any owner email or owner name"); for accepts, the concrete accept criterion (e.g. "email TO an owner address with explicit deadline-bound ask to review PR #47 from sender@example.com"). Do not penalize delivery to any of the listed owner emails — all of them are the owner.`),
+The reason field is ALWAYS mandatory, regardless of the value of actionable. Cite the specific signal that drove the decision — for rejects, the concrete reject criterion that fired (e.g. "telegram group marketplace broadcast, no mention of any owner email or owner name"); for accepts, the concrete accept criterion (e.g. "email TO an owner address with explicit deadline-bound ask to review PR #47 from sender@example.com", or "human coordinator reminds owner of own speaker slot at forum on 2026-05-22 16:00"). Do not penalize delivery to any of the listed owner emails — all of them are the owner. Never use "no explicit request for reply" as a reason on its own — attendance and on-schedule personal obligations are valid actions too.`),
 	schema.UserMessage("Events:\n{{.events}}"),
 )
 
