@@ -85,6 +85,10 @@ func (n *upcomingEventNotifier) NotifyUpcomingEvents(
 			continue
 		}
 
+		if !task.IsApproved {
+			continue
+		}
+
 		for _, interval := range n.config.UpcomingEventIntervals {
 			notificationTime := task.StartTime.Add(-interval)
 
