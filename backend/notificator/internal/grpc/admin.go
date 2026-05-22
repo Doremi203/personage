@@ -104,13 +104,14 @@ func (s *adminService) deliver(
 	n *pushpb.Notification,
 	typ, text string,
 ) error {
+	scopedKey := scopedIdempotencyKey(n.GetIdempotencyKey(), recipient.ID)
 	sent, err := notification.NewSent(
 		uuid.UUID(recipient.ID),
 		n.GetTitle(),
 		typ,
 		text,
 		s.clock(),
-		scopedIdempotencyKey(n.GetIdempotencyKey(), recipient.ID),
+		scopedKey,
 	)
 	if err != nil {
 		return errors.WrapFail(err, "build notification")
@@ -124,8 +125,12 @@ func (s *adminService) deliver(
 		s.logger.Infof(
 			"duplicate admin push skipped for recipient %v key %v",
 			errors.Token("recipient_id", recipient.ID),
-			errors.Token("idempotency_key", n.GetIdempotencyKey()),
+			errors.Token("idempotency_key", scopedKey),
 		)
+		return nil
+	}
+
+	if len(recipient.Subscriptions) == 0 {
 		return nil
 	}
 
@@ -171,8 +176,7 @@ func (s *adminService) resolveRecipients(ctx context.Context, recipientIDStr str
 		)
 	}
 	if len(subs) == 0 {
-		s.logger.Infof("no push subscriptions for recipient %s", recipientID)
-		return nil, nil
+		s.logger.Infof("no push subscriptions for recipient %s, persisting in-app only", recipientID)
 	}
 	return []push.Recipient{{ID: recipientID, Subscriptions: subs}}, nil
 }

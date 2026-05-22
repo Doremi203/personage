@@ -242,16 +242,47 @@ func TestAdminService_SendPushV1(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	t.Run("no subscriptions for targeted recipient is a no-op", func(t *testing.T) {
+	t.Run("no subscriptions for targeted recipient persists in-app and skips push", func(t *testing.T) {
 		svc, m := newAdminService(t)
 		m.pushRepo.EXPECT().
 			GetSubscriptionsByRecipientID(gomock.Any(), push.RecipientID(adminRecipientUUID)).
 			Return(nil, nil)
+		m.notifs.EXPECT().
+			CreateIfAbsent(gomock.Any(), gomock.AssignableToTypeOf(notification.Notification{})).
+			DoAndReturn(func(_ context.Context, n notification.Notification) (bool, error) {
+				require.Equal(t, adminRecipientUUID, n.UserID)
+				require.Equal(t, notification.StatusSent, n.Status)
+				return true, nil
+			})
+		// sender.Send must NOT be called when there are no subscriptions.
 
 		_, err := svc.SendPushV1(context.Background(), &pushpb.SendPushV1Request{
 			Notification: &pushpb.Notification{
 				RecipientId: adminRecipientUUID.String(),
 				Title:       "T",
+			},
+		})
+		require.NoError(t, err)
+	})
+
+	t.Run("duplicate idempotency persists scoped key", func(t *testing.T) {
+		svc, m := newAdminService(t)
+		m.pushRepo.EXPECT().
+			GetSubscriptionsByRecipientID(gomock.Any(), push.RecipientID(adminRecipientUUID)).
+			Return(adminRecipient().Subscriptions, nil)
+		m.notifs.EXPECT().
+			CreateIfAbsent(gomock.Any(), gomock.AssignableToTypeOf(notification.Notification{})).
+			DoAndReturn(func(_ context.Context, n notification.Notification) (bool, error) {
+				require.Equal(t, "broadcast-1:"+adminRecipientUUID.String(), n.IdempotencyKey)
+				return false, nil
+			})
+		// sender.Send must NOT be called on duplicate.
+
+		_, err := svc.SendPushV1(context.Background(), &pushpb.SendPushV1Request{
+			Notification: &pushpb.Notification{
+				RecipientId:    adminRecipientUUID.String(),
+				Title:          "T",
+				IdempotencyKey: "broadcast-1",
 			},
 		})
 		require.NoError(t, err)
