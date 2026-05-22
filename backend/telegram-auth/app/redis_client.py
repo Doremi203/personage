@@ -1,5 +1,6 @@
 import redis.asyncio as redis
 from redis.asyncio.sentinel import Sentinel
+from redis.exceptions import RedisError
 import json
 from tenacity import retry, stop_after_attempt, wait_exponential
 import structlog
@@ -133,15 +134,40 @@ class RedisClient:
         logger.debug("Deleted login session", login_id=login_id)
 
     async def get_chats_cache(self, cache_key: str) -> list | None:
+        """Best-effort read; any Redis/JSON failure is logged and treated as a miss."""
         key = f"chats:{cache_key}"
-        data = await self.client.get(key)
-        if data:
-            return json.loads(data)
-        return None
+        try:
+            data = await self.client.get(key)
+        except RedisError as e:
+            logger.warning("Chats cache read failed", error=str(e))
+            return None
+        if not data:
+            return None
+        try:
+            decoded = json.loads(data)
+        except json.JSONDecodeError as e:
+            logger.warning("Chats cache value is not valid JSON; dropping", error=str(e))
+            await self._safe_delete(key)
+            return None
+        if not isinstance(decoded, list) or not all(isinstance(item, dict) for item in decoded):
+            logger.warning("Chats cache value has unexpected shape; dropping")
+            await self._safe_delete(key)
+            return None
+        return decoded
 
     async def set_chats_cache(self, cache_key: str, chats: list, ttl: int) -> None:
+        """Best-effort write; Redis failures are logged and swallowed."""
         key = f"chats:{cache_key}"
-        await self.client.setex(key, ttl, json.dumps(chats))
+        try:
+            await self.client.setex(key, ttl, json.dumps(chats))
+        except RedisError as e:
+            logger.warning("Chats cache write failed", error=str(e))
+
+    async def _safe_delete(self, key: str) -> None:
+        try:
+            await self.client.delete(key)
+        except RedisError as e:
+            logger.warning("Failed to drop corrupt cache entry", key=key, error=str(e))
 
     async def close(self):
         """Close Redis/Valkey connection"""
