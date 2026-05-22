@@ -60,7 +60,7 @@ func validateCommon(userID uuid.UUID, title, typ string) error {
 func NewPending(
 	userID uuid.UUID,
 	title, typ, text string,
-	receivedAt, retryAfter, expiresAt time.Time,
+	retryAfter, expiresAt time.Time,
 	payload *PushPayload,
 	idempotencyKey string,
 ) (Notification, error) {
@@ -73,7 +73,6 @@ func NewPending(
 		Type:           typ,
 		Text:           text,
 		Status:         StatusPending,
-		SentAt:         &receivedAt,
 		RetryAfter:     &retryAfter,
 		ExpiresAt:      &expiresAt,
 		PushPayload:    payload,

@@ -76,6 +76,7 @@ func (r *repo) ListByUserID(ctx context.Context, userID uuid.UUID, limit, offset
 		SELECT id, recipient_id, title, type, text, status, sent_at, retry_after, expires_at, read_at, push_payload, idempotency_key
 		FROM notifications
 		WHERE recipient_id = $1
+		  AND status = 'sent'
 		ORDER BY sent_at DESC
 		LIMIT $2 OFFSET $3
 	`
