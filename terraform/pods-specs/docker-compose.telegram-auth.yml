@@ -1,6 +1,6 @@
 services:
   app:
-    image: cr.yandex/crp77qhpsda1m6ian417/telegram-auth:2
+    image: cr.yandex/crp77qhpsda1m6ian417/telegram-auth:3
     ports:
       - "80:8000"
       - "5051:5051"
