@@ -1,9 +1,13 @@
+import hashlib
+
 import grpc
 import structlog
 from telethon import TelegramClient
+from telethon.errors import FloodWaitError
 from telethon.sessions import StringSession
 
 from app.config import settings
+from app.redis_client import redis_client
 from proto import telegram_chats_pb2, telegram_chats_pb2_grpc
 
 logger = structlog.get_logger()
@@ -20,10 +24,23 @@ class TelegramChatsServicer(telegram_chats_pb2_grpc.TelegramChatsServiceServicer
         if not request.session_string:
             await context.abort(grpc.StatusCode.INVALID_ARGUMENT, "session_string is required")
 
+        cache_key = hashlib.sha256(request.session_string.encode("utf-8")).hexdigest()
+
+        cached = await redis_client.get_chats_cache(cache_key)
+        if cached is not None:
+            logger.debug("Returning cached Telegram dialogs", count=len(cached))
+            return telegram_chats_pb2.GetUserChatsResponse(
+                chats=[
+                    telegram_chats_pb2.GetUserChatsResponse.Chat(id=int(c["id"]), name=c["name"])
+                    for c in cached
+                ]
+            )
+
         client = TelegramClient(
             StringSession(request.session_string),
             settings.TELEGRAM_API_ID,
             settings.TELEGRAM_API_HASH,
+            flood_sleep_threshold=0,
         )
 
         try:
@@ -35,16 +52,24 @@ class TelegramChatsServicer(telegram_chats_pb2_grpc.TelegramChatsServiceServicer
                     "Telegram session is not authorized",
                 )
 
-            dialogs = await client.get_dialogs()
-            chats = [
-                telegram_chats_pb2.GetUserChatsResponse.Chat(
-                    id=int(d.id),
-                    name=d.name or "",
-                )
-                for d in dialogs
-            ]
-            logger.info("Listed Telegram dialogs", count=len(chats))
-            return telegram_chats_pb2.GetUserChatsResponse(chats=chats)
+            dialogs = await client.get_dialogs(limit=settings.CHATS_DIALOG_LIMIT)
+            chats_payload = [{"id": int(d.id), "name": d.name or ""} for d in dialogs]
+            await redis_client.set_chats_cache(
+                cache_key, chats_payload, settings.CHATS_CACHE_TTL_SECONDS
+            )
+            logger.info("Listed Telegram dialogs", count=len(chats_payload))
+            return telegram_chats_pb2.GetUserChatsResponse(
+                chats=[
+                    telegram_chats_pb2.GetUserChatsResponse.Chat(id=c["id"], name=c["name"])
+                    for c in chats_payload
+                ]
+            )
+        except FloodWaitError as e:
+            logger.warning("Telegram flood wait on GetDialogs", seconds=e.seconds)
+            await context.abort(
+                grpc.StatusCode.UNAVAILABLE,
+                f"Telegram flood wait: retry after {e.seconds}s",
+            )
         except grpc.aio.AioRpcError:
             raise
         except Exception as e:
