@@ -7,9 +7,16 @@ interface AdminSendPushSheetProps {
   onClose: () => void;
 }
 
+const PUSH_TYPES: Array<{ value: string; label: string }> = [
+  { value: 'admin', label: 'Системное' },
+  { value: 'upcoming_event', label: 'Напоминание о задаче' },
+  { value: 'schedule_change', label: 'Изменения в расписании' },
+];
+
 export function AdminSendPushSheet({ userId, onClose }: AdminSendPushSheetProps) {
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
+  const [type, setType] = useState<string>(PUSH_TYPES[0].value);
   const [url, setUrl] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,6 +33,7 @@ export function AdminSendPushSheet({ userId, onClose }: AdminSendPushSheetProps)
       await sendAdminPushToUser(userId, {
         title: title.trim(),
         body: body.trim(),
+        type,
         url: url.trim() || undefined,
       });
       setSent(true);
@@ -123,6 +131,20 @@ export function AdminSendPushSheet({ userId, onClose }: AdminSendPushSheetProps)
             Отправлено
           </div>
         )}
+
+        <LabeledField label="Тип">
+          <select
+            value={type}
+            onChange={(event: ChangeEvent<HTMLSelectElement>) => setType(event.target.value)}
+            style={inputStyle()}
+          >
+            {PUSH_TYPES.map((t) => (
+              <option key={t.value} value={t.value}>
+                {t.label}
+              </option>
+            ))}
+          </select>
+        </LabeledField>
 
         <LabeledField label="Заголовок">
           <input

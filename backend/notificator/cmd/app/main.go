@@ -98,7 +98,7 @@ func main() {
 			app.Log,
 		)
 
-		pushAdminService := grpc.NewAdminService(pushRepo, pushSenderUseCase, app.Log)
+		pushAdminService := grpc.NewAdminService(pushRepo, pushSenderUseCase, notificationRepo, time.Now, app.Log)
 
 		notificationMessagesProcessor, err := sqs.NewMessageProcessor(
 			ctx,

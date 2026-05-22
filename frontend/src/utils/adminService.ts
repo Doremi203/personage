@@ -154,6 +154,7 @@ export async function setUserModeration(userId: string, enabled: boolean): Promi
 export interface AdminPushPayload {
   title: string;
   body: string;
+  type?: string;
   url?: string;
   icon?: string;
 }
@@ -170,6 +171,7 @@ export async function sendAdminPushToUser(
         recipientId: userId,
         title: payload.title,
         body: payload.body,
+        type: payload.type,
         url: payload.url,
         icon: payload.icon,
       },
