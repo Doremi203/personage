@@ -22,7 +22,8 @@ setup('authenticate via API and persist storage state', async ({ page, request }
   await page.evaluate((t) => {
     localStorage.setItem('personage_auth_tokens', JSON.stringify(t));
     localStorage.setItem('personage_consent_accepted', 'true');
-    localStorage.setItem('personage_onboarding_completed', 'true');
+    localStorage.setItem('personage_ios_install_dismissed', 'true');
+    localStorage.setItem('personage_push_dismissed', 'true');
   }, tokens);
 
   await page.context().storageState({ path: authFile });

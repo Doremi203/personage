@@ -33,7 +33,8 @@ function grpcError(status: number, message: string, code = 0): FulfillBody {
 async function bypassConsent(page: Page) {
   await page.addInitScript(() => {
     localStorage.setItem('personage_consent_accepted', 'true');
-    localStorage.setItem('personage_onboarding_completed', 'true');
+    localStorage.setItem('personage_ios_install_dismissed', 'true');
+    localStorage.setItem('personage_push_dismissed', 'true');
   });
 }
 
@@ -54,7 +55,8 @@ async function fakeAuthState(page: Page) {
       }),
     );
     localStorage.setItem('personage_consent_accepted', 'true');
-    localStorage.setItem('personage_onboarding_completed', 'true');
+    localStorage.setItem('personage_ios_install_dismissed', 'true');
+    localStorage.setItem('personage_push_dismissed', 'true');
   });
 }
 
