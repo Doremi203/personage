@@ -192,7 +192,7 @@ func TestProcessClusterDegradesWhenUserProfileLookupFails(t *testing.T) {
 		t.Fatalf("processCluster returned error: %v", err)
 	}
 
-	if actionability.received != (domain.UserProfile{}) {
+	if actionability.received.Email != "" || actionability.received.Name != "" || len(actionability.received.ConnectedEmails) != 0 {
 		t.Fatalf("expected empty profile on lookup failure, got %#v", actionability.received)
 	}
 

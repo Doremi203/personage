@@ -6,4 +6,5 @@ public class UserProfileModel
     public string Email { get; init; } = null!;
     public string Name { get; init; } = null!;
     public DateTime CreatedAt { get; init; }
+    public IReadOnlyList<string> ConnectedEmails { get; init; } = Array.Empty<string>();
 }

@@ -9,8 +9,9 @@ import (
 var ErrUserProfileNotFound = errors.Error("user profile not found")
 
 type UserProfile struct {
-	Email string
-	Name  string
+	Email           string
+	Name            string
+	ConnectedEmails []string
 }
 
 //go:generate mockgen -source=user.go -destination=mock/user_mock.go -typed
