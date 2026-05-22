@@ -547,11 +547,12 @@ func TestNotifyUpcomingEvents_SetsNotificationTimeAnchor(t *testing.T) {
 	tick2 := expectedNotifTime.Add(30 * time.Second)  // 10:00:30
 
 	task := domain.Task{
-		ID:        "task-1",
-		Title:     "Test",
-		StartTime: &startTime,
-		Status:    domain.TaskStatusPlanned,
-		Priority:  5,
+		ID:         "task-1",
+		Title:      "Test",
+		StartTime:  &startTime,
+		Status:     domain.TaskStatusPlanned,
+		Priority:   5,
+		IsApproved: true,
 	}
 
 	sender := &testNotificationSender{}
@@ -562,10 +563,10 @@ func TestNotifyUpcomingEvents_SetsNotificationTimeAnchor(t *testing.T) {
 	require.NoError(t, err)
 
 	notifier.now = func() time.Time { return tick1 }
-	require.NoError(t, notifier.NotifyUpcomingEvents(context.Background(), "user-1", []domain.Task{task}))
+	require.NoError(t, notifier.NotifyUpcomingEvents(t.Context(), "user-1", []domain.Task{task}))
 
 	notifier.now = func() time.Time { return tick2 }
-	require.NoError(t, notifier.NotifyUpcomingEvents(context.Background(), "user-1", []domain.Task{task}))
+	require.NoError(t, notifier.NotifyUpcomingEvents(t.Context(), "user-1", []domain.Task{task}))
 
 	require.Len(t, sender.sent, 2, "both ticks are within the 2-minute window")
 	require.NotNil(t, sender.sent[0].NotificationTime)
@@ -573,4 +574,42 @@ func TestNotifyUpcomingEvents_SetsNotificationTimeAnchor(t *testing.T) {
 	assert.Equal(t, expectedNotifTime, *sender.sent[0].NotificationTime)
 	assert.Equal(t, *sender.sent[0].NotificationTime, *sender.sent[1].NotificationTime,
 		"both ticks must carry the same NotificationTime anchor")
+}
+
+func TestNotifyUpcomingEvents_SkipsUnapprovedTasks(t *testing.T) {
+	startTime := time.Date(2026, 4, 18, 10, 15, 0, 0, time.UTC)
+	interval := 15 * time.Minute
+	tick := startTime.Add(-interval) // exact notification moment
+
+	tasks := []domain.Task{
+		{
+			ID:         "task-approved",
+			Title:      "Approved",
+			StartTime:  &startTime,
+			Status:     domain.TaskStatusPlanned,
+			Priority:   5,
+			IsApproved: true,
+		},
+		{
+			ID:         "task-pending-moderation",
+			Title:      "Pending moderation",
+			StartTime:  &startTime,
+			Status:     domain.TaskStatusPlanned,
+			Priority:   5,
+			IsApproved: false,
+		},
+	}
+
+	sender := &testNotificationSender{}
+	notifier, err := NewUpcomingEventNotifier(sender, domain.NotificationConfig{
+		UpcomingEventMinPriority: 0,
+		UpcomingEventIntervals:   []time.Duration{interval},
+	}, message.NewPrinter(language.Russian))
+	require.NoError(t, err)
+	notifier.now = func() time.Time { return tick }
+
+	require.NoError(t, notifier.NotifyUpcomingEvents(t.Context(), "user-1", tasks))
+
+	require.Len(t, sender.sent, 1)
+	assert.Contains(t, sender.sent[0].Title, "Approved")
 }

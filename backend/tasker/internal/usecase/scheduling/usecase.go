@@ -85,14 +85,19 @@ func (uc *UseCase) scheduleForUser(ctx context.Context, userID domain.UserID) er
 	)
 
 	unplannedIDs := make(map[domain.TaskID]struct{}, len(pendingTasks))
+	approvedUnplannedIDs := make(map[domain.TaskID]struct{}, len(pendingTasks))
 	for _, t := range pendingTasks {
 		unplannedIDs[t.ID] = struct{}{}
+		if t.IsApproved {
+			approvedUnplannedIDs[t.ID] = struct{}{}
+		}
 	}
 
 	inputTasks := slices.Concat(pendingTasks, existingPlanned)
 	schedule := scheduler.CalculateSchedule(inputTasks, now, uc.windowDuration)
 
 	persistedCount := 0
+	notifiableCount := 0
 	for _, planned := range schedule.Planned {
 		if _, isNew := unplannedIDs[planned.ID]; !isNew {
 			continue
@@ -111,9 +116,12 @@ func (uc *UseCase) scheduleForUser(ctx context.Context, userID domain.UserID) er
 			)
 		}
 		persistedCount++
+		if _, ok := approvedUnplannedIDs[planned.ID]; ok {
+			notifiableCount++
+		}
 	}
 
-	if persistedCount > 0 {
+	if notifiableCount > 0 {
 		err := uc.notifier.Send(ctx, domain.Notification{
 			UserID: userID,
 			Title:  "📅 Ваше расписание изменилось",
