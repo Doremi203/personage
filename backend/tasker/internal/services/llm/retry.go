@@ -21,6 +21,7 @@ func generateAndParseWithRetry[T any](
 	logger log.Logger,
 	chatModel model.BaseChatModel,
 	messages []*schema.Message,
+	userID string,
 	parse func(responseText string) (T, error),
 ) (T, error) {
 	var zero T
@@ -39,8 +40,9 @@ func generateAndParseWithRetry[T any](
 
 		lastErr = err
 		logger.Warn(errors.Errorf(
-			"llm generation of %T failed %v retrying %v",
+			"llm generation of %T failed for user %v %v retrying %v",
 			parsed,
+			errors.Token("user_id", userID),
 			errors.Token("err", lastErr.Error()),
 			errors.Token("attempt", attempt),
 		))
@@ -55,7 +57,12 @@ func generateAndParseWithRetry[T any](
 		backoff *= 2
 	}
 
-	return zero, errors.WrapFailf(lastErr, "obtain valid llm response after %d attempts", llmRetryMaxAttempts)
+	return zero, errors.WrapFailf(
+		lastErr,
+		"obtain valid llm response for user %s after %d attempts",
+		errors.Token("user_id", userID),
+		llmRetryMaxAttempts,
+	)
 }
 
 func generateResponse(

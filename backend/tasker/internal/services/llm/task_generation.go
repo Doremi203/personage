@@ -110,7 +110,7 @@ func (s *taskGenerationService) GenerateTask(ctx context.Context, events []domai
 		return domain.GeneratedTask{}, errors.WrapFail(err, "format messages for llm")
 	}
 
-	return generateAndParseWithRetry(ctx, s.logger, s.model, messages, func(responseText string) (domain.GeneratedTask, error) {
+	return generateAndParseWithRetry(ctx, s.logger, s.model, messages, userIDFromEvents(events), func(responseText string) (domain.GeneratedTask, error) {
 		return s.parseResponse(responseText, events)
 	})
 }
@@ -177,6 +177,13 @@ func (s *taskGenerationService) parseResponse(responseText string, events []doma
 	task.StartTime = startTime
 
 	return task, nil
+}
+
+func userIDFromEvents(events []domain.Event) string {
+	if len(events) == 0 {
+		return ""
+	}
+	return events[0].UserID.String()
 }
 
 func formatEvents(events []domain.Event) (string, error) {

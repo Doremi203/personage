@@ -83,8 +83,9 @@ func (uc *UseCase) ProcessClosableClusters(ctx context.Context, batchSize int) e
 			if err = uc.clusterRepo.UpdateClusterStatus(txCtx, cluster.ID, domain.ClusterStatusProcessing); err != nil {
 				return errors.WrapFailf(
 					err,
-					"update cluster status to processing %s",
+					"update cluster status to processing for cluster %s for user %s",
 					errors.Token("cluster_id", cluster.ID.String()),
+					errors.Token("user_id", cluster.UserID.String()),
 				)
 			}
 		}
@@ -95,12 +96,20 @@ func (uc *UseCase) ProcessClosableClusters(ctx context.Context, batchSize int) e
 		return errors.WrapFail(err, "select and lock closable clusters")
 	}
 
+	if len(clusters) > 0 {
+		uc.logger.Infof(
+			"locked closable clusters for processing %s",
+			errors.Token("count", len(clusters)),
+		)
+	}
+
 	for _, cluster := range clusters {
 		if err = uc.processCluster(ctx, cluster); err != nil {
 			uc.logger.Error(errors.WrapFailf(
 				err,
-				"process cluster %s (skipping)",
+				"process cluster %s for user %s (skipping)",
 				errors.Token("cluster_id", cluster.ID.String()),
+				errors.Token("user_id", cluster.UserID.String()),
 			))
 		}
 	}
@@ -109,23 +118,52 @@ func (uc *UseCase) ProcessClosableClusters(ctx context.Context, batchSize int) e
 }
 
 func (uc *UseCase) processCluster(ctx context.Context, cluster domain.Cluster) error {
+	uc.logger.Infof(
+		"processing cluster %s for user %s",
+		errors.Token("cluster_id", cluster.ID.String()),
+		errors.Token("user_id", cluster.UserID.String()),
+	)
+
 	events, err := uc.eventRepo.GetEventsByClusterID(ctx, cluster.ID)
 	if err != nil {
-		return errors.WrapFail(err, "get events for cluster")
+		return errors.WrapFailf(
+			err,
+			"get events for cluster %s for user %s",
+			errors.Token("cluster_id", cluster.ID.String()),
+			errors.Token("user_id", cluster.UserID.String()),
+		)
 	}
 
 	if len(events) == 0 {
+		uc.logger.Infof(
+			"finalizing empty cluster %s for user %s",
+			errors.Token("cluster_id", cluster.ID.String()),
+			errors.Token("user_id", cluster.UserID.String()),
+		)
 		if err := uc.clusterRepo.FinalizeCluster(ctx, cluster.ID, domain.ClusterGenerationOutcomeEmpty, nil); err != nil {
-			return errors.WrapFail(err, "finalize empty cluster")
+			return errors.WrapFailf(
+				err,
+				"finalize empty cluster %s for user %s",
+				errors.Token("cluster_id", cluster.ID.String()),
+				errors.Token("user_id", cluster.UserID.String()),
+			)
 		}
 		return nil
 	}
+
+	uc.logger.Infof(
+		"classifying actionability for cluster %s for user %s with %s events",
+		errors.Token("cluster_id", cluster.ID.String()),
+		errors.Token("user_id", cluster.UserID.String()),
+		errors.Token("event_count", len(events)),
+	)
 
 	profile, err := uc.userProfileService.GetUserProfile(ctx, cluster.UserID)
 	if err != nil {
 		uc.logger.Warn(errors.WrapFailf(
 			err,
-			"fetch user profile for cluster classification %s",
+			"fetch user profile for cluster %s for user %s",
+			errors.Token("cluster_id", cluster.ID.String()),
 			errors.Token("user_id", cluster.UserID.String()),
 		))
 		profile = domain.UserProfile{}
@@ -133,24 +171,55 @@ func (uc *UseCase) processCluster(ctx context.Context, cluster domain.Cluster) e
 
 	generationDecision, err := uc.clusterClassificatorService.GetTaskGenerationDecision(ctx, events, profile)
 	if err != nil {
-		return errors.WrapFail(err, "classify cluster actionability")
+		return errors.WrapFailf(
+			err,
+			"classify cluster actionability for cluster %s for user %s",
+			errors.Token("cluster_id", cluster.ID.String()),
+			errors.Token("user_id", cluster.UserID.String()),
+		)
 	}
 
 	if !generationDecision.ShouldGenerate {
+		reason := ""
+		if generationDecision.Reason != nil {
+			reason = *generationDecision.Reason
+		}
+		uc.logger.Infof(
+			"cluster %s for user %s classified as non-actionable: %s",
+			errors.Token("cluster_id", cluster.ID.String()),
+			errors.Token("user_id", cluster.UserID.String()),
+			errors.Token("reason", reason),
+		)
 		if err := uc.clusterRepo.FinalizeCluster(
 			ctx,
 			cluster.ID,
 			domain.ClusterGenerationOutcomeNonActionable,
 			generationDecision.Reason,
 		); err != nil {
-			return errors.WrapFail(err, "finalize non-actionable cluster")
+			return errors.WrapFailf(
+				err,
+				"finalize non-actionable cluster %s for user %s",
+				errors.Token("cluster_id", cluster.ID.String()),
+				errors.Token("user_id", cluster.UserID.String()),
+			)
 		}
 		return nil
 	}
 
+	uc.logger.Infof(
+		"cluster %s for user %s classified as actionable, generating task",
+		errors.Token("cluster_id", cluster.ID.String()),
+		errors.Token("user_id", cluster.UserID.String()),
+	)
+
 	generatedTask, err := uc.taskGenService.GenerateTask(ctx, events)
 	if err != nil {
-		return errors.WrapFail(err, "generate task")
+		return errors.WrapFailf(
+			err,
+			"generate task for cluster %s for user %s",
+			errors.Token("cluster_id", cluster.ID.String()),
+			errors.Token("user_id", cluster.UserID.String()),
+		)
 	}
 
 	requiresModeration, err := uc.moderationRepo.RequiresModeration(ctx, cluster.UserID)
@@ -181,13 +250,34 @@ func (uc *UseCase) processCluster(ctx context.Context, cluster domain.Cluster) e
 		UpdatedAt:        now,
 	}
 
+	uc.logger.Infof(
+		"generated task %s for user %s from cluster %s (approved=%s, evidence_count=%s)",
+		errors.Token("task_id", task.ID.String()),
+		errors.Token("user_id", cluster.UserID.String()),
+		errors.Token("cluster_id", cluster.ID.String()),
+		errors.Token("is_approved", task.IsApproved),
+		errors.Token("evidence_count", len(task.EvidenceEventIDs)),
+	)
+
 	err = uc.txProvider.RunWithTx(ctx, tx.IsolationReadCommitted, func(txCtx context.Context) error {
 		if err = uc.taskRepo.CreateTask(txCtx, task); err != nil {
-			return errors.WrapFail(err, "create task for cluster")
+			return errors.WrapFailf(
+				err,
+				"create task %s for user %s for cluster %s",
+				errors.Token("task_id", task.ID.String()),
+				errors.Token("user_id", cluster.UserID.String()),
+				errors.Token("cluster_id", cluster.ID.String()),
+			)
 		}
 
 		if err = uc.clusterRepo.FinalizeCluster(txCtx, cluster.ID, domain.ClusterGenerationOutcomeTaskGenerated, generationDecision.Reason); err != nil {
-			return errors.WrapFail(err, "finalize cluster with generated task")
+			return errors.WrapFailf(
+				err,
+				"finalize cluster %s for user %s with generated task %s",
+				errors.Token("cluster_id", cluster.ID.String()),
+				errors.Token("user_id", cluster.UserID.String()),
+				errors.Token("task_id", task.ID.String()),
+			)
 		}
 
 		return nil
@@ -197,8 +287,9 @@ func (uc *UseCase) processCluster(ctx context.Context, cluster domain.Cluster) e
 	}
 
 	uc.logger.Infof(
-		"successfully processed cluster %s %s",
+		"successfully processed cluster %s for user %s into task %s",
 		errors.Token("cluster_id", cluster.ID.String()),
+		errors.Token("user_id", cluster.UserID.String()),
 		errors.Token("task_id", task.ID.String()),
 	)
 

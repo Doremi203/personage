@@ -129,7 +129,11 @@ func (uc *UseCase) scheduleForUser(ctx context.Context, userID domain.UserID) er
 			Type:   "schedule_change",
 		})
 		if err != nil {
-			uc.logger.Error(errors.WrapFail(err, "notify schedule changes"))
+			uc.logger.Error(errors.WrapFailf(
+				err,
+				"notify schedule changes for user %s",
+				errors.Token("user_id", userID.String()),
+			))
 		}
 	}
 
