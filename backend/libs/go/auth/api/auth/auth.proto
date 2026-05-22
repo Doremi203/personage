@@ -34,4 +34,5 @@ message UserProfile {
   string email = 2;
   string name = 3;
   google.protobuf.Timestamp created_at = 4;
+  repeated string connected_emails = 5;
 }

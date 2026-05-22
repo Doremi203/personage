@@ -28,6 +28,28 @@ func TestGRPCServiceMapsSuccess(t *testing.T) {
 	if profile.Email != "a@b.com" || profile.Name != "A" {
 		t.Fatalf("unexpected profile: %#v", profile)
 	}
+	if len(profile.ConnectedEmails) != 0 {
+		t.Fatalf("expected no connected emails, got %v", profile.ConnectedEmails)
+	}
+}
+
+func TestGRPCServiceMapsConnectedEmails(t *testing.T) {
+	client := &stubAuthClient{response: &authpb.UserProfile{
+		UserId:          "user-1",
+		Email:           "a@b.com",
+		Name:            "A",
+		ConnectedEmails: []string{"a.b@gmail.com"},
+	}}
+	svc := NewGRPCService(client)
+
+	profile, err := svc.GetUserProfile(t.Context(), "user-1")
+	if err != nil {
+		t.Fatalf("GetUserProfile error: %v", err)
+	}
+
+	if len(profile.ConnectedEmails) != 1 || profile.ConnectedEmails[0] != "a.b@gmail.com" {
+		t.Fatalf("unexpected connected emails: %v", profile.ConnectedEmails)
+	}
 }
 
 func TestGRPCServiceMapsNotFoundToSentinel(t *testing.T) {

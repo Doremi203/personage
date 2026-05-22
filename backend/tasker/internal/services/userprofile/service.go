@@ -34,7 +34,8 @@ func (s *grpcService) GetUserProfile(ctx context.Context, userID domain.UserID) 
 	}
 
 	return domain.UserProfile{
-		Email: resp.GetEmail(),
-		Name:  resp.GetName(),
+		Email:           resp.GetEmail(),
+		Name:            resp.GetName(),
+		ConnectedEmails: resp.GetConnectedEmails(),
 	}, nil
 }

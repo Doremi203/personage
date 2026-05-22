@@ -39,12 +39,14 @@ public class AuthGrpcService(
 
         var profile = await userProfileService.GetUserById(userId, context.CancellationToken);
 
-        return new UserProfile
+        var response = new UserProfile
         {
             UserId = profile.Id.ToString(),
             Email = profile.Email,
             Name = profile.Name ?? string.Empty,
             CreatedAt = Timestamp.FromDateTime(DateTime.SpecifyKind(profile.CreatedAt, DateTimeKind.Utc)),
         };
+        response.ConnectedEmails.AddRange(profile.ConnectedEmails);
+        return response;
     }
 }

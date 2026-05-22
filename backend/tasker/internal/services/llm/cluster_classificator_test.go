@@ -97,7 +97,11 @@ func TestGetTaskGenerationDecisionInjectsOwnerIdentity(t *testing.T) {
 	_, err := service.GetTaskGenerationDecision(
 		t.Context(),
 		[]domain.Event{{ID: "event-1", Context: "Hi Owner, please review PR #47."}},
-		domain.UserProfile{Email: "owner@example.com", Name: "Owner Smith"},
+		domain.UserProfile{
+			Email:           "owner@example.com",
+			Name:            "Owner Smith",
+			ConnectedEmails: []string{"owner.gmail@gmail.com"},
+		},
 	)
 	if err != nil {
 		t.Fatalf("GetTaskGenerationDecision returned error: %v", err)
@@ -111,8 +115,54 @@ func TestGetTaskGenerationDecisionInjectsOwnerIdentity(t *testing.T) {
 	if !strings.Contains(rendered, "owner@example.com") {
 		t.Fatalf("expected rendered prompt to contain owner email, got: %s", rendered)
 	}
+	if !strings.Contains(rendered, "owner.gmail@gmail.com") {
+		t.Fatalf("expected rendered prompt to contain connected email, got: %s", rendered)
+	}
 	if !strings.Contains(rendered, "Owner Smith") {
 		t.Fatalf("expected rendered prompt to contain owner name, got: %s", rendered)
+	}
+}
+
+func TestFormatOwnerEmailsDedupesAndDropsEmpty(t *testing.T) {
+	tests := []struct {
+		name    string
+		profile domain.UserProfile
+		want    string
+	}{
+		{
+			name:    "auth only",
+			profile: domain.UserProfile{Email: "a@b.com"},
+			want:    "a@b.com",
+		},
+		{
+			name: "auth plus connected",
+			profile: domain.UserProfile{
+				Email:           "a@b.com",
+				ConnectedEmails: []string{"a.b@gmail.com"},
+			},
+			want: "a@b.com, a.b@gmail.com",
+		},
+		{
+			name: "dedupes case-insensitively and drops blanks",
+			profile: domain.UserProfile{
+				Email:           "A@B.com",
+				ConnectedEmails: []string{"", "  ", "a@b.COM", "a.b@gmail.com"},
+			},
+			want: "A@B.com, a.b@gmail.com",
+		},
+		{
+			name:    "empty profile",
+			profile: domain.UserProfile{},
+			want:    "(none)",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := formatOwnerEmails(tt.profile)
+			if got != tt.want {
+				t.Fatalf("formatOwnerEmails=%q want %q", got, tt.want)
+			}
+		})
 	}
 }
 
