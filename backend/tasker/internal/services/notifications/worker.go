@@ -57,12 +57,27 @@ func (w *Worker) processUser(ctx context.Context, userID domain.UserID) error {
 	}
 
 	if len(plannedTasks) == 0 {
+		w.logger.Infof(
+			"no planned tasks for user %s",
+			errors.Token("user_id", userID.String()),
+		)
 		return nil
 	}
+
+	w.logger.Infof(
+		"checking upcoming events for user %s %s",
+		errors.Token("user_id", userID.String()),
+		errors.Token("planned_count", len(plannedTasks)),
+	)
 
 	if err := w.upcomingEventNotifier.NotifyUpcomingEvents(ctx, userID, plannedTasks); err != nil {
 		return errors.WrapFail(err, "notify upcoming events")
 	}
+
+	w.logger.Infof(
+		"upcoming event check completed for user %s",
+		errors.Token("user_id", userID.String()),
+	)
 
 	return nil
 }
