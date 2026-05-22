@@ -50,7 +50,7 @@ export function OnboardingPrompt({ authenticated, onDismiss }: OnboardingPromptP
 
   if (authenticated !== trackedAuthenticated) {
     setTrackedAuthenticated(authenticated);
-    if (mode === 'none') setMode(pickMode(authenticated));
+    setMode(pickMode(authenticated));
   }
 
   if (mode === 'none') return null;
