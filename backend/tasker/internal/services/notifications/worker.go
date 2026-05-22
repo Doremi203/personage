@@ -12,25 +12,22 @@ func NewWorker(
 	logger log.Logger,
 	taskRepo domain.TaskRepo,
 	upcomingEventNotifier domain.UpcomingEventNotifier,
-	scheduleChangeNotifier domain.ScheduleChangeNotifier,
 ) *Worker {
 	return &Worker{
-		logger:                 logger,
-		taskRepo:               taskRepo,
-		upcomingEventNotifier:  upcomingEventNotifier,
-		scheduleChangeNotifier: scheduleChangeNotifier,
+		logger:                logger,
+		taskRepo:              taskRepo,
+		upcomingEventNotifier: upcomingEventNotifier,
 	}
 }
 
 type Worker struct {
-	upcomingEventNotifier  domain.UpcomingEventNotifier
-	scheduleChangeNotifier domain.ScheduleChangeNotifier
-	taskRepo               domain.TaskRepo
-	logger                 log.Logger
+	upcomingEventNotifier domain.UpcomingEventNotifier
+	taskRepo              domain.TaskRepo
+	logger                log.Logger
 }
 
 func (w *Worker) Process(ctx context.Context) error {
-	userIDs, err := w.taskRepo.GetUsersWithUnplannedTasks(ctx)
+	userIDs, err := w.taskRepo.GetUsersWithPlannedTasks(ctx)
 	if err != nil {
 		return errors.WrapFail(err, "get users for notification check")
 	}
@@ -60,12 +57,27 @@ func (w *Worker) processUser(ctx context.Context, userID domain.UserID) error {
 	}
 
 	if len(plannedTasks) == 0 {
+		w.logger.Infof(
+			"no planned tasks for user %s",
+			errors.Token("user_id", userID.String()),
+		)
 		return nil
 	}
+
+	w.logger.Infof(
+		"checking upcoming events for user %s %s",
+		errors.Token("user_id", userID.String()),
+		errors.Token("planned_count", len(plannedTasks)),
+	)
 
 	if err := w.upcomingEventNotifier.NotifyUpcomingEvents(ctx, userID, plannedTasks); err != nil {
 		return errors.WrapFail(err, "notify upcoming events")
 	}
+
+	w.logger.Infof(
+		"upcoming event check completed for user %s",
+		errors.Token("user_id", userID.String()),
+	)
 
 	return nil
 }

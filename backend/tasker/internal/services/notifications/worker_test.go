@@ -14,9 +14,8 @@ import (
 
 func TestWorker_Process(t *testing.T) {
 	type mocks struct {
-		taskRepo               *mock_domain.MockTaskRepo
-		upcomingEventNotifier  *mock_domain.MockUpcomingEventNotifier
-		scheduleChangeNotifier *mock_domain.MockScheduleChangeNotifier
+		taskRepo              *mock_domain.MockTaskRepo
+		upcomingEventNotifier *mock_domain.MockUpcomingEventNotifier
 	}
 	type args struct {
 		userIDs      []domain.UserID
@@ -35,10 +34,10 @@ func TestWorker_Process(t *testing.T) {
 		wantErr require.ErrorAssertionFunc
 	}{
 		{
-			name: "GetUsersWithUnplannedTasks error wrapped and returned",
+			name: "GetUsersWithPlannedTasks error wrapped and returned",
 			setup: func(m mocks, _ args) {
 				m.taskRepo.EXPECT().
-					GetUsersWithUnplannedTasks(gomock.Any()).
+					GetUsersWithPlannedTasks(gomock.Any()).
 					Return(nil, assert.AnError)
 			},
 			wantErr: func(t require.TestingT, err error, _ ...any) {
@@ -49,7 +48,7 @@ func TestWorker_Process(t *testing.T) {
 			name: "empty users list returns nil with no further calls",
 			setup: func(m mocks, _ args) {
 				m.taskRepo.EXPECT().
-					GetUsersWithUnplannedTasks(gomock.Any()).
+					GetUsersWithPlannedTasks(gomock.Any()).
 					Return(nil, nil)
 			},
 			wantErr: require.NoError,
@@ -61,7 +60,7 @@ func TestWorker_Process(t *testing.T) {
 			},
 			setup: func(m mocks, a args) {
 				m.taskRepo.EXPECT().
-					GetUsersWithUnplannedTasks(gomock.Any()).
+					GetUsersWithPlannedTasks(gomock.Any()).
 					Return(a.userIDs, nil)
 				m.taskRepo.EXPECT().
 					GetTasksByStatus(gomock.Any(), user1, domain.TaskStatusPlanned).
@@ -77,7 +76,7 @@ func TestWorker_Process(t *testing.T) {
 			},
 			setup: func(m mocks, a args) {
 				m.taskRepo.EXPECT().
-					GetUsersWithUnplannedTasks(gomock.Any()).
+					GetUsersWithPlannedTasks(gomock.Any()).
 					Return(a.userIDs, nil)
 				m.taskRepo.EXPECT().
 					GetTasksByStatus(gomock.Any(), user1, domain.TaskStatusPlanned).
@@ -95,7 +94,7 @@ func TestWorker_Process(t *testing.T) {
 			},
 			setup: func(m mocks, a args) {
 				m.taskRepo.EXPECT().
-					GetUsersWithUnplannedTasks(gomock.Any()).
+					GetUsersWithPlannedTasks(gomock.Any()).
 					Return(a.userIDs, nil)
 				m.taskRepo.EXPECT().
 					GetTasksByStatus(gomock.Any(), user1, domain.TaskStatusPlanned).
@@ -111,7 +110,7 @@ func TestWorker_Process(t *testing.T) {
 			},
 			setup: func(m mocks, a args) {
 				m.taskRepo.EXPECT().
-					GetUsersWithUnplannedTasks(gomock.Any()).
+					GetUsersWithPlannedTasks(gomock.Any()).
 					Return(a.userIDs, nil)
 				m.taskRepo.EXPECT().
 					GetTasksByStatus(gomock.Any(), user1, domain.TaskStatusPlanned).
@@ -130,7 +129,7 @@ func TestWorker_Process(t *testing.T) {
 			},
 			setup: func(m mocks, a args) {
 				m.taskRepo.EXPECT().
-					GetUsersWithUnplannedTasks(gomock.Any()).
+					GetUsersWithPlannedTasks(gomock.Any()).
 					Return(a.userIDs, nil)
 				m.taskRepo.EXPECT().
 					GetTasksByStatus(gomock.Any(), user1, domain.TaskStatusPlanned).
@@ -150,9 +149,8 @@ func TestWorker_Process(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			m := mocks{
-				taskRepo:               mock_domain.NewMockTaskRepo(ctrl),
-				upcomingEventNotifier:  mock_domain.NewMockUpcomingEventNotifier(ctrl),
-				scheduleChangeNotifier: mock_domain.NewMockScheduleChangeNotifier(ctrl),
+				taskRepo:              mock_domain.NewMockTaskRepo(ctrl),
+				upcomingEventNotifier: mock_domain.NewMockUpcomingEventNotifier(ctrl),
 			}
 			tt.setup(m, tt.args)
 
@@ -160,7 +158,6 @@ func TestWorker_Process(t *testing.T) {
 				log.Stub{},
 				m.taskRepo,
 				m.upcomingEventNotifier,
-				m.scheduleChangeNotifier,
 			)
 
 			err := worker.Process(t.Context())

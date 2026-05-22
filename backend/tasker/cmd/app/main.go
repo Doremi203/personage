@@ -258,6 +258,7 @@ func main() {
 		notificationSender := notifications.NewNotificatorPushService(notificatorSQSClient, time.Now)
 
 		upcomingEventNotifier, err := notifications.NewUpcomingEventNotifier(
+			app.Log,
 			notificationSender,
 			notificationConfig,
 			ruPrinter,
@@ -265,10 +266,6 @@ func main() {
 		if err != nil {
 			return err
 		}
-		scheduleChangeNotifier := notifications.NewScheduleChangeNotifier(
-			notificationSender,
-			notificationConfig,
-		)
 
 		type NotificationWorkerConfig struct {
 			Interval time.Duration
@@ -283,7 +280,6 @@ func main() {
 			app.Log,
 			postgresTaskRepo,
 			upcomingEventNotifier,
-			scheduleChangeNotifier,
 		)
 		app.AddBackgroundJob(
 			webapp.NewBackgroundJob(

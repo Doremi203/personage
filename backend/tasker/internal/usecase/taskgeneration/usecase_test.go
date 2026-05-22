@@ -280,6 +280,9 @@ func (s *stubTaskRepo) GetPlannedTasksInRange(context.Context, domain.UserID, ti
 func (s *stubTaskRepo) GetUsersWithUnplannedTasks(context.Context) ([]domain.UserID, error) {
 	return nil, nil
 }
+func (s *stubTaskRepo) GetUsersWithPlannedTasks(context.Context) ([]domain.UserID, error) {
+	return nil, nil
+}
 func (s *stubTaskRepo) UpdateTaskSchedule(context.Context, domain.TaskID, time.Time, time.Time, domain.TaskStatus) error {
 	return nil
 }

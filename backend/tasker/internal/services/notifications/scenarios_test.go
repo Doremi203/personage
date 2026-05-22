@@ -5,9 +5,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Doremi203/personage/backend/libs/go/log"
 	"github.com/Doremi203/personage/backend/tasker/internal/domain"
+	mock_domain "github.com/Doremi203/personage/backend/tasker/internal/domain/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
 )
@@ -152,6 +155,7 @@ func TestFormatUpcomingEventTitle(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			notifier, err := NewUpcomingEventNotifier(
+				log.Stub{},
 				nil,
 				domain.NotificationConfig{},
 				message.NewPrinter(language.Russian),
@@ -399,6 +403,7 @@ func TestFormatUpcomingEventBody(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			notifier, err := NewUpcomingEventNotifier(
+				log.Stub{},
 				nil,
 				domain.NotificationConfig{},
 				message.NewPrinter(language.Russian),
@@ -556,7 +561,7 @@ func TestNotifyUpcomingEvents_SetsNotificationTimeAnchor(t *testing.T) {
 	}
 
 	sender := &testNotificationSender{}
-	notifier, err := NewUpcomingEventNotifier(sender, domain.NotificationConfig{
+	notifier, err := NewUpcomingEventNotifier(log.Stub{}, sender, domain.NotificationConfig{
 		UpcomingEventMinPriority: 0,
 		UpcomingEventIntervals:   []time.Duration{interval},
 	}, message.NewPrinter(language.Russian))
@@ -601,7 +606,7 @@ func TestNotifyUpcomingEvents_SkipsUnapprovedTasks(t *testing.T) {
 	}
 
 	sender := &testNotificationSender{}
-	notifier, err := NewUpcomingEventNotifier(sender, domain.NotificationConfig{
+	notifier, err := NewUpcomingEventNotifier(log.Stub{}, sender, domain.NotificationConfig{
 		UpcomingEventMinPriority: 0,
 		UpcomingEventIntervals:   []time.Duration{interval},
 	}, message.NewPrinter(language.Russian))
@@ -612,4 +617,131 @@ func TestNotifyUpcomingEvents_SkipsUnapprovedTasks(t *testing.T) {
 
 	require.Len(t, sender.sent, 1)
 	assert.Contains(t, sender.sent[0].Title, "Approved")
+}
+
+func TestNotifyScheduleChanges(t *testing.T) {
+	type mocks struct {
+		sender *mock_domain.MockNotificationsService
+	}
+
+	userID := domain.UserID("user-1")
+	newStart := time.Date(2026, 5, 22, 14, 0, 0, 0, time.UTC)
+	newEnd := time.Date(2026, 5, 22, 15, 0, 0, 0, time.UTC)
+	oldStart := time.Date(2026, 5, 22, 10, 0, 0, 0, time.UTC)
+	oldEnd := time.Date(2026, 5, 22, 11, 0, 0, 0, time.UTC)
+
+	newChange := domain.ScheduleChange{
+		TaskID:     "task-new",
+		TaskTitle:  "Новая",
+		NewStart:   &newStart,
+		NewEnd:     &newEnd,
+		ChangeType: domain.ScheduleChangeTypeNew,
+	}
+	modifiedChange := domain.ScheduleChange{
+		TaskID:     "task-mod",
+		TaskTitle:  "Изменённая",
+		OldStart:   &oldStart,
+		OldEnd:     &oldEnd,
+		NewStart:   &newStart,
+		NewEnd:     &newEnd,
+		ChangeType: domain.ScheduleChangeTypeModified,
+	}
+	deletedChange := domain.ScheduleChange{
+		TaskID:     "task-del",
+		TaskTitle:  "Удалённая",
+		OldStart:   &oldStart,
+		OldEnd:     &oldEnd,
+		ChangeType: domain.ScheduleChangeTypeDeleted,
+	}
+
+	tests := []struct {
+		name    string
+		config  domain.NotificationConfig
+		changes []domain.ScheduleChange
+		setup   func(m mocks, changes []domain.ScheduleChange)
+		wantErr require.ErrorAssertionFunc
+	}{
+		{
+			name:    "disabled config skips all sends",
+			config:  domain.NotificationConfig{ScheduleChangesEnabled: false},
+			changes: []domain.ScheduleChange{newChange, modifiedChange},
+			setup:   func(_ mocks, _ []domain.ScheduleChange) {},
+			wantErr: require.NoError,
+		},
+		{
+			name:    "enabled with no changes sends nothing",
+			config:  domain.NotificationConfig{ScheduleChangesEnabled: true},
+			changes: nil,
+			setup:   func(_ mocks, _ []domain.ScheduleChange) {},
+			wantErr: require.NoError,
+		},
+		{
+			name:    "single new change sends one notification",
+			config:  domain.NotificationConfig{ScheduleChangesEnabled: true},
+			changes: []domain.ScheduleChange{newChange},
+			setup: func(m mocks, _ []domain.ScheduleChange) {
+				m.sender.EXPECT().
+					Send(gomock.Any(), gomock.AssignableToTypeOf(domain.Notification{})).
+					DoAndReturn(func(_ context.Context, n domain.Notification) error {
+						assert.Equal(t, userID, n.UserID)
+						assert.Equal(t, "schedule_change", n.Type)
+						assert.Equal(t, "📅 Новая задача запланирована", n.Title)
+						assert.Equal(t, "Задача: Новая\nВремя: 14:00 - 15:00", n.Body)
+						return nil
+					})
+			},
+			wantErr: require.NoError,
+		},
+		{
+			name:    "multiple changes send one notification per change in order",
+			config:  domain.NotificationConfig{ScheduleChangesEnabled: true},
+			changes: []domain.ScheduleChange{newChange, modifiedChange, deletedChange},
+			setup: func(m mocks, _ []domain.ScheduleChange) {
+				gomock.InOrder(
+					m.sender.EXPECT().
+						Send(gomock.Any(), gomock.AssignableToTypeOf(domain.Notification{})).
+						DoAndReturn(func(_ context.Context, n domain.Notification) error {
+							assert.Equal(t, "📅 Новая задача запланирована", n.Title)
+							return nil
+						}),
+					m.sender.EXPECT().
+						Send(gomock.Any(), gomock.AssignableToTypeOf(domain.Notification{})).
+						DoAndReturn(func(_ context.Context, n domain.Notification) error {
+							assert.Equal(t, "📅 Задача перенесена", n.Title)
+							return nil
+						}),
+					m.sender.EXPECT().
+						Send(gomock.Any(), gomock.AssignableToTypeOf(domain.Notification{})).
+						DoAndReturn(func(_ context.Context, n domain.Notification) error {
+							assert.Equal(t, "📅 Задача удалена из расписания", n.Title)
+							return nil
+						}),
+				)
+			},
+			wantErr: require.NoError,
+		},
+		{
+			name:    "sender error stops further sends and wraps error",
+			config:  domain.NotificationConfig{ScheduleChangesEnabled: true},
+			changes: []domain.ScheduleChange{newChange, modifiedChange},
+			setup: func(m mocks, _ []domain.ScheduleChange) {
+				m.sender.EXPECT().
+					Send(gomock.Any(), gomock.Any()).
+					Return(assert.AnError)
+			},
+			wantErr: require.Error,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			m := mocks{sender: mock_domain.NewMockNotificationsService(ctrl)}
+			tt.setup(m, tt.changes)
+
+			notifier := NewScheduleChangeNotifier(m.sender, tt.config)
+			err := notifier.NotifyScheduleChanges(t.Context(), userID, tt.changes)
+			tt.wantErr(t, err)
+		})
+	}
 }

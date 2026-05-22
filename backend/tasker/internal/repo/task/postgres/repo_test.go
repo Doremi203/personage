@@ -148,6 +148,34 @@ func Test_repo_GetUsersWithUnplannedTasks(t *testing.T) {
 	)
 }
 
+func Test_repo_GetUsersWithPlannedTasks(t *testing.T) {
+	userA := domain.UserID(uuid.NewString())
+	userB := domain.UserID(uuid.NewString())
+	userC := domain.UserID(uuid.NewString())
+
+	tester.Run(t, "returns distinct users with planned", nil, 10*time.Second,
+		func(t *testing.T, ctx context.Context, db postgres.Client) {
+			r := NewRepo(db)
+
+			a1 := newTask(t, userA)
+			a1.Status = domain.TaskStatusPlanned
+			a2 := newTask(t, userA)
+			a2.Status = domain.TaskStatusPlanned
+			b1 := newTask(t, userB)
+			c1 := newTask(t, userC)
+			c1.Status = domain.TaskStatusPlanned
+			require.NoError(t, r.CreateTask(ctx, a1))
+			require.NoError(t, r.CreateTask(ctx, a2))
+			require.NoError(t, r.CreateTask(ctx, b1))
+			require.NoError(t, r.CreateTask(ctx, c1))
+
+			got, err := r.GetUsersWithPlannedTasks(ctx)
+			require.NoError(t, err)
+			assert.ElementsMatch(t, []domain.UserID{userA, userC}, got)
+		},
+	)
+}
+
 func Test_repo_UpdateTaskSchedule(t *testing.T) {
 	userA := domain.UserID(uuid.NewString())
 
