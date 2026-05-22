@@ -31,8 +31,27 @@ func (r *repo) FindSimilarClusters(
 	embedding []float32,
 	topK int,
 ) ([]domain.ClusterWithSimilarity, error) {
+	return r.findSimilarClustersByStatus(ctx, userID, embedding, topK, domain.ClusterStatusOpen)
+}
+
+func (r *repo) FindSimilarClosedClusters(
+	ctx context.Context,
+	userID domain.UserID,
+	embedding []float32,
+	topK int,
+) ([]domain.ClusterWithSimilarity, error) {
+	return r.findSimilarClustersByStatus(ctx, userID, embedding, topK, domain.ClusterStatusClosed)
+}
+
+func (r *repo) findSimilarClustersByStatus(
+	ctx context.Context,
+	userID domain.UserID,
+	embedding []float32,
+	topK int,
+	status domain.ClusterStatus,
+) ([]domain.ClusterWithSimilarity, error) {
 	query := `
-		SELECT 
+		SELECT
 			cluster_id,
 			user_id,
 			centroid,
@@ -52,7 +71,7 @@ func (r *repo) FindSimilarClusters(
 	rows, err := r.client.Query(ctx, query,
 		pgvector.NewVector(embedding),
 		userID,
-		domain.ClusterStatusOpen,
+		status,
 		topK,
 	)
 	if err != nil {

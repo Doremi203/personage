@@ -20,6 +20,7 @@ type EventRepo interface {
 
 type ClusterRepo interface {
 	FindSimilarClusters(ctx context.Context, userID UserID, embedding []float32, topK int) ([]ClusterWithSimilarity, error)
+	FindSimilarClosedClusters(ctx context.Context, userID UserID, embedding []float32, topK int) ([]ClusterWithSimilarity, error)
 	UpsertCluster(ctx context.Context, cluster Cluster) error
 	FindClosableClusters(ctx context.Context, maxEventCount int, inactivityDuration time.Duration, limit int) ([]Cluster, error)
 	UpdateClusterStatus(ctx context.Context, clusterID ClusterID, status ClusterStatus) error

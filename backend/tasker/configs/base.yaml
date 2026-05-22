@@ -35,8 +35,8 @@ embedding:
   apiKey: "secret:e6qd2ljggdrvefjgg0gf:e6qiflr6buvueiikcs8t:open-router"
 
 cluster-closure:
-  maxEventCount: 25
-  inactivityMinutes: 10
+  maxEventCount: 5
+  inactivityMinutes: 3
   interval: 5s
   batchSize: 10
 

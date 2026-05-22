@@ -93,6 +93,40 @@ func Test_repo_FindSimilarClusters(t *testing.T) {
 	)
 }
 
+func Test_repo_FindSimilarClosedClusters(t *testing.T) {
+	userA := domain.UserID(uuid.NewString())
+	userB := domain.UserID(uuid.NewString())
+
+	tester.Run(t, "returns top-k for same user, only closed", nil, 10*time.Second,
+		func(t *testing.T, ctx context.Context, db postgres.Client) {
+			now := time.Date(2026, 4, 26, 12, 0, 0, 0, time.UTC)
+			r := NewRepo(db, fixedClock(now))
+
+			closed1 := newCluster(t, userA, domain.ClusterStatusClosed, 1, now)
+			closed1.Centroid = makeEmbedding(1)
+			closed2 := newCluster(t, userA, domain.ClusterStatusClosed, 1, now)
+			closed2.Centroid = makeEmbedding(0.5)
+			open := newCluster(t, userA, domain.ClusterStatusOpen, 1, now)
+			open.Centroid = makeEmbedding(1)
+			otherUser := newCluster(t, userB, domain.ClusterStatusClosed, 1, now)
+			otherUser.Centroid = makeEmbedding(1)
+
+			require.NoError(t, r.UpsertCluster(ctx, closed1))
+			require.NoError(t, r.UpsertCluster(ctx, closed2))
+			require.NoError(t, r.UpsertCluster(ctx, open))
+			require.NoError(t, r.UpsertCluster(ctx, otherUser))
+
+			got, err := r.FindSimilarClosedClusters(ctx, userA, makeEmbedding(1), 5)
+			require.NoError(t, err)
+			require.Len(t, got, 2)
+			assert.Equal(t, closed1.ID, got[0].ID)
+			for _, c := range got {
+				assert.Equal(t, domain.ClusterStatusClosed, c.Status)
+			}
+		},
+	)
+}
+
 func Test_repo_FindClosableClusters(t *testing.T) {
 	userA := domain.UserID(uuid.NewString())
 
