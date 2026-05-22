@@ -225,6 +225,9 @@ type stubClusterRepo struct {
 func (s *stubClusterRepo) FindSimilarClusters(context.Context, domain.UserID, []float32, int) ([]domain.ClusterWithSimilarity, error) {
 	return nil, nil
 }
+func (s *stubClusterRepo) FindSimilarClosedClusters(context.Context, domain.UserID, []float32, int) ([]domain.ClusterWithSimilarity, error) {
+	return nil, nil
+}
 func (s *stubClusterRepo) UpsertCluster(context.Context, domain.Cluster) error { return nil }
 func (s *stubClusterRepo) FindClosableClusters(context.Context, int, time.Duration, int) ([]domain.Cluster, error) {
 	return nil, nil

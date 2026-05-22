@@ -28,8 +28,9 @@ func TestUseCase_ProcessEvent(t *testing.T) {
 	}
 
 	const (
-		minSimilarity = 0.8
-		topK          = 5
+		minSimilarity             = 0.8
+		closedSimilarityThreshold = 0.9
+		topK                      = 5
 	)
 
 	fixedNow := time.Date(2025, 1, 2, 3, 4, 5, 0, time.UTC)
@@ -100,6 +101,90 @@ func TestUseCase_ProcessEvent(t *testing.T) {
 			wantErr: require.NoError,
 		},
 		{
+			name: "closed cluster above threshold skips event",
+			args: args{event: defaultEvent},
+			setup: func(m mocks, a args) {
+				closed := domain.Cluster{
+					ID:         domain.ClusterID("closed-1"),
+					UserID:     a.event.UserID,
+					Centroid:   []float32{0.1, 0.2, 0.3},
+					EventCount: 7,
+					Status:     domain.ClusterStatusClosed,
+					CreatedAt:  fixedNow.Add(-2 * time.Hour),
+					UpdatedAt:  fixedNow.Add(-time.Hour),
+				}
+				m.pauseRepo.EXPECT().
+					IsPaused(gomock.Any(), a.event.UserID).
+					Return(false, nil)
+				m.embedder.EXPECT().
+					GenerateEmbeddings(gomock.Any(), []string{string(a.event.Context)}).
+					Return([][]float32{embedding}, nil)
+				m.clusterRepo.EXPECT().
+					FindSimilarClosedClusters(gomock.Any(), a.event.UserID, embedding, topK).
+					Return([]domain.ClusterWithSimilarity{
+						{Cluster: closed, Similarity: 0.95},
+					}, nil)
+			},
+			wantErr: require.NoError,
+		},
+		{
+			name: "closed cluster below threshold proceeds to open cluster flow",
+			args: args{event: defaultEvent},
+			setup: func(m mocks, a args) {
+				closed := domain.Cluster{
+					ID:         domain.ClusterID("closed-1"),
+					UserID:     a.event.UserID,
+					Centroid:   []float32{0.4, 0.5, 0.6},
+					EventCount: 7,
+					Status:     domain.ClusterStatusClosed,
+					CreatedAt:  fixedNow.Add(-2 * time.Hour),
+					UpdatedAt:  fixedNow.Add(-time.Hour),
+				}
+				m.pauseRepo.EXPECT().
+					IsPaused(gomock.Any(), a.event.UserID).
+					Return(false, nil)
+				m.embedder.EXPECT().
+					GenerateEmbeddings(gomock.Any(), []string{string(a.event.Context)}).
+					Return([][]float32{embedding}, nil)
+				m.clusterRepo.EXPECT().
+					FindSimilarClosedClusters(gomock.Any(), a.event.UserID, embedding, topK).
+					Return([]domain.ClusterWithSimilarity{
+						{Cluster: closed, Similarity: 0.85},
+					}, nil)
+				m.clusterRepo.EXPECT().
+					FindSimilarClusters(gomock.Any(), a.event.UserID, embedding, topK).
+					Return(nil, nil)
+				m.clusterRepo.EXPECT().
+					UpsertCluster(gomock.Any(), gomock.AssignableToTypeOf(domain.Cluster{})).
+					DoAndReturn(func(_ context.Context, c domain.Cluster) error {
+						assert.NotEmpty(t, c.ID)
+						assert.Equal(t, 1, c.EventCount)
+						assert.Equal(t, domain.ClusterStatusOpen, c.Status)
+						return nil
+					})
+				m.eventsRepo.EXPECT().
+					UpsertEvent(gomock.Any(), gomock.AssignableToTypeOf(domain.EventWithEmbedding{})).
+					Return(nil)
+			},
+			wantErr: require.NoError,
+		},
+		{
+			name: "find similar closed clusters error",
+			args: args{event: defaultEvent},
+			setup: func(m mocks, a args) {
+				m.pauseRepo.EXPECT().
+					IsPaused(gomock.Any(), a.event.UserID).
+					Return(false, nil)
+				m.embedder.EXPECT().
+					GenerateEmbeddings(gomock.Any(), []string{string(a.event.Context)}).
+					Return([][]float32{embedding}, nil)
+				m.clusterRepo.EXPECT().
+					FindSimilarClosedClusters(gomock.Any(), a.event.UserID, embedding, topK).
+					Return(nil, assert.AnError)
+			},
+			wantErr: require.Error,
+		},
+		{
 			name: "find similar clusters error",
 			args: args{event: defaultEvent},
 			setup: func(m mocks, a args) {
@@ -109,6 +194,9 @@ func TestUseCase_ProcessEvent(t *testing.T) {
 				m.embedder.EXPECT().
 					GenerateEmbeddings(gomock.Any(), []string{string(a.event.Context)}).
 					Return([][]float32{embedding}, nil)
+				m.clusterRepo.EXPECT().
+					FindSimilarClosedClusters(gomock.Any(), a.event.UserID, embedding, topK).
+					Return(nil, nil)
 				m.clusterRepo.EXPECT().
 					FindSimilarClusters(gomock.Any(), a.event.UserID, embedding, topK).
 					Return(nil, assert.AnError)
@@ -134,6 +222,9 @@ func TestUseCase_ProcessEvent(t *testing.T) {
 				m.embedder.EXPECT().
 					GenerateEmbeddings(gomock.Any(), []string{string(a.event.Context)}).
 					Return([][]float32{embedding}, nil)
+				m.clusterRepo.EXPECT().
+					FindSimilarClosedClusters(gomock.Any(), a.event.UserID, embedding, topK).
+					Return(nil, nil)
 				m.clusterRepo.EXPECT().
 					FindSimilarClusters(gomock.Any(), a.event.UserID, embedding, topK).
 					Return([]domain.ClusterWithSimilarity{
@@ -177,6 +268,9 @@ func TestUseCase_ProcessEvent(t *testing.T) {
 					GenerateEmbeddings(gomock.Any(), []string{string(a.event.Context)}).
 					Return([][]float32{embedding}, nil)
 				m.clusterRepo.EXPECT().
+					FindSimilarClosedClusters(gomock.Any(), a.event.UserID, embedding, topK).
+					Return(nil, nil)
+				m.clusterRepo.EXPECT().
 					FindSimilarClusters(gomock.Any(), a.event.UserID, embedding, topK).
 					Return([]domain.ClusterWithSimilarity{
 						{Cluster: existing, Similarity: 0.5},
@@ -211,6 +305,9 @@ func TestUseCase_ProcessEvent(t *testing.T) {
 					GenerateEmbeddings(gomock.Any(), []string{string(a.event.Context)}).
 					Return([][]float32{embedding}, nil)
 				m.clusterRepo.EXPECT().
+					FindSimilarClosedClusters(gomock.Any(), a.event.UserID, embedding, topK).
+					Return(nil, nil)
+				m.clusterRepo.EXPECT().
 					FindSimilarClusters(gomock.Any(), a.event.UserID, embedding, topK).
 					Return(nil, nil)
 				m.clusterRepo.EXPECT().
@@ -241,6 +338,9 @@ func TestUseCase_ProcessEvent(t *testing.T) {
 					GenerateEmbeddings(gomock.Any(), []string{string(a.event.Context)}).
 					Return([][]float32{embedding}, nil)
 				m.clusterRepo.EXPECT().
+					FindSimilarClosedClusters(gomock.Any(), a.event.UserID, embedding, topK).
+					Return(nil, nil)
+				m.clusterRepo.EXPECT().
 					FindSimilarClusters(gomock.Any(), a.event.UserID, embedding, topK).
 					Return(nil, nil)
 				m.clusterRepo.EXPECT().
@@ -259,6 +359,9 @@ func TestUseCase_ProcessEvent(t *testing.T) {
 				m.embedder.EXPECT().
 					GenerateEmbeddings(gomock.Any(), []string{string(a.event.Context)}).
 					Return([][]float32{embedding}, nil)
+				m.clusterRepo.EXPECT().
+					FindSimilarClosedClusters(gomock.Any(), a.event.UserID, embedding, topK).
+					Return(nil, nil)
 				m.clusterRepo.EXPECT().
 					FindSimilarClusters(gomock.Any(), a.event.UserID, embedding, topK).
 					Return(nil, nil)
@@ -282,6 +385,9 @@ func TestUseCase_ProcessEvent(t *testing.T) {
 					GenerateEmbeddings(gomock.Any(), []string{string(a.event.Context)}).
 					Return([][]float32{embedding}, nil)
 				m.clusterRepo.EXPECT().
+					FindSimilarClosedClusters(gomock.Any(), a.event.UserID, embedding, topK).
+					Return(nil, nil)
+				m.clusterRepo.EXPECT().
 					FindSimilarClusters(gomock.Any(), a.event.UserID, embedding, topK).
 					Return(nil, nil)
 				m.txProvider.err = assert.AnError
@@ -299,6 +405,9 @@ func TestUseCase_ProcessEvent(t *testing.T) {
 				m.embedder.EXPECT().
 					GenerateEmbeddings(gomock.Any(), []string{string(a.event.Context)}).
 					Return([][]float32{embedding}, nil)
+				m.clusterRepo.EXPECT().
+					FindSimilarClosedClusters(gomock.Any(), a.event.UserID, embedding, topK).
+					Return(nil, nil)
 				m.clusterRepo.EXPECT().
 					FindSimilarClusters(gomock.Any(), a.event.UserID, embedding, topK).
 					Return(nil, nil)
@@ -342,6 +451,7 @@ func TestUseCase_ProcessEvent(t *testing.T) {
 				m.clusterRepo,
 				m.pauseRepo,
 				minSimilarity,
+				closedSimilarityThreshold,
 				topK,
 				clock,
 			)

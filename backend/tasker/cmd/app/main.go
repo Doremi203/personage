@@ -126,6 +126,7 @@ func main() {
 			postgresClusterRepo,
 			postgresPauseRepo,
 			0.65,
+			0.90,
 			5,
 			time.Now,
 		)
