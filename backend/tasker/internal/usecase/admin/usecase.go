@@ -101,6 +101,18 @@ func (uc *UseCase) ListClustersForUser(ctx context.Context, userID domain.UserID
 	return clusters, nil
 }
 
+func (uc *UseCase) GetCluster(ctx context.Context, clusterID domain.ClusterID) (domain.AdminClusterListItem, error) {
+	cluster, err := uc.clusterRepo.GetAdminClusterByID(ctx, clusterID)
+	if err != nil {
+		return domain.AdminClusterListItem{}, errors.WrapFailf(
+			err,
+			"get admin cluster %s",
+			errors.Token("cluster_id", clusterID.String()),
+		)
+	}
+	return cluster, nil
+}
+
 func (uc *UseCase) ListClusterEvents(ctx context.Context, clusterID domain.ClusterID) ([]domain.Event, error) {
 	events, err := uc.eventRepo.GetEventsByClusterID(ctx, clusterID)
 	if err != nil {
