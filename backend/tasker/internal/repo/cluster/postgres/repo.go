@@ -2,6 +2,7 @@ package clusterpostgres
 
 import (
 	"context"
+	stderrors "errors"
 	"time"
 
 	"github.com/Doremi203/personage/backend/libs/go/errors"
@@ -287,6 +288,43 @@ func (r *repo) ListAdminClustersByUserID(
 	}
 
 	return slices.Map(entities, adminClusterListItemEntity.ToDomain), nil
+}
+
+func (r *repo) GetAdminClusterByID(
+	ctx context.Context,
+	clusterID domain.ClusterID,
+) (domain.AdminClusterListItem, error) {
+	query := `
+		SELECT
+			c.cluster_id,
+			c.user_id,
+			c.status,
+			c.event_count,
+			c.generation_outcome,
+			c.generation_reason,
+			t.task_id,
+			c.created_at,
+			c.updated_at
+		FROM clusters c
+		LEFT JOIN tasks t ON t.cluster_id = c.cluster_id
+		WHERE c.cluster_id = $1
+	`
+
+	rows, err := r.client.Query(ctx, query, clusterID)
+	if err != nil {
+		return domain.AdminClusterListItem{}, errors.WrapFail(err, "query admin cluster by id")
+	}
+	defer rows.Close()
+
+	entity, err := pgx.CollectExactlyOneRow(rows, pgx.RowToStructByName[adminClusterListItemEntity])
+	if err != nil {
+		if stderrors.Is(err, pgx.ErrNoRows) {
+			return domain.AdminClusterListItem{}, domain.ErrClusterNotFound
+		}
+		return domain.AdminClusterListItem{}, errors.WrapFail(err, "collect admin cluster row")
+	}
+
+	return entity.ToDomain(), nil
 }
 
 func (r *repo) DeleteCluster(ctx context.Context, clusterID domain.ClusterID) error {

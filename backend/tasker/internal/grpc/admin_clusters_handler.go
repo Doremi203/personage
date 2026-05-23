@@ -1,7 +1,7 @@
 package grpc
 
 import (
-	"encoding/json"
+	stderrors "errors"
 	"net/http"
 	"time"
 
@@ -21,12 +21,12 @@ type adminClusterListItem struct {
 }
 
 type adminClusterEventItem struct {
-	ID         string          `json:"id"`
-	UserID     string          `json:"userId"`
-	ClusterID  string          `json:"clusterId"`
-	Source     string          `json:"source"`
-	OccurredAt time.Time       `json:"occurredAt"`
-	Context    json.RawMessage `json:"context"`
+	ID         string    `json:"id"`
+	UserID     string    `json:"userId"`
+	ClusterID  string    `json:"clusterId"`
+	Source     string    `json:"source"`
+	OccurredAt time.Time `json:"occurredAt"`
+	Context    string    `json:"context"`
 }
 
 func clusterToAdminItem(c domain.AdminClusterListItem) adminClusterListItem {
@@ -55,7 +55,7 @@ func eventToAdminItem(e domain.Event) adminClusterEventItem {
 		ClusterID:  e.ClusterID.String(),
 		Source:     e.Source.String(),
 		OccurredAt: e.OccurredAt,
-		Context:    json.RawMessage(e.Context),
+		Context:    string(e.Context),
 	}
 }
 
@@ -83,6 +83,32 @@ func NewAdminListClustersHandler(uc adminClustersUseCase, apiKey string) http.Ha
 		}
 
 		writeJSON(w, http.StatusOK, map[string]any{"clusters": items})
+	}
+}
+
+func NewAdminGetClusterHandler(uc adminClustersUseCase, apiKey string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !checkAdminKey(w, r, apiKey) {
+			return
+		}
+
+		clusterID := r.PathValue("clusterId")
+		if clusterID == "" {
+			http.Error(w, "clusterId is required", http.StatusBadRequest)
+			return
+		}
+
+		cluster, err := uc.GetCluster(r.Context(), domain.ClusterID(clusterID))
+		if err != nil {
+			if stderrors.Is(err, domain.ErrClusterNotFound) {
+				http.Error(w, "cluster not found", http.StatusNotFound)
+				return
+			}
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+
+		writeJSON(w, http.StatusOK, map[string]any{"cluster": clusterToAdminItem(cluster)})
 	}
 }
 

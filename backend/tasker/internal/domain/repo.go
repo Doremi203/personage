@@ -9,6 +9,7 @@ import (
 
 var (
 	ErrTaskNotFound     = errors.Error("task not found")
+	ErrClusterNotFound  = errors.Error("cluster not found")
 	ErrProcessingPaused = errors.Error("processing stopped")
 )
 
@@ -32,6 +33,7 @@ type ClusterRepo interface {
 	) error
 	ListGenerationDiagnosticsByUserID(ctx context.Context, userID UserID) ([]ClusterGenerationDiagnostic, error)
 	ListAdminClustersByUserID(ctx context.Context, userID UserID, limit int) ([]AdminClusterListItem, error)
+	GetAdminClusterByID(ctx context.Context, clusterID ClusterID) (AdminClusterListItem, error)
 	DeleteCluster(ctx context.Context, clusterID ClusterID) error
 	// RecoverStaleClusters resets clusters stuck in 'processing' for longer than
 	// the given staleThreshold back to 'open' so they can be retried.

@@ -174,13 +174,27 @@ export async function listAdminClusters(userId: string): Promise<AdminClusterLis
   return data.clusters ?? [];
 }
 
+interface AdminClusterResponse {
+  cluster: AdminClusterListItem;
+}
+
+export async function getAdminCluster(
+  userId: string,
+  clusterId: string,
+): Promise<AdminClusterListItem> {
+  const data = await fetchAdmin<AdminClusterResponse>(
+    `${TASKER_API_URL}/admin/users/${encodeURIComponent(userId)}/clusters/${encodeURIComponent(clusterId)}`,
+  );
+  return data.cluster;
+}
+
 export interface AdminClusterEventItem {
   id: string;
   userId: string;
   clusterId: string;
   source: string;
   occurredAt: string;
-  context: unknown;
+  context: string;
 }
 
 interface AdminClusterEventsResponse {

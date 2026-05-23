@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
+  getAdminCluster,
   listAdminClusterEvents,
   type AdminClusterEventItem,
   type AdminClusterListItem,
@@ -33,22 +34,14 @@ function formatDateTime(iso?: string): string {
   return d.toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' });
 }
 
-function stringifyContext(ctx: unknown): string {
-  if (typeof ctx === 'string') return ctx;
-  try {
-    return JSON.stringify(ctx, null, 2);
-  } catch {
-    return String(ctx);
-  }
-}
-
 export function AdminClusterDetailSheet({
   userId,
   clusterId,
-  summary,
+  summary: initialSummary,
   onClose,
   onOpenTask,
 }: AdminClusterDetailSheetProps) {
+  const [summary, setSummary] = useState<AdminClusterListItem | null>(initialSummary);
   const [events, setEvents] = useState<AdminClusterEventItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const loading = events === null && error === null;
@@ -68,6 +61,19 @@ export function AdminClusterDetailSheet({
       cancelled = true;
     };
   }, [userId, clusterId]);
+
+  useEffect(() => {
+    if (initialSummary !== null) return;
+    let cancelled = false;
+    void getAdminCluster(userId, clusterId)
+      .then((cluster) => {
+        if (!cancelled) setSummary(cluster);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, clusterId, initialSummary]);
 
   return (
     <div
@@ -274,7 +280,7 @@ export function AdminClusterDetailSheet({
                     borderRadius: 8,
                   }}
                 >
-                  {stringifyContext(event.context)}
+                  {event.context}
                 </pre>
               </div>
             ))}
