@@ -56,8 +56,17 @@ const CATEGORY_TO_API: Record<Category, string> = {
   personal: ApiTaskCategory.PERSONAL,
 };
 
+const TIME_SLOT_MIN = 15;
+
 function pad2(n: number): string {
   return String(n).padStart(2, '0');
+}
+
+function snapToSlot(d: Date): Date {
+  const out = new Date(d);
+  const minutes = Math.round(out.getMinutes() / TIME_SLOT_MIN) * TIME_SLOT_MIN;
+  out.setMinutes(minutes, 0, 0);
+  return out;
 }
 
 function isoToLocalInput(iso?: string): string {
@@ -71,7 +80,7 @@ function localInputToISO(s: string): string | undefined {
   if (!s) return undefined;
   const d = new Date(s);
   if (Number.isNaN(d.getTime())) return undefined;
-  return d.toISOString();
+  return snapToSlot(d).toISOString();
 }
 
 export function TaskDetailSheet({
@@ -423,6 +432,7 @@ function EditDateRow({ icon: Icon, iconBg, iconInk, label, value, onChange, last
       <input
         type="datetime-local"
         value={value}
+        step={TIME_SLOT_MIN * 60}
         onChange={(e) => onChange(e.target.value)}
         style={{
           flex: 1, minWidth: 0, textAlign: 'right',

@@ -62,6 +62,10 @@ func (uc *UseCase) GetTask(ctx context.Context, taskID string, userID string) (d
 }
 
 func (uc *UseCase) UpdateTask(ctx context.Context, taskID string, userID string, update domain.TaskUpdate) (domain.Task, error) {
+	if update.StartTime != nil && update.Status == nil {
+		update.Status = new(domain.TaskStatusPlanned)
+	}
+
 	task, err := uc.taskRepo.UpdateTask(ctx, domain.TaskID(taskID), domain.UserID(userID), update)
 	if err != nil {
 		return domain.Task{}, errors.WrapFail(err, "update task")
