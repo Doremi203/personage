@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"time"
+	_ "time/tzdata"
 
 	authpb "github.com/Doremi203/personage/backend/libs/go/auth/gen/api/auth"
 	"github.com/Doremi203/personage/backend/libs/go/errors"
