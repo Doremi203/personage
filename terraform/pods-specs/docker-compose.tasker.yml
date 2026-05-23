@@ -1,6 +1,6 @@
 services:
   app:
-    image: cr.yandex/crp77qhpsda1m6ian417/tasker:48
+    image: cr.yandex/crp77qhpsda1m6ian417/tasker:49
     environment:
       APP_ENV: prod
       CONFIGS_PATH: /app/configs
