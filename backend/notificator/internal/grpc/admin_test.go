@@ -288,3 +288,101 @@ func TestAdminService_SendPushV1(t *testing.T) {
 		require.NoError(t, err)
 	})
 }
+
+func TestAdminService_ListUserNotificationsV1(t *testing.T) {
+	t.Run("invalid uuid returns InvalidArgument", func(t *testing.T) {
+		svc, _ := newAdminService(t)
+		_, err := svc.ListUserNotificationsV1(t.Context(), &pushpb.ListUserNotificationsV1Request{
+			UserId: "not-a-uuid",
+		})
+		st, ok := status.FromError(err)
+		require.True(t, ok)
+		require.Equal(t, codes.InvalidArgument, st.Code())
+	})
+
+	t.Run("empty user_id returns InvalidArgument", func(t *testing.T) {
+		svc, _ := newAdminService(t)
+		_, err := svc.ListUserNotificationsV1(t.Context(), &pushpb.ListUserNotificationsV1Request{})
+		st, ok := status.FromError(err)
+		require.True(t, ok)
+		require.Equal(t, codes.InvalidArgument, st.Code())
+	})
+
+	t.Run("returns notifications ordered by sent_at desc", func(t *testing.T) {
+		svc, m := newAdminService(t)
+		id1 := uuid.MustParse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+		id2 := uuid.MustParse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
+		sentAt1 := adminNow
+		sentAt2 := adminNow.Add(-time.Hour)
+		readAt := adminNow.Add(-30 * time.Minute)
+
+		m.notifs.EXPECT().
+			ListByUserID(gomock.Any(), adminRecipientUUID, 200, 0).
+			Return([]notification.Notification{
+				{
+					ID:     id1,
+					UserID: adminRecipientUUID,
+					Title:  "Hello",
+					Type:   "admin",
+					Text:   "Body 1",
+					Status: notification.StatusSent,
+					SentAt: &sentAt1,
+				},
+				{
+					ID:     id2,
+					UserID: adminRecipientUUID,
+					Title:  "Earlier",
+					Type:   "upcoming_event",
+					Text:   "Body 2",
+					Status: notification.StatusSent,
+					SentAt: &sentAt2,
+					ReadAt: &readAt,
+				},
+			}, nil)
+
+		resp, err := svc.ListUserNotificationsV1(t.Context(), &pushpb.ListUserNotificationsV1Request{
+			UserId: adminRecipientUUID.String(),
+		})
+		require.NoError(t, err)
+		require.Len(t, resp.GetNotifications(), 2)
+
+		first := resp.GetNotifications()[0]
+		require.Equal(t, id1.String(), first.GetId())
+		require.Equal(t, "Hello", first.GetTitle())
+		require.Equal(t, "admin", first.GetType())
+		require.Equal(t, "Body 1", first.GetText())
+		require.True(t, first.GetSentAt().AsTime().Equal(sentAt1))
+		require.Nil(t, first.GetReadAt())
+
+		second := resp.GetNotifications()[1]
+		require.Equal(t, id2.String(), second.GetId())
+		require.Equal(t, "upcoming_event", second.GetType())
+		require.True(t, second.GetSentAt().AsTime().Equal(sentAt2))
+		require.True(t, second.GetReadAt().AsTime().Equal(readAt))
+	})
+
+	t.Run("empty list returns empty response", func(t *testing.T) {
+		svc, m := newAdminService(t)
+		m.notifs.EXPECT().
+			ListByUserID(gomock.Any(), adminRecipientUUID, 200, 0).
+			Return(nil, nil)
+
+		resp, err := svc.ListUserNotificationsV1(t.Context(), &pushpb.ListUserNotificationsV1Request{
+			UserId: adminRecipientUUID.String(),
+		})
+		require.NoError(t, err)
+		require.Empty(t, resp.GetNotifications())
+	})
+
+	t.Run("repo error is wrapped", func(t *testing.T) {
+		svc, m := newAdminService(t)
+		m.notifs.EXPECT().
+			ListByUserID(gomock.Any(), adminRecipientUUID, 200, 0).
+			Return(nil, assert.AnError)
+
+		_, err := svc.ListUserNotificationsV1(t.Context(), &pushpb.ListUserNotificationsV1Request{
+			UserId: adminRecipientUUID.String(),
+		})
+		require.Error(t, err)
+	})
+}

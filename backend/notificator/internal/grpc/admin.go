@@ -15,11 +15,17 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // adminNotificationType is the default in-app notification type assigned to
 // admin-broadcast pushes when the caller omits Notification.type.
 const adminNotificationType = "admin"
+
+// adminListNotificationsLimit caps how many notifications the per-user admin
+// list endpoint returns. The admin UI does not paginate yet, so we surface
+// recent history without unbounded scans.
+const adminListNotificationsLimit = 200
 
 func NewAdminService(
 	pushRepo push.Repo,
@@ -96,6 +102,50 @@ func (s *adminService) SendPushV1(
 	}
 
 	return &pushpb.SendPushV1Response{}, nil
+}
+
+func (s *adminService) ListUserNotificationsV1(
+	ctx context.Context,
+	req *pushpb.ListUserNotificationsV1Request,
+) (*pushpb.ListUserNotificationsV1Response, error) {
+	if err := req.ValidateAll(); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	userID, err := uuid.Parse(req.GetUserId())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "invalid user_id: must be a UUID")
+	}
+
+	notifications, err := s.notificationRepo.ListByUserID(ctx, userID, adminListNotificationsLimit, 0)
+	if err != nil {
+		return nil, errors.WrapFailf(
+			err,
+			"list notifications for user",
+			errors.Token("user_id", userID.String()),
+		)
+	}
+
+	protoNotifications := make([]*pushpb.NotificationItem, 0, len(notifications))
+	for _, n := range notifications {
+		item := &pushpb.NotificationItem{
+			Id:    n.ID.String(),
+			Title: n.Title,
+			Type:  n.Type,
+			Text:  n.Text,
+		}
+		if n.SentAt != nil {
+			item.SentAt = timestamppb.New(*n.SentAt)
+		}
+		if n.ReadAt != nil {
+			item.ReadAt = timestamppb.New(*n.ReadAt)
+		}
+		protoNotifications = append(protoNotifications, item)
+	}
+
+	return &pushpb.ListUserNotificationsV1Response{
+		Notifications: protoNotifications,
+	}, nil
 }
 
 func (s *adminService) deliver(

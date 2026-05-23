@@ -6,7 +6,9 @@ option go_package = "github.com/Doremi203/personage/backend/notificator/api/push
 
 import "google/api/annotations.proto";
 import "protoc-gen-openapiv2/options/annotations.proto";
+import "validate/validate.proto";
 import "api/push/push.proto";
+import "api/push/notifications.proto";
 
 service Admin {
   rpc SendPushV1(SendPushV1Request) returns (SendPushV1Response) {
@@ -27,6 +29,24 @@ service Admin {
       }
     };
   }
+
+  rpc ListUserNotificationsV1(ListUserNotificationsV1Request) returns (ListUserNotificationsV1Response) {
+    option (google.api.http) = {
+      get: "/v1/push/admin/users/{user_id}/notifications"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Список уведомлений пользователя";
+      description: "Возвращает уведомления заданного пользователя, отсортированные по sent_at desc.";
+      parameters: {
+        headers: {
+          name: "x-api-key"
+          description: "Ключ администратора"
+          type: STRING
+          required: true
+        }
+      }
+    };
+  }
 }
 
 message SendPushV1Request {
@@ -34,3 +54,13 @@ message SendPushV1Request {
 }
 
 message SendPushV1Response {}
+
+message ListUserNotificationsV1Request {
+  string user_id = 1 [
+    (validate.rules).string.uuid = true
+  ];
+}
+
+message ListUserNotificationsV1Response {
+  repeated NotificationItem notifications = 1;
+}

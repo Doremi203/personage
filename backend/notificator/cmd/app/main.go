@@ -142,7 +142,10 @@ func main() {
 		notificationsUseCase := notifications.New(notificationRepo, time.Now)
 		notificationsService := grpc.NewNotificationsService(notificationsUseCase, app.Log)
 
-		app.AddAPIKeyProtectedEndpoints(pushpb.Admin_SendPushV1_FullMethodName)
+		app.AddAPIKeyProtectedEndpoints(
+			pushpb.Admin_SendPushV1_FullMethodName,
+			pushpb.Admin_ListUserNotificationsV1_FullMethodName,
+		)
 		if app.Env == webapp.DevEnvironment || app.Env == webapp.TestsEnvironment {
 			app.AddHTTPHandler("/v1/test/notifications", grpc.NewTestCreateNotificationHandler(notificationRepo))
 		}
