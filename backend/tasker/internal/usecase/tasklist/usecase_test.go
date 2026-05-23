@@ -97,6 +97,7 @@ func TestUseCase_UpdateTask(t *testing.T) {
 	newTitle := "new title"
 	updatedTask := domain.Task{ID: domain.TaskID(testTaskID), Title: newTitle}
 	startTime := time.Date(2026, 5, 23, 10, 0, 0, 0, time.UTC)
+	endTime := time.Date(2026, 5, 23, 11, 0, 0, 0, time.UTC)
 
 	tests := []struct {
 		name    string
@@ -124,6 +125,20 @@ func TestUseCase_UpdateTask(t *testing.T) {
 					UpdateTask(gomock.Any(), domain.TaskID(a.taskID), domain.UserID(a.userID), domain.TaskUpdate{
 						StartTime: &startTime,
 						Status:    new(domain.TaskStatusPlanned),
+					}).
+					Return(updatedTask, nil)
+			},
+			want:    updatedTask,
+			wantErr: require.NoError,
+		},
+		{
+			name: "setting only end time auto-plans task",
+			args: args{taskID: testTaskID, userID: testUserID, update: domain.TaskUpdate{EndTime: &endTime}},
+			setup: func(m mocks, a args) {
+				m.taskRepo.EXPECT().
+					UpdateTask(gomock.Any(), domain.TaskID(a.taskID), domain.UserID(a.userID), domain.TaskUpdate{
+						EndTime: &endTime,
+						Status:  new(domain.TaskStatusPlanned),
 					}).
 					Return(updatedTask, nil)
 			},

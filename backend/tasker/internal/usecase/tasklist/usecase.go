@@ -62,7 +62,7 @@ func (uc *UseCase) GetTask(ctx context.Context, taskID string, userID string) (d
 }
 
 func (uc *UseCase) UpdateTask(ctx context.Context, taskID string, userID string, update domain.TaskUpdate) (domain.Task, error) {
-	if update.StartTime != nil && update.Status == nil {
+	if (update.StartTime != nil || update.EndTime != nil) && update.Status == nil {
 		update.Status = new(domain.TaskStatusPlanned)
 	}
 
