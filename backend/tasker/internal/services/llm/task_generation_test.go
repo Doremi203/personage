@@ -43,7 +43,7 @@ func TestGenerateTaskRetriesInvalidModelOutput(t *testing.T) {
 	}}
 
 	service := NewTaskGenerationService(chatModel, log.Stub{}, stubPromptProvider{}, time.UTC)
-	task, err := service.GenerateTask(t.Context(), []domain.Event{{ID: "event-1", Context: "Please review PR #47."}})
+	task, err := service.GenerateTask(t.Context(), []domain.Event{{ID: "event-1", Context: "Please review PR #47."}}, domain.UserProfile{})
 	if err != nil {
 		t.Fatalf("GenerateTask returned error: %v", err)
 	}

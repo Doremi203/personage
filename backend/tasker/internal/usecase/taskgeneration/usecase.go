@@ -212,7 +212,7 @@ func (uc *UseCase) processCluster(ctx context.Context, cluster domain.Cluster) e
 		errors.Token("user_id", cluster.UserID.String()),
 	)
 
-	generatedTask, err := uc.taskGenService.GenerateTask(ctx, events)
+	generatedTask, err := uc.taskGenService.GenerateTask(ctx, events, profile)
 	if err != nil {
 		return errors.WrapFailf(
 			err,

@@ -140,6 +140,34 @@ func TestProcessClusterMarksTaskUnapprovedWhenUserRequiresModeration(t *testing.
 	}
 }
 
+func TestProcessClusterPassesUserProfileToTaskGenerator(t *testing.T) {
+	clusterRepo := &stubClusterRepo{}
+	taskRepo := &stubTaskRepo{}
+	taskGen := &recordingTaskGenerationService{result: domain.GeneratedTask{Title: "Review PR #47", DurationMinutes: 30, Priority: 7, Category: "work"}}
+	uc := NewUseCase(
+		clusterRepo,
+		stubEventRepo{events: []domain.Event{{ID: "event-1", ClusterID: "cluster-1"}}},
+		taskRepo,
+		stubModerationRepo{},
+		stubActionabilityService{result: domain.TaskGenerationDecision{ShouldGenerate: true, Reason: new("explicit task request")}},
+		taskGen,
+		stubUserProfileService{profile: domain.UserProfile{Email: "owner@example.com", Name: "Owner", ConnectedEmails: []string{"alt@example.com"}}},
+		stubTxProvider{},
+		log.Stub{},
+		5,
+		time.Minute,
+		time.Now,
+	)
+
+	if err := uc.processCluster(t.Context(), domain.Cluster{ID: "cluster-1", UserID: "user-1"}); err != nil {
+		t.Fatalf("processCluster returned error: %v", err)
+	}
+
+	if taskGen.received.Email != "owner@example.com" || taskGen.received.Name != "Owner" || len(taskGen.received.ConnectedEmails) != 1 || taskGen.received.ConnectedEmails[0] != "alt@example.com" {
+		t.Fatalf("task generator did not receive owner profile: %#v", taskGen.received)
+	}
+}
+
 func TestProcessClusterPassesUserProfileToClassifier(t *testing.T) {
 	clusterRepo := &stubClusterRepo{}
 	taskRepo := &stubTaskRepo{}
@@ -323,7 +351,18 @@ type stubTaskGenerationService struct {
 	err    error
 }
 
-func (s stubTaskGenerationService) GenerateTask(context.Context, []domain.Event) (domain.GeneratedTask, error) {
+func (s stubTaskGenerationService) GenerateTask(context.Context, []domain.Event, domain.UserProfile) (domain.GeneratedTask, error) {
+	return s.result, s.err
+}
+
+type recordingTaskGenerationService struct {
+	result   domain.GeneratedTask
+	err      error
+	received domain.UserProfile
+}
+
+func (s *recordingTaskGenerationService) GenerateTask(_ context.Context, _ []domain.Event, profile domain.UserProfile) (domain.GeneratedTask, error) {
+	s.received = profile
 	return s.result, s.err
 }
 
