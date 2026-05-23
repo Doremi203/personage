@@ -74,6 +74,9 @@ export interface CreateTestTaskRequest {
   status?: 'unplanned' | 'planned' | 'completed';
   priority?: number; // 1–10
   category?: 'work' | 'study' | 'personal';
+  start_time?: string; // RFC3339
+  end_time?: string;   // RFC3339
+  deadline?: string;   // RFC3339
 }
 
 export interface CreateTestTaskResponse {

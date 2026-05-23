@@ -11,10 +11,17 @@ const noAuthClient = new TaskerClient(BASE_URL, '');
 const tasks: { id: string; title: string }[] = [];
 
 beforeAll(async () => {
+  const todayNoon = new Date();
+  todayNoon.setHours(12, 0, 0, 0);
+  const todayOnePM = new Date(todayNoon);
+  todayOnePM.setHours(13, 0, 0, 0);
+  const start = todayNoon.toISOString();
+  const end = todayOnePM.toISOString();
+
   const created = await Promise.all([
-    client.createTestTask({ user_id: USER_ID, title: 'Alpha work task',    status: 'unplanned', category: 'work',     priority: 8 }),
-    client.createTestTask({ user_id: USER_ID, title: 'Beta study task',    status: 'planned',   category: 'study',    priority: 4 }),
-    client.createTestTask({ user_id: USER_ID, title: 'Gamma personal task', status: 'completed', category: 'personal', priority: 2 }),
+    client.createTestTask({ user_id: USER_ID, title: 'Alpha work task',    status: 'unplanned', category: 'work',     priority: 8, start_time: start, end_time: end }),
+    client.createTestTask({ user_id: USER_ID, title: 'Beta study task',    status: 'planned',   category: 'study',    priority: 4, start_time: start, end_time: end }),
+    client.createTestTask({ user_id: USER_ID, title: 'Gamma personal task', status: 'completed', category: 'personal', priority: 2, start_time: start, end_time: end }),
   ]);
   created.forEach((id, i) => tasks.push({ id, title: ['Alpha work task', 'Beta study task', 'Gamma personal task'][i] }));
 });
