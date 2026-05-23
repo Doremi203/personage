@@ -3,6 +3,7 @@ import uuid
 import datetime
 from datetime import timezone
 from uuid import UUID
+import html2text
 
 from app.domain.exceptions.processing.DuplicateProcessingInfoException import DuplicateProcessingInfoException
 from app.domain.interfaces.business_logic.IGmailProcessingService import IGmailProcessingService
@@ -47,6 +48,10 @@ class GmailProcessingService(IGmailProcessingService):
         self.gmail_api_client = gmail_api_client
         self.event_producer = event_producer
         self.logger = logging.getLogger("[GmailProcessingService]")
+        self.html_converter = html2text.HTML2Text()
+        self.html_converter.ignore_links = False
+        self.html_converter.ignore_images = True
+        self.html_converter.body_width = 0
 
 
     async def get_users_for_processing(self) -> list[UserForProcessingModel]:
@@ -122,7 +127,7 @@ class GmailProcessingService(IGmailProcessingService):
         self. logger.info(f"Processing {len(messages)} messages for user {user_id}")
 
         for message in messages:
-            enriched_message = GmailProcessingService._enrich_message(user_id, message)
+            enriched_message = self._enrich_message(user_id, message)
 
             processed_at = datetime.datetime.now(datetime.UTC)
             #TODO: consider batch write
@@ -130,8 +135,7 @@ class GmailProcessingService(IGmailProcessingService):
                 await self.processing_results_repository.save_processing_result(processed_at, enriched_message)
             await self.event_producer.send(enriched_message)
 
-    @staticmethod
-    def _enrich_message(user_id: UUID, raw_message: RawGmailMessage) -> EnrichedEventModel:
+    def _enrich_message(self, user_id: UUID, raw_message: RawGmailMessage) -> EnrichedEventModel:
         traits: list[TraitModel] = [
             SubjectTrait(name=raw_message.subject),
             RecipientTrait(recipients=[UserIdentifier(email=r.email) for r in raw_message.to_emails]),
@@ -144,6 +148,16 @@ class GmailProcessingService(IGmailProcessingService):
             user_id=user_id,
             connector_type=ConnectorTypeModel.Gmail,
             occurred_at=raw_message.received_date,
-            main_body=raw_message.body,
+            main_body=self._parse_if_html(raw_message.body),
             traits=traits,
         )
+
+    def _parse_if_html(self, text: str) -> str:
+        text_lower = text.lower() if text else None
+        if text_lower and ("<html" in text_lower or "<body" in text_lower or "<div" in text_lower):
+            try:
+                text = self.html_converter.handle(text)
+            except Exception as ex:
+                self.logger.error(f"Failed to parse html content: {ex}\n"
+                                  f"Using raw html content as text")
+        return text
