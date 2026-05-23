@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"maps"
-	"slices"
 	"strings"
 	"time"
 
@@ -67,17 +65,16 @@ func (s *taskGenerationService) GenerateTask(ctx context.Context, events []domai
 }
 
 type llmTaskResponse struct {
-	Title            string   `json:"title"`
-	Description      string   `json:"description"`
-	DurationMinutes  int      `json:"duration_minutes"`
-	Priority         int      `json:"priority"`
-	Deadline         *string  `json:"deadline"`
-	StartTime        *string  `json:"start_time"`
-	Category         string   `json:"category"`
-	EvidenceEventIDs []string `json:"evidence_event_ids"`
+	Title           string  `json:"title"`
+	Description     string  `json:"description"`
+	DurationMinutes int     `json:"duration_minutes"`
+	Priority        int     `json:"priority"`
+	Deadline        *string `json:"deadline"`
+	StartTime       *string `json:"start_time"`
+	Category        string  `json:"category"`
 }
 
-func (s *taskGenerationService) parseResponse(responseText string, events []domain.Event) (domain.GeneratedTask, error) {
+func (s *taskGenerationService) parseResponse(responseText string, _ []domain.Event) (domain.GeneratedTask, error) {
 	jsonText := extractJSON(responseText)
 	if jsonText == "" {
 		return domain.GeneratedTask{}, errors.Errorf("no valid JSON found in response %v", errors.Token("response", responseText))
@@ -101,18 +98,12 @@ func (s *taskGenerationService) parseResponse(responseText string, events []doma
 		return domain.GeneratedTask{}, errors.Errorf("priority must be between 1 and 10")
 	}
 
-	evidenceEventIDs, err := parseEvidenceEventIDs(llmResp.EvidenceEventIDs, events)
-	if err != nil {
-		return domain.GeneratedTask{}, err
-	}
-
 	task := domain.GeneratedTask{
-		Title:            llmResp.Title,
-		Description:      llmResp.Description,
-		DurationMinutes:  llmResp.DurationMinutes,
-		Priority:         llmResp.Priority,
-		Category:         category,
-		EvidenceEventIDs: evidenceEventIDs,
+		Title:           llmResp.Title,
+		Description:     llmResp.Description,
+		DurationMinutes: llmResp.DurationMinutes,
+		Priority:        llmResp.Priority,
+		Category:        category,
 	}
 
 	deadline, err := parseOptionalTimestamp("deadline", llmResp.Deadline, s.defaultLocation)
@@ -154,47 +145,6 @@ func formatEvents(events []domain.Event) (string, error) {
 	}
 
 	return builder.String(), nil
-}
-
-func parseEvidenceEventIDs(ids []string, events []domain.Event) ([]domain.EventID, error) {
-	if len(ids) == 0 {
-		return nil, errors.Errorf("evidence_event_ids must contain at least one event id")
-	}
-
-	requested := make(map[domain.EventID]struct{}, len(ids))
-	for _, id := range ids {
-		trimmedID := strings.TrimSpace(id)
-		if trimmedID == "" {
-			return nil, errors.Errorf("evidence_event_ids must not contain blank values")
-		}
-
-		requested[domain.EventID(trimmedID)] = struct{}{}
-	}
-
-	validated := make([]domain.EventID, 0, len(requested))
-	for _, event := range events {
-		if _, ok := requested[event.ID]; !ok {
-			continue
-		}
-
-		validated = append(validated, event.ID)
-		delete(requested, event.ID)
-	}
-
-	if len(requested) > 0 {
-		invalidIDs := slices.Sorted(maps.Keys(requested))
-		invalidIDStrings := make([]string, len(invalidIDs))
-		for i, id := range invalidIDs {
-			invalidIDStrings[i] = id.String()
-		}
-
-		return nil, errors.Errorf(
-			"evidence_event_ids reference unknown cluster events %v",
-			errors.Token("invalid_ids", strings.Join(invalidIDStrings, ", ")),
-		)
-	}
-
-	return validated, nil
 }
 
 func parseOptionalTimestamp(name string, value *string, loc *time.Location) (*time.Time, error) {

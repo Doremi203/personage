@@ -233,30 +233,28 @@ func (uc *UseCase) processCluster(ctx context.Context, cluster domain.Cluster) e
 
 	now := uc.clock()
 	task := domain.Task{
-		ID:               domain.TaskID(uuid.New().String()),
-		UserID:           cluster.UserID,
-		ClusterID:        new(cluster.ID),
-		Title:            generatedTask.Title,
-		Description:      generatedTask.Description,
-		Duration:         time.Duration(generatedTask.DurationMinutes) * time.Minute,
-		Priority:         generatedTask.Priority,
-		Deadline:         generatedTask.Deadline,
-		StartTime:        generatedTask.StartTime,
-		Status:           domain.TaskStatusUnplanned,
-		Category:         domain.NewTaskCategory(generatedTask.Category),
-		EvidenceEventIDs: generatedTask.EvidenceEventIDs,
-		IsApproved:       !requiresModeration,
-		CreatedAt:        now,
-		UpdatedAt:        now,
+		ID:          domain.TaskID(uuid.New().String()),
+		UserID:      cluster.UserID,
+		ClusterID:   new(cluster.ID),
+		Title:       generatedTask.Title,
+		Description: generatedTask.Description,
+		Duration:    time.Duration(generatedTask.DurationMinutes) * time.Minute,
+		Priority:    generatedTask.Priority,
+		Deadline:    generatedTask.Deadline,
+		StartTime:   generatedTask.StartTime,
+		Status:      domain.TaskStatusUnplanned,
+		Category:    domain.NewTaskCategory(generatedTask.Category),
+		IsApproved:  !requiresModeration,
+		CreatedAt:   now,
+		UpdatedAt:   now,
 	}
 
 	uc.logger.Infof(
-		"generated task %s for user %s from cluster %s (approved=%s, evidence_count=%s)",
+		"generated task %s for user %s from cluster %s (approved=%s)",
 		errors.Token("task_id", task.ID.String()),
 		errors.Token("user_id", cluster.UserID.String()),
 		errors.Token("cluster_id", cluster.ID.String()),
 		errors.Token("is_approved", task.IsApproved),
-		errors.Token("evidence_count", len(task.EvidenceEventIDs)),
 	)
 
 	err = uc.txProvider.RunWithTx(ctx, tx.IsolationReadCommitted, func(txCtx context.Context) error {

@@ -11,73 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestParseResponseIncludesNormalizedEvidenceEventIDs(t *testing.T) {
-	service := &taskGenerationService{defaultLocation: time.UTC}
-	events := []domain.Event{{ID: "event-1"}, {ID: "event-2"}, {ID: "event-3"}}
-
-	response := `{
-		"title": "Review PR #47",
-		"description": "Review the proposed API integration changes.",
-		"duration_minutes": 30,
-		"priority": 7,
-		"deadline": null,
-		"start_time": null,
-		"category": "work",
-		"evidence_event_ids": [" event-3 ", "event-1", "event-1"]
-	}`
-
-	task, err := service.parseResponse(response, events)
-	if err != nil {
-		t.Fatalf("parseResponse returned error: %v", err)
-	}
-
-	if len(task.EvidenceEventIDs) != 2 {
-		t.Fatalf("expected 2 evidence ids, got %d", len(task.EvidenceEventIDs))
-	}
-
-	if task.EvidenceEventIDs[0] != domain.EventID("event-1") || task.EvidenceEventIDs[1] != domain.EventID("event-3") {
-		t.Fatalf("unexpected evidence ids: %#v", task.EvidenceEventIDs)
-	}
-}
-
-func TestParseResponseRejectsMissingEvidenceEventIDs(t *testing.T) {
-	service := &taskGenerationService{defaultLocation: time.UTC}
-
-	response := `{
-		"title": "Review PR #47",
-		"description": "Review the proposed API integration changes.",
-		"duration_minutes": 30,
-		"priority": 7,
-		"deadline": null,
-		"start_time": null,
-		"category": "work",
-		"evidence_event_ids": []
-	}`
-
-	if _, err := service.parseResponse(response, []domain.Event{{ID: "event-1"}}); err == nil {
-		t.Fatal("parseResponse succeeded without evidence_event_ids")
-	}
-}
-
-func TestParseResponseRejectsUnknownEvidenceEventIDs(t *testing.T) {
-	service := &taskGenerationService{defaultLocation: time.UTC}
-
-	response := `{
-		"title": "Review PR #47",
-		"description": "Review the proposed API integration changes.",
-		"duration_minutes": 30,
-		"priority": 7,
-		"deadline": null,
-		"start_time": null,
-		"category": "work",
-		"evidence_event_ids": ["missing-event"]
-	}`
-
-	if _, err := service.parseResponse(response, []domain.Event{{ID: "event-1"}}); err == nil {
-		t.Fatal("parseResponse succeeded with unknown evidence_event_ids")
-	}
-}
-
 func TestGenerateTaskRetriesInvalidModelOutput(t *testing.T) {
 	originalBackoff := llmRetryBaseBackoff
 	originalAttempts := llmRetryMaxAttempts
@@ -93,11 +26,10 @@ func TestGenerateTaskRetriesInvalidModelOutput(t *testing.T) {
 			"title": "Review PR #47",
 			"description": "Review the proposed API integration changes.",
 			"duration_minutes": 30,
-			"priority": 7,
+			"priority": 42,
 			"deadline": null,
 			"start_time": null,
-			"category": "work",
-			"evidence_event_ids": ["missing-event"]
+			"category": "work"
 		}`}},
 		{message: &schema.Message{Content: `{
 			"title": "Review PR #47",
@@ -106,8 +38,7 @@ func TestGenerateTaskRetriesInvalidModelOutput(t *testing.T) {
 			"priority": 7,
 			"deadline": null,
 			"start_time": null,
-			"category": "work",
-			"evidence_event_ids": ["event-1"]
+			"category": "work"
 		}`}},
 	}}
 
@@ -121,8 +52,8 @@ func TestGenerateTaskRetriesInvalidModelOutput(t *testing.T) {
 		t.Fatalf("expected 2 model calls, got %d", chatModel.calls)
 	}
 
-	if got := len(task.EvidenceEventIDs); got != 1 || task.EvidenceEventIDs[0] != "event-1" {
-		t.Fatalf("unexpected evidence ids: %#v", task.EvidenceEventIDs)
+	if task.Priority != 7 {
+		t.Fatalf("unexpected priority: %d", task.Priority)
 	}
 }
 

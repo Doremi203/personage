@@ -52,7 +52,7 @@ func TestProcessClusterFinalizesNonActionableCluster(t *testing.T) {
 	}
 }
 
-func TestProcessClusterStoresGeneratedEvidenceEventIDs(t *testing.T) {
+func TestProcessClusterStoresGeneratedTask(t *testing.T) {
 	clusterRepo := &stubClusterRepo{}
 	taskRepo := &stubTaskRepo{}
 	events := []domain.Event{
@@ -67,12 +67,11 @@ func TestProcessClusterStoresGeneratedEvidenceEventIDs(t *testing.T) {
 		stubModerationRepo{},
 		stubActionabilityService{result: domain.TaskGenerationDecision{ShouldGenerate: true, Reason: new("explicit task request")}},
 		stubTaskGenerationService{result: domain.GeneratedTask{
-			Title:            "Review PR #47",
-			Description:      "Review the API integration changes.",
-			DurationMinutes:  30,
-			Priority:         7,
-			Category:         "work",
-			EvidenceEventIDs: []domain.EventID{"event-1", "event-3"},
+			Title:           "Review PR #47",
+			Description:     "Review the API integration changes.",
+			DurationMinutes: 30,
+			Priority:        7,
+			Category:        "work",
 		}},
 		stubUserProfileService{profile: domain.UserProfile{Email: "owner@example.com", Name: "Owner"}},
 		stubTxProvider{},
@@ -92,12 +91,8 @@ func TestProcessClusterStoresGeneratedEvidenceEventIDs(t *testing.T) {
 	}
 
 	createdTask := taskRepo.createdTasks[0]
-	if got, want := len(createdTask.EvidenceEventIDs), 2; got != want {
-		t.Fatalf("unexpected evidence count: got %d want %d", got, want)
-	}
-
-	if createdTask.EvidenceEventIDs[0] != "event-1" || createdTask.EvidenceEventIDs[1] != "event-3" {
-		t.Fatalf("unexpected evidence ids: %#v", createdTask.EvidenceEventIDs)
+	if createdTask.Title != "Review PR #47" {
+		t.Fatalf("unexpected task title: %q", createdTask.Title)
 	}
 
 	if !createdTask.IsApproved {
