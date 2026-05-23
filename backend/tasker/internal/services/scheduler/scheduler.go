@@ -8,7 +8,12 @@ import (
 	"github.com/Doremi203/personage/backend/tasker/internal/domain"
 )
 
-func CalculateSchedule(tasks []domain.Task, planningStart time.Time, windowDuration time.Duration) domain.Schedule {
+func CalculateSchedule(
+	tasks []domain.Task,
+	planningStart time.Time,
+	windowDuration time.Duration,
+	loc *time.Location,
+) domain.Schedule {
 	totalSlots := int(math.Ceil(float64(windowDuration) / float64(domain.TimeSlotSize)))
 
 	grid := make([]bool, totalSlots)
@@ -29,7 +34,15 @@ func CalculateSchedule(tasks []domain.Task, planningStart time.Time, windowDurat
 		return int(math.Ceil(float64(d) / float64(domain.TimeSlotSize)))
 	}
 
-	// Phase 1: Process fixed tasks ("The Walls")
+	sleep := make([]bool, totalSlots)
+	for i := range totalSlots {
+		if isSleepSlot(indexToTime(i), loc) {
+			sleep[i] = true
+		}
+	}
+
+	// Phase 1: Process fixed tasks ("The Walls").
+	// Explicit start_time is respected as-is — sleep window is NOT applied here.
 	for _, task := range tasks {
 		if task.StartTime == nil {
 			continue
@@ -107,42 +120,46 @@ func CalculateSchedule(tasks []domain.Task, planningStart time.Time, windowDurat
 		return taskI.Duration > taskJ.Duration
 	})
 
-	// Phase 3: Allocate flexible tasks ("The Pour")
+	// Phase 3: Allocate flexible tasks ("The Pour").
+	// Honors deadline, optional best-effort date (day box), and the 00:00–05:30 Moscow sleep window.
 	for _, task := range flexibleTasks {
 		slotsNeeded := durationToSlots(task.Duration)
 
-		deadlineIdx := totalSlots
+		lowIdx := 0
+		highIdx := totalSlots
 		if task.Deadline != nil {
-			deadlineIdx = min(timeToIndex(*task.Deadline), totalSlots)
+			highIdx = min(highIdx, timeToIndex(*task.Deadline))
+		}
+		if task.Date != nil {
+			mskDate := task.Date.In(loc)
+			dayStart := time.Date(mskDate.Year(), mskDate.Month(), mskDate.Day(), 0, 0, 0, 0, loc).UTC()
+			dayEnd := dayStart.Add(24 * time.Hour)
+			// Date is best-effort: ignore it when it pushes the task past an explicit deadline.
+			if task.Deadline == nil || !dayStart.After(*task.Deadline) {
+				lowIdx = max(lowIdx, timeToIndex(dayStart))
+				highIdx = min(highIdx, timeToIndex(dayEnd))
+			}
 		}
 
-		// Find first continuous gap that fits the task
 		found := false
-		for startIdx := 0; startIdx <= totalSlots-slotsNeeded; startIdx++ {
-			// Check if this position would violate deadline
+		for startIdx := lowIdx; startIdx+slotsNeeded <= highIdx; startIdx++ {
 			endIdx := startIdx + slotsNeeded
-			if endIdx > deadlineIdx {
-				break // No point checking further, deadline constraint violated
-			}
 
-			// Check if all slots in this range are available
 			allAvailable := true
 			for i := startIdx; i < endIdx; i++ {
-				if grid[i] {
+				if grid[i] || sleep[i] {
 					allAvailable = false
-					// Optimization: skip to next available slot
+					// Skip past the blocking slot — next iteration starts at i+1.
 					startIdx = i
 					break
 				}
 			}
 
 			if allAvailable {
-				// Found a gap! Mark slots as occupied
 				for i := startIdx; i < endIdx; i++ {
 					grid[i] = true
 				}
 
-				// Convert indices back to slot-aligned times and add to result
 				startTime := indexToTime(startIdx)
 				endTime := indexToTime(startIdx + slotsNeeded)
 
@@ -157,7 +174,6 @@ func CalculateSchedule(tasks []domain.Task, planningStart time.Time, windowDurat
 			}
 		}
 
-		// If no gap found, add to unscheduled list
 		if !found {
 			unscheduled = append(unscheduled, task)
 		}
@@ -167,4 +183,10 @@ func CalculateSchedule(tasks []domain.Task, planningStart time.Time, windowDurat
 		Planned:     planned,
 		Unscheduled: unscheduled,
 	}
+}
+
+func isSleepSlot(slotStart time.Time, loc *time.Location) bool {
+	local := slotStart.In(loc)
+	hour, minute := local.Hour(), local.Minute()
+	return hour < 5 || (hour == 5 && minute < 30)
 }

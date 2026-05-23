@@ -17,6 +17,7 @@ func NewUseCase(
 	notifier domain.NotificationsService,
 	windowDuration time.Duration,
 	clock func() time.Time,
+	location *time.Location,
 ) *UseCase {
 	return &UseCase{
 		taskRepo:       taskRepo,
@@ -24,6 +25,7 @@ func NewUseCase(
 		windowDuration: windowDuration,
 		logger:         logger,
 		clock:          clock,
+		location:       location,
 	}
 }
 
@@ -33,6 +35,7 @@ type UseCase struct {
 	windowDuration time.Duration
 	logger         log.Logger
 	clock          func() time.Time
+	location       *time.Location
 }
 
 func (uc *UseCase) SchedulePendingTasks(ctx context.Context) error {
@@ -94,7 +97,7 @@ func (uc *UseCase) scheduleForUser(ctx context.Context, userID domain.UserID) er
 	}
 
 	inputTasks := slices.Concat(pendingTasks, existingPlanned)
-	schedule := scheduler.CalculateSchedule(inputTasks, now, uc.windowDuration)
+	schedule := scheduler.CalculateSchedule(inputTasks, now, uc.windowDuration, uc.location)
 
 	persistedCount := 0
 	notifiableCount := 0

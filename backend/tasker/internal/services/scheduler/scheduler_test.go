@@ -11,7 +11,7 @@ func TestSchedule_EmptyTasks(t *testing.T) {
 	start := time.Date(2026, 1, 22, 9, 0, 0, 0, time.UTC)
 	window := 2 * time.Hour
 
-	result := CalculateSchedule([]domain.Task{}, start, window)
+	result := CalculateSchedule([]domain.Task{}, start, window, time.UTC)
 
 	if len(result.Planned) != 0 {
 		t.Errorf("Expected 0 planned tasks, got %d", len(result.Planned))
@@ -33,7 +33,7 @@ func TestSchedule_SingleFlexibleTask(t *testing.T) {
 		},
 	}
 
-	result := CalculateSchedule(tasks, start, window)
+	result := CalculateSchedule(tasks, start, window, time.UTC)
 
 	if len(result.Planned) != 1 {
 		t.Fatalf("Expected 1 planned task, got %d", len(result.Planned))
@@ -69,7 +69,7 @@ func TestSchedule_SingleFixedTask(t *testing.T) {
 		},
 	}
 
-	result := CalculateSchedule(tasks, start, window)
+	result := CalculateSchedule(tasks, start, window, time.UTC)
 
 	if len(result.Planned) != 1 {
 		t.Fatalf("Expected 1 planned task, got %d", len(result.Planned))
@@ -109,7 +109,7 @@ func TestSchedule_FlexibleTaskAroundFixed(t *testing.T) {
 		},
 	}
 
-	result := CalculateSchedule(tasks, start, window)
+	result := CalculateSchedule(tasks, start, window, time.UTC)
 
 	if len(result.Planned) != 3 {
 		t.Fatalf("Expected 3 planned tasks, got %d", len(result.Planned))
@@ -161,7 +161,7 @@ func TestSchedule_PrioritySorting(t *testing.T) {
 		},
 	}
 
-	result := CalculateSchedule(tasks, start, window)
+	result := CalculateSchedule(tasks, start, window, time.UTC)
 
 	if len(result.Planned) != 3 {
 		t.Fatalf("Expected 3 planned tasks, got %d", len(result.Planned))
@@ -224,7 +224,7 @@ func TestSchedule_DeadlineSorting(t *testing.T) {
 		},
 	}
 
-	result := CalculateSchedule(tasks, start, window)
+	result := CalculateSchedule(tasks, start, window, time.UTC)
 
 	if len(result.Planned) != 3 {
 		t.Fatalf("Expected 3 planned tasks, got %d", len(result.Planned))
@@ -280,7 +280,7 @@ func TestSchedule_DurationSorting(t *testing.T) {
 		},
 	}
 
-	result := CalculateSchedule(tasks, start, window)
+	result := CalculateSchedule(tasks, start, window, time.UTC)
 
 	if len(result.Planned) != 3 {
 		t.Fatalf("Expected 3 planned tasks, got %d", len(result.Planned))
@@ -310,7 +310,7 @@ func TestSchedule_DeadlineConstraint(t *testing.T) {
 		},
 	}
 
-	result := CalculateSchedule(tasks, start, window)
+	result := CalculateSchedule(tasks, start, window, time.UTC)
 
 	// Task requires 30 minutes but deadline is at 9:25, so it cannot be scheduled
 	if len(result.Planned) != 0 {
@@ -345,7 +345,7 @@ func TestSchedule_DeadlineRespected(t *testing.T) {
 		},
 	}
 
-	result := CalculateSchedule(tasks, start, window)
+	result := CalculateSchedule(tasks, start, window, time.UTC)
 
 	if len(result.Planned) != 2 {
 		t.Fatalf("Expected 2 planned tasks, got %d", len(result.Planned))
@@ -386,7 +386,7 @@ func TestSchedule_NoSpaceAvailable(t *testing.T) {
 		},
 	}
 
-	result := CalculateSchedule(tasks, start, window)
+	result := CalculateSchedule(tasks, start, window, time.UTC)
 
 	if len(result.Planned) != 1 {
 		t.Errorf("Expected 1 planned task (only fixed), got %d", len(result.Planned))
@@ -418,7 +418,7 @@ func TestSchedule_PartiallyOutsideWindow_StartBefore(t *testing.T) {
 		},
 	}
 
-	result := CalculateSchedule(tasks, start, window)
+	result := CalculateSchedule(tasks, start, window, time.UTC)
 
 	if len(result.Planned) != 2 {
 		t.Fatalf("Expected 2 planned tasks, got %d", len(result.Planned))
@@ -454,7 +454,7 @@ func TestSchedule_PartiallyOutsideWindow_EndAfter(t *testing.T) {
 		},
 	}
 
-	result := CalculateSchedule(tasks, start, window)
+	result := CalculateSchedule(tasks, start, window, time.UTC)
 
 	if len(result.Planned) != 2 {
 		t.Fatalf("Expected 2 planned tasks, got %d", len(result.Planned))
@@ -487,7 +487,7 @@ func TestSchedule_DurationRoundingUp(t *testing.T) {
 		},
 	}
 
-	result := CalculateSchedule(tasks, start, window)
+	result := CalculateSchedule(tasks, start, window, time.UTC)
 
 	if len(result.Planned) != 2 {
 		t.Fatalf("Expected 2 planned tasks, got %d", len(result.Planned))
@@ -545,7 +545,7 @@ func TestSchedule_SlotAlignedEndTime(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := CalculateSchedule([]domain.Task{
 				{ID: domain.TaskID(tt.name), Duration: tt.duration, Priority: 1},
-			}, start, window)
+			}, start, window, time.UTC)
 
 			if len(result.Planned) != 1 {
 				t.Fatalf("Expected 1 planned task, got %d", len(result.Planned))
@@ -574,7 +574,7 @@ func TestSchedule_FixedTask_SlotAlignedEndTime(t *testing.T) {
 		},
 	}
 
-	result := CalculateSchedule(tasks, start, window)
+	result := CalculateSchedule(tasks, start, window, time.UTC)
 
 	if len(result.Planned) != 1 {
 		t.Fatalf("Expected 1 planned task, got %d", len(result.Planned))
@@ -606,7 +606,7 @@ func TestSchedule_ExactSlotBoundary(t *testing.T) {
 		},
 	}
 
-	result := CalculateSchedule(tasks, start, window)
+	result := CalculateSchedule(tasks, start, window, time.UTC)
 
 	if len(result.Planned) != 2 {
 		t.Fatalf("Expected 2 planned tasks, got %d", len(result.Planned))
@@ -646,7 +646,7 @@ func TestSchedule_MultipleUnscheduledTasks(t *testing.T) {
 		},
 	}
 
-	result := CalculateSchedule(tasks, start, window)
+	result := CalculateSchedule(tasks, start, window, time.UTC)
 
 	// Only 2 tasks can fit in 30 minutes (2 slots)
 	if len(result.Planned) != 2 {
@@ -671,7 +671,7 @@ func TestSchedule_DeadlineBeyondWindow(t *testing.T) {
 		},
 	}
 
-	result := CalculateSchedule(tasks, start, window)
+	result := CalculateSchedule(tasks, start, window, time.UTC)
 
 	// Should be scheduled normally since deadline is beyond window
 	if len(result.Planned) != 1 {
@@ -730,7 +730,7 @@ func TestSchedule_ComplexScenario(t *testing.T) {
 		},
 	}
 
-	result := CalculateSchedule(tasks, start, window)
+	result := CalculateSchedule(tasks, start, window, time.UTC)
 
 	// All tasks should be schedulable
 	if len(result.Planned) < 4 {
@@ -1243,7 +1243,7 @@ func TestSchedule_TableDriven(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := CalculateSchedule(tt.tasks, tt.planningStart, tt.windowDuration)
+			result := CalculateSchedule(tt.tasks, tt.planningStart, tt.windowDuration, time.UTC)
 
 			if len(result.Planned) != tt.expectedPlanned {
 				t.Errorf("Expected %d planned tasks, got %d", tt.expectedPlanned, len(result.Planned))
@@ -1257,6 +1257,199 @@ func TestSchedule_TableDriven(t *testing.T) {
 				tt.validate(t, result)
 			}
 		})
+	}
+}
+
+func TestSchedule_DateOnly_SchedulesWithinDayExcludingSleep(t *testing.T) {
+	moscow := time.FixedZone("MSK", 3*60*60)
+	planningStart := time.Date(2026, 5, 24, 0, 0, 0, 0, moscow).UTC()
+	window := 48 * time.Hour
+	date := time.Date(2026, 5, 24, 0, 0, 0, 0, moscow).UTC()
+
+	tasks := []domain.Task{
+		{
+			ID:       "t",
+			Duration: 30 * time.Minute,
+			Priority: 5,
+			Date:     &date,
+		},
+	}
+
+	result := CalculateSchedule(tasks, planningStart, window, moscow)
+
+	if len(result.Planned) != 1 {
+		t.Fatalf("Expected 1 planned task, got %d", len(result.Planned))
+	}
+	expected := time.Date(2026, 5, 24, 5, 30, 0, 0, moscow).UTC()
+	if !result.Planned[0].Start.Equal(expected) {
+		t.Errorf("Expected start at %v (05:30 MSK), got %v", expected, result.Planned[0].Start)
+	}
+}
+
+func TestSchedule_DateWithDeadline_Intersection(t *testing.T) {
+	moscow := time.FixedZone("MSK", 3*60*60)
+	planningStart := time.Date(2026, 5, 24, 0, 0, 0, 0, moscow).UTC()
+	window := 48 * time.Hour
+	date := time.Date(2026, 5, 24, 0, 0, 0, 0, moscow).UTC()
+	deadline := time.Date(2026, 5, 24, 18, 0, 0, 0, moscow).UTC()
+
+	tasks := []domain.Task{
+		{
+			ID:       "t",
+			Duration: 30 * time.Minute,
+			Priority: 5,
+			Date:     &date,
+			Deadline: &deadline,
+		},
+	}
+
+	result := CalculateSchedule(tasks, planningStart, window, moscow)
+
+	if len(result.Planned) != 1 {
+		t.Fatalf("Expected 1 planned task, got %d", len(result.Planned))
+	}
+	expected := time.Date(2026, 5, 24, 5, 30, 0, 0, moscow).UTC()
+	if !result.Planned[0].Start.Equal(expected) {
+		t.Errorf("Expected start at %v (05:30 MSK), got %v", expected, result.Planned[0].Start)
+	}
+	if !result.Planned[0].End.Before(deadline) && !result.Planned[0].End.Equal(deadline) {
+		t.Errorf("End %v should be at or before deadline %v", result.Planned[0].End, deadline)
+	}
+}
+
+func TestSchedule_DateAfterDeadline_FallsBackToDeadline(t *testing.T) {
+	moscow := time.FixedZone("MSK", 3*60*60)
+	planningStart := time.Date(2026, 5, 24, 0, 0, 0, 0, moscow).UTC()
+	window := 48 * time.Hour
+	// Date day starts AFTER deadline — date should be ignored.
+	date := time.Date(2026, 5, 25, 0, 0, 0, 0, moscow).UTC()
+	deadline := time.Date(2026, 5, 24, 18, 0, 0, 0, moscow).UTC()
+
+	tasks := []domain.Task{
+		{
+			ID:       "t",
+			Duration: 30 * time.Minute,
+			Priority: 5,
+			Date:     &date,
+			Deadline: &deadline,
+		},
+	}
+
+	result := CalculateSchedule(tasks, planningStart, window, moscow)
+
+	if len(result.Planned) != 1 {
+		t.Fatalf("Expected 1 planned task, got %d", len(result.Planned))
+	}
+	expected := time.Date(2026, 5, 24, 5, 30, 0, 0, moscow).UTC()
+	if !result.Planned[0].Start.Equal(expected) {
+		t.Errorf("Expected start at %v (05:30 MSK May 24, deadline path), got %v", expected, result.Planned[0].Start)
+	}
+}
+
+func TestSchedule_DateFullDayBusy_GoesUnscheduled(t *testing.T) {
+	moscow := time.FixedZone("MSK", 3*60*60)
+	planningStart := time.Date(2026, 5, 24, 0, 0, 0, 0, moscow).UTC()
+	window := 48 * time.Hour
+	date := time.Date(2026, 5, 24, 0, 0, 0, 0, moscow).UTC()
+	// Fixed task occupies the entire wake portion of May 24: 05:30 → 24:00 MSK.
+	busyStart := time.Date(2026, 5, 24, 5, 30, 0, 0, moscow).UTC()
+	busyDuration := 18*time.Hour + 30*time.Minute
+
+	tasks := []domain.Task{
+		{
+			ID:        "busy",
+			Duration:  busyDuration,
+			StartTime: &busyStart,
+			Priority:  5,
+		},
+		{
+			ID:       "t",
+			Duration: 30 * time.Minute,
+			Priority: 5,
+			Date:     &date,
+		},
+	}
+
+	result := CalculateSchedule(tasks, planningStart, window, moscow)
+
+	if len(result.Unscheduled) != 1 {
+		t.Fatalf("Expected 1 unscheduled task, got %d", len(result.Unscheduled))
+	}
+	if result.Unscheduled[0].ID != "t" {
+		t.Errorf("Expected t to be unscheduled, got %s", result.Unscheduled[0].ID)
+	}
+}
+
+func TestSchedule_Flexible_SkipsSleepWindow(t *testing.T) {
+	moscow := time.FixedZone("MSK", 3*60*60)
+	planningStart := time.Date(2026, 5, 24, 0, 30, 0, 0, moscow).UTC()
+	window := 24 * time.Hour
+
+	tasks := []domain.Task{
+		{
+			ID:       "t",
+			Duration: 30 * time.Minute,
+			Priority: 5,
+		},
+	}
+
+	result := CalculateSchedule(tasks, planningStart, window, moscow)
+
+	if len(result.Planned) != 1 {
+		t.Fatalf("Expected 1 planned task, got %d", len(result.Planned))
+	}
+	expected := time.Date(2026, 5, 24, 5, 30, 0, 0, moscow).UTC()
+	if !result.Planned[0].Start.Equal(expected) {
+		t.Errorf("Expected start at %v (05:30 MSK), got %v", expected, result.Planned[0].Start)
+	}
+}
+
+func TestSchedule_Flexible_CannotStraddleSleepWindow(t *testing.T) {
+	moscow := time.FixedZone("MSK", 3*60*60)
+	planningStart := time.Date(2026, 5, 24, 3, 0, 0, 0, moscow).UTC()
+	window := 24 * time.Hour
+
+	tasks := []domain.Task{
+		{
+			ID:       "t",
+			Duration: 2 * time.Hour,
+			Priority: 5,
+		},
+	}
+
+	result := CalculateSchedule(tasks, planningStart, window, moscow)
+
+	if len(result.Planned) != 1 {
+		t.Fatalf("Expected 1 planned task, got %d", len(result.Planned))
+	}
+	expected := time.Date(2026, 5, 24, 5, 30, 0, 0, moscow).UTC()
+	if !result.Planned[0].Start.Equal(expected) {
+		t.Errorf("Expected start at %v (05:30 MSK, not 04:00), got %v", expected, result.Planned[0].Start)
+	}
+}
+
+func TestSchedule_ExplicitStartTimeAt02_IsRespected(t *testing.T) {
+	moscow := time.FixedZone("MSK", 3*60*60)
+	planningStart := time.Date(2026, 5, 24, 0, 0, 0, 0, moscow).UTC()
+	window := 24 * time.Hour
+	fixedStart := time.Date(2026, 5, 24, 2, 0, 0, 0, moscow).UTC()
+
+	tasks := []domain.Task{
+		{
+			ID:        "two_am_task",
+			Duration:  time.Hour,
+			StartTime: &fixedStart,
+			Priority:  5,
+		},
+	}
+
+	result := CalculateSchedule(tasks, planningStart, window, moscow)
+
+	if len(result.Planned) != 1 {
+		t.Fatalf("Expected 1 planned task, got %d", len(result.Planned))
+	}
+	if !result.Planned[0].Start.Equal(fixedStart) {
+		t.Errorf("Expected fixed task at %v (02:00 MSK), got %v", fixedStart, result.Planned[0].Start)
 	}
 }
 

@@ -73,6 +73,7 @@ type llmTaskResponse struct {
 	Priority        int     `json:"priority"`
 	Deadline        *string `json:"deadline"`
 	StartTime       *string `json:"start_time"`
+	Date            *string `json:"date"`
 	Category        string  `json:"category"`
 }
 
@@ -119,6 +120,12 @@ func (s *taskGenerationService) parseResponse(responseText string, _ []domain.Ev
 		return domain.GeneratedTask{}, err
 	}
 	task.StartTime = roundToTimeSlot(startTime)
+
+	date, err := parseOptionalDate("date", llmResp.Date, s.defaultLocation)
+	if err != nil {
+		return domain.GeneratedTask{}, err
+	}
+	task.Date = date
 
 	return task, nil
 }
@@ -181,6 +188,24 @@ func parseOptionalTimestamp(name string, value *string, loc *time.Location) (*ti
 		if err != nil {
 			return nil, errors.WrapFailf(err, "parse %s", name)
 		}
+	}
+	utc := parsed.UTC()
+	return &utc, nil
+}
+
+func parseOptionalDate(name string, value *string, loc *time.Location) (*time.Time, error) {
+	if value == nil {
+		return nil, nil
+	}
+
+	trimmedValue := strings.TrimSpace(*value)
+	if trimmedValue == "" || trimmedValue == "null" {
+		return nil, nil
+	}
+
+	parsed, err := time.ParseInLocation("2006-01-02", trimmedValue, loc)
+	if err != nil {
+		return nil, errors.WrapFailf(err, "parse %s", name)
 	}
 	utc := parsed.UTC()
 	return &utc, nil

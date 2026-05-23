@@ -242,6 +242,7 @@ func (uc *UseCase) processCluster(ctx context.Context, cluster domain.Cluster) e
 		Priority:    generatedTask.Priority,
 		Deadline:    generatedTask.Deadline,
 		StartTime:   generatedTask.StartTime,
+		Date:        generatedTask.Date,
 		Status:      domain.TaskStatusUnplanned,
 		Category:    domain.NewTaskCategory(generatedTask.Category),
 		IsApproved:  !requiresModeration,

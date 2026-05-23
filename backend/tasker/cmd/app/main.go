@@ -332,6 +332,7 @@ func main() {
 				notificationSender,
 				time.Duration(schedulingConfig.WindowHours)*time.Hour,
 				time.Now,
+				defaultLocation,
 			)
 
 			schedulingWorker := schedulingworker.NewWorker(schedulingUseCase, app.Log)
