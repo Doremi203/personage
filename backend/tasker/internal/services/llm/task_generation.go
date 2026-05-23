@@ -193,6 +193,9 @@ func parseOptionalTimestamp(name string, value *string, loc *time.Location) (*ti
 	return &utc, nil
 }
 
+// parseOptionalDate parses a YYYY-MM-DD calendar day. The returned time keeps loc so that
+// pgx encodes the intended local Y/M/D into the DATE column — converting to UTC here would
+// shift the stored day by the loc offset.
 func parseOptionalDate(name string, value *string, loc *time.Location) (*time.Time, error) {
 	if value == nil {
 		return nil, nil
@@ -207,8 +210,7 @@ func parseOptionalDate(name string, value *string, loc *time.Location) (*time.Ti
 	if err != nil {
 		return nil, errors.WrapFailf(err, "parse %s", name)
 	}
-	utc := parsed.UTC()
-	return &utc, nil
+	return &parsed, nil
 }
 
 func hasExplicitZone(s string) bool {

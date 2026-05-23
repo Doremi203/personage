@@ -81,7 +81,7 @@ type Task struct {
 	Priority         int
 	Deadline         *time.Time
 	StartTime        *time.Time
-	Date             *time.Time // best-effort Moscow-local day from vague phrases; planner uses it as a day box when StartTime is nil
+	Date             *time.Time // best-effort Moscow-local day; planner uses it as a day box when StartTime is nil
 	EndTime          *time.Time
 	Status           TaskStatus
 	Category         TaskCategory

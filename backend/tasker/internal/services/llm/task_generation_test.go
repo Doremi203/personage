@@ -148,3 +148,45 @@ func TestParseOptionalTimestamp(t *testing.T) {
 		})
 	}
 }
+
+func TestParseOptionalDate(t *testing.T) {
+	moscow, err := time.LoadLocation("Europe/Moscow")
+	require.NoError(t, err)
+
+	tests := []struct {
+		name     string
+		value    *string
+		wantDay  string // YYYY-MM-DD in Moscow loc
+		wantNil  bool
+		wantErr  require.ErrorAssertionFunc
+	}{
+		{name: "nil pointer", value: nil, wantNil: true, wantErr: require.NoError},
+		{name: "empty string", value: new(""), wantNil: true, wantErr: require.NoError},
+		{name: "literal null", value: new("null"), wantNil: true, wantErr: require.NoError},
+		{name: "whitespace", value: new("   "), wantNil: true, wantErr: require.NoError},
+		{name: "valid day", value: new("2026-05-24"), wantDay: "2026-05-24", wantErr: require.NoError},
+		{name: "leading whitespace", value: new("  2026-05-24  "), wantDay: "2026-05-24", wantErr: require.NoError},
+		{name: "invalid format", value: new("24.05.2026"), wantErr: require.Error},
+		{name: "datetime not allowed", value: new("2026-05-24T15:00:00"), wantErr: require.Error},
+		{name: "garbage", value: new("not a date"), wantErr: require.Error},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := parseOptionalDate("date", tt.value, moscow)
+			tt.wantErr(t, err)
+			if err != nil {
+				return
+			}
+			if tt.wantNil {
+				assert.Nil(t, got)
+				return
+			}
+			require.NotNil(t, got)
+			// Y/M/D must match the input day when read in Moscow — pgx encodes DATE from
+			// these components, so a UTC-shifted value would land on the wrong calendar day.
+			assert.Equal(t, tt.wantDay, got.Format("2006-01-02"))
+			assert.Equal(t, moscow, got.Location())
+		})
+	}
+}
