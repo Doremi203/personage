@@ -341,19 +341,19 @@ func Test_repo_ListTasks(t *testing.T) {
 			t1.Title = "alpha report"
 			t1.Status = domain.TaskStatusPlanned
 			t1.Category = domain.TaskCategoryWork
-			t1.CreatedAt = time.Date(2026, 4, 20, 12, 0, 0, 0, time.UTC)
+			t1.Deadline = new(time.Date(2026, 4, 20, 12, 0, 0, 0, time.UTC))
 
 			t2 := newTask(t, userA)
 			t2.Title = "beta study"
 			t2.Status = domain.TaskStatusUnplanned
 			t2.Category = domain.TaskCategoryStudy
-			t2.CreatedAt = time.Date(2026, 4, 22, 12, 0, 0, 0, time.UTC)
+			t2.Deadline = new(time.Date(2026, 4, 22, 12, 0, 0, 0, time.UTC))
 
 			t3 := newTask(t, userA)
 			t3.Title = "alpha personal"
 			t3.Status = domain.TaskStatusPlanned
 			t3.Category = domain.TaskCategoryPersonal
-			t3.CreatedAt = time.Date(2026, 4, 24, 12, 0, 0, 0, time.UTC)
+			t3.Deadline = new(time.Date(2026, 4, 24, 12, 0, 0, 0, time.UTC))
 
 			t4 := newTask(t, userB)
 			t4.Title = "alpha other user"
@@ -383,6 +383,41 @@ func Test_repo_ListTasks(t *testing.T) {
 			require.NoError(t, err)
 			require.Len(t, tasks, 1)
 			assert.Equal(t, t3.ID, tasks[0].ID)
+			assert.Equal(t, 1, total)
+		},
+	)
+
+	tester.Run(t, "falls back to start_time when deadline is nil",
+		nil, 15*time.Second,
+		func(t *testing.T, ctx context.Context, db postgres.Client) {
+			r := NewRepo(db)
+
+			inWindow := newTask(t, userA)
+			inWindow.Title = "by start time"
+			inWindow.StartTime = new(time.Date(2026, 4, 22, 10, 0, 0, 0, time.UTC))
+			inWindow.EndTime = new(time.Date(2026, 4, 22, 11, 0, 0, 0, time.UTC))
+
+			outOfWindow := newTask(t, userA)
+			outOfWindow.Title = "before window"
+			outOfWindow.StartTime = new(time.Date(2026, 4, 10, 10, 0, 0, 0, time.UTC))
+			outOfWindow.EndTime = new(time.Date(2026, 4, 10, 11, 0, 0, 0, time.UTC))
+
+			unscheduled := newTask(t, userA)
+			unscheduled.Title = "unscheduled"
+
+			require.NoError(t, r.CreateTask(ctx, inWindow))
+			require.NoError(t, r.CreateTask(ctx, outOfWindow))
+			require.NoError(t, r.CreateTask(ctx, unscheduled))
+
+			from := time.Date(2026, 4, 21, 0, 0, 0, 0, time.UTC)
+			till := time.Date(2026, 4, 25, 0, 0, 0, 0, time.UTC)
+			tasks, total, err := r.ListTasks(ctx,
+				domain.TaskFilter{UserID: userA, From: &from, Till: &till},
+				domain.Pagination{Page: 1, PageSize: 10},
+			)
+			require.NoError(t, err)
+			require.Len(t, tasks, 1)
+			assert.Equal(t, inWindow.ID, tasks[0].ID)
 			assert.Equal(t, 1, total)
 		},
 	)
