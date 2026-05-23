@@ -182,8 +182,7 @@ func TestNotificationHandler_Process(t *testing.T) {
 					DoAndReturn(func(_ context.Context, n notification.Notification) (bool, error) {
 						require.Equal(t, notification.StatusPending, n.Status)
 						require.Equal(t, "key-1", n.IdempotencyKey)
-						require.NotNil(t, n.SentAt)
-						require.True(t, n.SentAt.Equal(matcherNow))
+						require.Nil(t, n.SentAt)
 						require.NotNil(t, n.RetryAfter)
 						require.True(t, n.RetryAfter.Equal(matcherNow.Add(matcherRetryInterval)))
 						require.NotNil(t, n.ExpiresAt)

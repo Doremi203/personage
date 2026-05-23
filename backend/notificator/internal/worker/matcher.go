@@ -137,7 +137,6 @@ func (p *notificationHandler) Process(
 			data.GetTitle(),
 			data.GetType(),
 			data.GetDetailedText(),
-			now,
 			now.Add(p.retryInterval),
 			now.Add(p.maxAge),
 			&notification.PushPayload{
