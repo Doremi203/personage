@@ -286,3 +286,25 @@ export async function sendAdminPushToUser(
     }),
   });
 }
+
+export interface AdminNotificationItem {
+  id: string;
+  title: string;
+  type: string;
+  text: string;
+  sentAt?: string;
+  readAt?: string;
+}
+
+interface AdminNotificationsResponse {
+  notifications: AdminNotificationItem[];
+}
+
+export async function listAdminUserNotifications(
+  userId: string,
+): Promise<AdminNotificationItem[]> {
+  const data = await fetchAdmin<AdminNotificationsResponse>(
+    `${NOTIFICATOR_API_URL}/v1/push/admin/users/${encodeURIComponent(userId)}/notifications`,
+  );
+  return data.notifications ?? [];
+}

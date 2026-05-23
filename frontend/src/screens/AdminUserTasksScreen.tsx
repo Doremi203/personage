@@ -8,9 +8,18 @@ import { SANS, SERIF, T } from '../mobile/tokens';
 import { AdminTaskDetailSheet } from '../mobile/AdminTaskDetailSheet';
 import { AdminSendPushSheet } from '../mobile/AdminSendPushSheet';
 import { AdminUserClustersTab } from './AdminUserClustersTab';
+import { AdminUserNotificationsTab } from './AdminUserNotificationsTab';
 import { AdminClusterDetailSheet } from '../mobile/AdminClusterDetailSheet';
 
-export type AdminUserTab = 'tasks' | 'clusters';
+export type AdminUserTab = 'tasks' | 'clusters' | 'notifications';
+
+const TAB_ORDER: AdminUserTab[] = ['tasks', 'clusters', 'notifications'];
+
+const TAB_LABELS: Record<AdminUserTab, string> = {
+  tasks: 'Задачи',
+  clusters: 'Кластеры',
+  notifications: 'Уведомления',
+};
 
 interface AdminUserTasksScreenProps {
   userId: string;
@@ -208,7 +217,7 @@ export function AdminUserTasksScreen({ userId, activeTab, onBack, onChangeTab }:
             alignSelf: 'flex-start',
           }}
         >
-          {(['tasks', 'clusters'] as const).map((tab) => {
+          {TAB_ORDER.map((tab) => {
             const active = tab === activeTab;
             return (
               <button
@@ -227,7 +236,7 @@ export function AdminUserTasksScreen({ userId, activeTab, onBack, onChangeTab }:
                   fontFamily: SANS,
                 }}
               >
-                {tab === 'tasks' ? 'Задачи' : 'Кластеры'}
+                {TAB_LABELS[tab]}
               </button>
             );
           })}
@@ -252,6 +261,10 @@ export function AdminUserTasksScreen({ userId, activeTab, onBack, onChangeTab }:
             userId={userId}
             onOpenTask={(taskId) => void openTaskFromCluster(taskId)}
           />
+        )}
+
+        {activeTab === 'notifications' && (
+          <AdminUserNotificationsTab userId={userId} />
         )}
 
         {activeTab === 'tasks' && (loading ? (
