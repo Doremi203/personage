@@ -490,13 +490,13 @@ func (r *repo) ListTasks(ctx context.Context, filter domain.TaskFilter, paginati
 	}
 
 	if filter.From != nil {
-		conditions = append(conditions, fmt.Sprintf("COALESCE(deadline, start_time) >= $%d", argIdx))
+		conditions = append(conditions, fmt.Sprintf("start_time >= $%d", argIdx))
 		args = append(args, *filter.From)
 		argIdx++
 	}
 
 	if filter.Till != nil {
-		conditions = append(conditions, fmt.Sprintf("COALESCE(deadline, start_time) < $%d", argIdx))
+		conditions = append(conditions, fmt.Sprintf("start_time < $%d", argIdx))
 		args = append(args, *filter.Till)
 		argIdx++
 	}

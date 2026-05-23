@@ -341,24 +341,29 @@ func Test_repo_ListTasks(t *testing.T) {
 			t1.Title = "alpha report"
 			t1.Status = domain.TaskStatusPlanned
 			t1.Category = domain.TaskCategoryWork
-			t1.Deadline = new(time.Date(2026, 4, 20, 12, 0, 0, 0, time.UTC))
+			t1.StartTime = new(time.Date(2026, 4, 20, 12, 0, 0, 0, time.UTC))
+			t1.EndTime = new(time.Date(2026, 4, 20, 13, 0, 0, 0, time.UTC))
 
 			t2 := newTask(t, userA)
 			t2.Title = "beta study"
 			t2.Status = domain.TaskStatusUnplanned
 			t2.Category = domain.TaskCategoryStudy
-			t2.Deadline = new(time.Date(2026, 4, 22, 12, 0, 0, 0, time.UTC))
+			t2.StartTime = new(time.Date(2026, 4, 22, 12, 0, 0, 0, time.UTC))
+			t2.EndTime = new(time.Date(2026, 4, 22, 13, 0, 0, 0, time.UTC))
 
 			t3 := newTask(t, userA)
 			t3.Title = "alpha personal"
 			t3.Status = domain.TaskStatusPlanned
 			t3.Category = domain.TaskCategoryPersonal
-			t3.Deadline = new(time.Date(2026, 4, 24, 12, 0, 0, 0, time.UTC))
+			t3.StartTime = new(time.Date(2026, 4, 24, 12, 0, 0, 0, time.UTC))
+			t3.EndTime = new(time.Date(2026, 4, 24, 13, 0, 0, 0, time.UTC))
 
 			t4 := newTask(t, userB)
 			t4.Title = "alpha other user"
 			t4.Status = domain.TaskStatusPlanned
 			t4.Category = domain.TaskCategoryWork
+			t4.StartTime = new(time.Date(2026, 4, 24, 12, 0, 0, 0, time.UTC))
+			t4.EndTime = new(time.Date(2026, 4, 24, 13, 0, 0, 0, time.UTC))
 
 			require.NoError(t, r.CreateTask(ctx, t1))
 			require.NoError(t, r.CreateTask(ctx, t2))
@@ -387,27 +392,29 @@ func Test_repo_ListTasks(t *testing.T) {
 		},
 	)
 
-	tester.Run(t, "falls back to start_time when deadline is nil",
+	tester.Run(t, "time range ignores deadline and unscheduled tasks",
 		nil, 15*time.Second,
 		func(t *testing.T, ctx context.Context, db postgres.Client) {
 			r := NewRepo(db)
 
-			inWindow := newTask(t, userA)
-			inWindow.Title = "by start time"
-			inWindow.StartTime = new(time.Date(2026, 4, 22, 10, 0, 0, 0, time.UTC))
-			inWindow.EndTime = new(time.Date(2026, 4, 22, 11, 0, 0, 0, time.UTC))
+			scheduledInWindow := newTask(t, userA)
+			scheduledInWindow.Title = "scheduled inside window"
+			scheduledInWindow.StartTime = new(time.Date(2026, 4, 22, 10, 0, 0, 0, time.UTC))
+			scheduledInWindow.EndTime = new(time.Date(2026, 4, 22, 11, 0, 0, 0, time.UTC))
 
-			outOfWindow := newTask(t, userA)
-			outOfWindow.Title = "before window"
-			outOfWindow.StartTime = new(time.Date(2026, 4, 10, 10, 0, 0, 0, time.UTC))
-			outOfWindow.EndTime = new(time.Date(2026, 4, 10, 11, 0, 0, 0, time.UTC))
+			deadlineInWindowStartOutside := newTask(t, userA)
+			deadlineInWindowStartOutside.Title = "deadline in window, start outside"
+			deadlineInWindowStartOutside.StartTime = new(time.Date(2026, 4, 10, 9, 0, 0, 0, time.UTC))
+			deadlineInWindowStartOutside.EndTime = new(time.Date(2026, 4, 10, 10, 0, 0, 0, time.UTC))
+			deadlineInWindowStartOutside.Deadline = new(time.Date(2026, 4, 22, 12, 0, 0, 0, time.UTC))
 
-			unscheduled := newTask(t, userA)
-			unscheduled.Title = "unscheduled"
+			unscheduledWithDeadline := newTask(t, userA)
+			unscheduledWithDeadline.Title = "unscheduled with deadline in window"
+			unscheduledWithDeadline.Deadline = new(time.Date(2026, 4, 23, 12, 0, 0, 0, time.UTC))
 
-			require.NoError(t, r.CreateTask(ctx, inWindow))
-			require.NoError(t, r.CreateTask(ctx, outOfWindow))
-			require.NoError(t, r.CreateTask(ctx, unscheduled))
+			require.NoError(t, r.CreateTask(ctx, scheduledInWindow))
+			require.NoError(t, r.CreateTask(ctx, deadlineInWindowStartOutside))
+			require.NoError(t, r.CreateTask(ctx, unscheduledWithDeadline))
 
 			from := time.Date(2026, 4, 21, 0, 0, 0, 0, time.UTC)
 			till := time.Date(2026, 4, 25, 0, 0, 0, 0, time.UTC)
@@ -417,7 +424,7 @@ func Test_repo_ListTasks(t *testing.T) {
 			)
 			require.NoError(t, err)
 			require.Len(t, tasks, 1)
-			assert.Equal(t, inWindow.ID, tasks[0].ID)
+			assert.Equal(t, scheduledInWindow.ID, tasks[0].ID)
 			assert.Equal(t, 1, total)
 		},
 	)
