@@ -36,7 +36,7 @@ type taskGenerationService struct {
 	defaultLocation *time.Location
 }
 
-func (s *taskGenerationService) GenerateTask(ctx context.Context, events []domain.Event) (domain.GeneratedTask, error) {
+func (s *taskGenerationService) GenerateTask(ctx context.Context, events []domain.Event, profile domain.UserProfile) (domain.GeneratedTask, error) {
 	eventsText, err := formatEvents(events)
 	if err != nil {
 		return domain.GeneratedTask{}, err
@@ -53,7 +53,9 @@ func (s *taskGenerationService) GenerateTask(ctx context.Context, events []domai
 	)
 
 	messages, err := tpl.Format(ctx, map[string]any{
-		"events": eventsText,
+		"events":       eventsText,
+		"owner_emails": formatOwnerEmails(profile),
+		"user_name":    profile.Name,
 	})
 	if err != nil {
 		return domain.GeneratedTask{}, errors.WrapFail(err, "format messages for llm")

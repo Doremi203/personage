@@ -25,5 +25,5 @@ type ClusterClassificatorService interface {
 }
 
 type TaskGenerationService interface {
-	GenerateTask(ctx context.Context, events []Event) (GeneratedTask, error)
+	GenerateTask(ctx context.Context, events []Event, profile UserProfile) (GeneratedTask, error)
 }
