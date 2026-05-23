@@ -166,9 +166,12 @@ type testCreateTaskRequest struct {
 	UserID      string `json:"user_id"`
 	Title       string `json:"title"`
 	Description string `json:"description"`
-	Status      string `json:"status"`   // "unplanned" | "planned" | "completed"; defaults to "unplanned"
-	Priority    int    `json:"priority"` // 1–10; defaults to 5
-	Category    string `json:"category"` // "work" | "study" | "personal"; defaults to "personal"
+	Status      string `json:"status"`     // "unplanned" | "planned" | "completed"; defaults to "unplanned"
+	Priority    int    `json:"priority"`   // 1–10; defaults to 5
+	Category    string `json:"category"`   // "work" | "study" | "personal"; defaults to "personal"
+	StartTime   string `json:"start_time"` // RFC3339; optional
+	EndTime     string `json:"end_time"`   // RFC3339; optional
+	Deadline    string `json:"deadline"`   // RFC3339; optional
 }
 
 type testCreateTaskResponse struct {
@@ -226,6 +229,22 @@ func NewTestCreateTaskHandler(repo testTaskCreator, clock func() time.Time) http
 			}
 		}
 
+		startTime, err := parseOptionalRFC3339(req.StartTime)
+		if err != nil {
+			http.Error(w, "invalid start_time: must be RFC3339", http.StatusBadRequest)
+			return
+		}
+		endTime, err := parseOptionalRFC3339(req.EndTime)
+		if err != nil {
+			http.Error(w, "invalid end_time: must be RFC3339", http.StatusBadRequest)
+			return
+		}
+		deadline, err := parseOptionalRFC3339(req.Deadline)
+		if err != nil {
+			http.Error(w, "invalid deadline: must be RFC3339", http.StatusBadRequest)
+			return
+		}
+
 		now := clock()
 		task := domain.Task{
 			ID:          domain.TaskID(uuid.New().String()),
@@ -236,6 +255,9 @@ func NewTestCreateTaskHandler(repo testTaskCreator, clock func() time.Time) http
 			Status:      status,
 			Priority:    priority,
 			Category:    category,
+			StartTime:   startTime,
+			EndTime:     endTime,
+			Deadline:    deadline,
 			IsApproved:  true,
 			CreatedAt:   now,
 			UpdatedAt:   now,
@@ -250,4 +272,15 @@ func NewTestCreateTaskHandler(repo testTaskCreator, clock func() time.Time) http
 		w.WriteHeader(http.StatusCreated)
 		_ = json.NewEncoder(w).Encode(testCreateTaskResponse{ID: task.ID.String()})
 	}
+}
+
+func parseOptionalRFC3339(s string) (*time.Time, error) {
+	if s == "" {
+		return nil, nil
+	}
+	t, err := time.Parse(time.RFC3339, s)
+	if err != nil {
+		return nil, err
+	}
+	return &t, nil
 }
