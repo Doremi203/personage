@@ -8,8 +8,9 @@ import (
 
 	"github.com/Doremi203/personage/backend/libs/go/slices"
 	eventsPb "github.com/Doremi203/personage/backend/tasker/gen/api/events"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
+
+const whenLayout = "2006-01-02T15:04:05 (Mon)"
 
 type EventID string
 
@@ -73,7 +74,7 @@ func eventSourceFromPB(ct eventsPb.ConnectorType) EventSource {
 
 type NormalizedEventContext string
 
-func FromPB(e *eventsPb.Event) (Event, error) {
+func FromPB(e *eventsPb.Event, loc *time.Location) (Event, error) {
 	eventModel := Event{
 		ID:         EventID(e.GetId()),
 		UserID:     UserID(e.GetUserId()),
@@ -88,11 +89,9 @@ func FromPB(e *eventsPb.Event) (Event, error) {
 	text := []writtenStr{
 		{format: "SOURCE: %s\n", args: []any{eventModel.Source.String()}},
 		{format: "SUBJECT: %s\n", args: []any{e.GetContext().GetSubject().GetName()}},
-		{format: "WHEN: %s\n", args: []any{eventModel.OccurredAt.Format(time.RFC3339)}},
+		{format: "WHEN: %s\n", args: []any{eventModel.OccurredAt.In(loc).Format(whenLayout)}},
 		{format: "SENDER: %s\n", args: []any{formatParticipant(e.GetContext().GetSender())}},
 		{format: "PARTICIPANTS: %s\n", args: []any{strings.Join(participantsStrs, ", ")}},
-		{format: "START TIME: %s\n", args: []any{formatTimestamp(e.GetContext().GetTimeFrame().GetStart())}},
-		{format: "END TIME: %s\n", args: []any{formatTimestamp(e.GetContext().GetTimeFrame().GetEnd())}},
 		{format: "TEXT:\n%s", args: []any{e.GetContext().GetBody()}},
 	}
 
@@ -126,14 +125,6 @@ func formatParticipant(p *eventsPb.Context_Participant) string {
 		p.GetName(),
 		p.GetTelegramUser().GetTag(),
 	)
-}
-
-func formatTimestamp(ts *timestamppb.Timestamp) string {
-	if ts == nil {
-		return ""
-	}
-
-	return ts.AsTime().Format(time.RFC3339)
 }
 
 type Event struct {
