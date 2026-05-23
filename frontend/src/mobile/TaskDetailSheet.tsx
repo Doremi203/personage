@@ -56,8 +56,18 @@ const CATEGORY_TO_API: Record<Category, string> = {
   personal: ApiTaskCategory.PERSONAL,
 };
 
+const TIME_SLOT_MIN = 15;
+
 function pad2(n: number): string {
   return String(n).padStart(2, '0');
+}
+
+function snapToSlot(d: Date, round: 'floor' | 'ceil'): Date {
+  const out = new Date(d);
+  const fn = round === 'ceil' ? Math.ceil : Math.floor;
+  const minutes = fn(out.getMinutes() / TIME_SLOT_MIN) * TIME_SLOT_MIN;
+  out.setMinutes(minutes, 0, 0);
+  return out;
 }
 
 function isoToLocalInput(iso?: string): string {
@@ -67,11 +77,11 @@ function isoToLocalInput(iso?: string): string {
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
 }
 
-function localInputToISO(s: string): string | undefined {
+function localInputToISO(s: string, round: 'floor' | 'ceil'): string | undefined {
   if (!s) return undefined;
   const d = new Date(s);
   if (Number.isNaN(d.getTime())) return undefined;
-  return d.toISOString();
+  return snapToSlot(d, round).toISOString();
 }
 
 export function TaskDetailSheet({
@@ -121,8 +131,8 @@ export function TaskDetailSheet({
     if (description !== task.description) patch.description = description;
     const initialStart = isoToLocalInput(task.startISO);
     const initialEnd = isoToLocalInput(task.endISO);
-    if (startLocal !== initialStart) patch.startTime = localInputToISO(startLocal);
-    if (endLocal !== initialEnd) patch.endTime = localInputToISO(endLocal);
+    if (startLocal !== initialStart) patch.startTime = localInputToISO(startLocal, 'floor');
+    if (endLocal !== initialEnd) patch.endTime = localInputToISO(endLocal, 'ceil');
     if (category !== task.category) patch.category = CATEGORY_TO_API[category];
 
     if (Object.keys(patch).length === 0) {
@@ -423,6 +433,7 @@ function EditDateRow({ icon: Icon, iconBg, iconInk, label, value, onChange, last
       <input
         type="datetime-local"
         value={value}
+        step={TIME_SLOT_MIN * 60}
         onChange={(e) => onChange(e.target.value)}
         style={{
           flex: 1, minWidth: 0, textAlign: 'right',

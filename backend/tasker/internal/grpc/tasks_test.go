@@ -274,6 +274,8 @@ func TestTasksService_UpdateTaskV1(t *testing.T) {
 						assert.Equal(t, endTime, *upd.EndTime)
 						require.NotNil(t, upd.Category)
 						assert.Equal(t, domain.TaskCategoryPersonal, *upd.Category)
+						require.NotNil(t, upd.Status)
+						assert.Equal(t, domain.TaskStatusPlanned, *upd.Status)
 						return domain.Task{ID: domain.TaskID(grpcTaskID), Title: "new"}, nil
 					})
 			},
