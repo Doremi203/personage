@@ -142,6 +142,7 @@ func (uc *UseCase) ProcessEvent(ctx context.Context, e domain.Event) error {
 	var attachedToExisting bool
 	if len(similarClusters) > 0 && similarClusters[0].Similarity >= uc.minSimilarity {
 		chosenCluster = similarClusters[0].Cluster
+		eventWithEmbedding.Similarity = similarClusters[0].Similarity
 		chosenCluster.AddEvent(eventWithEmbedding, uc.clock())
 		attachedToExisting = true
 	} else {
@@ -156,6 +157,7 @@ func (uc *UseCase) ProcessEvent(ctx context.Context, e domain.Event) error {
 			CreatedAt:  now,
 			UpdatedAt:  now,
 		}
+		eventWithEmbedding.Similarity = 1.0
 	}
 	eventWithEmbedding.ClusterID = chosenCluster.ID
 

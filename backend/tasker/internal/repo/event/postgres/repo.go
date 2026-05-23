@@ -29,16 +29,17 @@ type repo struct {
 func (r *repo) UpsertEvent(ctx context.Context, event domain.EventWithEmbedding) error {
 	query := `
 		INSERT INTO events (
-			event_id, 
+			event_id,
 		    user_id,
 		    source,
-		    occurred_at, 
-		    context, 
+		    occurred_at,
+		    context,
 		    embedding,
 		    cluster_id,
+		    similarity,
 			created_at
 		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8
+			$1, $2, $3, $4, $5, $6, $7, $8, $9
 		)
 		ON CONFLICT (event_id) DO UPDATE SET
 			source = EXCLUDED.source,
@@ -47,6 +48,7 @@ func (r *repo) UpsertEvent(ctx context.Context, event domain.EventWithEmbedding)
 			context = EXCLUDED.context,
 			embedding = EXCLUDED.embedding,
 			cluster_id = EXCLUDED.cluster_id,
+			similarity = EXCLUDED.similarity,
 			created_at = EXCLUDED.created_at
 	`
 
@@ -58,6 +60,7 @@ func (r *repo) UpsertEvent(ctx context.Context, event domain.EventWithEmbedding)
 		event.Context,
 		pgvector.NewVector(event.Embedding),
 		event.ClusterID,
+		event.Similarity,
 		r.clock(),
 	)
 
@@ -70,13 +73,14 @@ func (r *repo) UpsertEvent(ctx context.Context, event domain.EventWithEmbedding)
 
 func (r *repo) GetEventsByClusterID(ctx context.Context, clusterID domain.ClusterID) ([]domain.Event, error) {
 	query := `
-		SELECT 
+		SELECT
 			event_id,
 			user_id,
 			source,
 			occurred_at,
 			context,
-			cluster_id
+			cluster_id,
+			similarity
 		FROM events
 		WHERE cluster_id = $1
 		ORDER BY occurred_at ASC
@@ -114,6 +118,7 @@ type entity struct {
 	OccurredAt time.Time       `db:"occurred_at"`
 	Context    json.RawMessage `db:"context"`
 	ClusterID  uuid.UUID       `db:"cluster_id"`
+	Similarity float64         `db:"similarity"`
 }
 
 func (e entity) ToDomain() domain.Event {
@@ -124,5 +129,6 @@ func (e entity) ToDomain() domain.Event {
 		Context:    domain.NormalizedEventContext(e.Context),
 		OccurredAt: e.OccurredAt,
 		ClusterID:  domain.ClusterID(e.ClusterID.String()),
+		Similarity: e.Similarity,
 	}
 }

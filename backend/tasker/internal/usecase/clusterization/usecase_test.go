@@ -243,6 +243,7 @@ func TestUseCase_ProcessEvent(t *testing.T) {
 					UpsertEvent(gomock.Any(), gomock.AssignableToTypeOf(domain.EventWithEmbedding{})).
 					DoAndReturn(func(_ context.Context, e domain.EventWithEmbedding) error {
 						assert.Equal(t, domain.ClusterID("existing"), e.ClusterID)
+						assert.InDelta(t, 0.9, e.Similarity, 1e-9)
 						return nil
 					})
 			},
@@ -290,7 +291,10 @@ func TestUseCase_ProcessEvent(t *testing.T) {
 					})
 				m.eventsRepo.EXPECT().
 					UpsertEvent(gomock.Any(), gomock.AssignableToTypeOf(domain.EventWithEmbedding{})).
-					Return(nil)
+					DoAndReturn(func(_ context.Context, e domain.EventWithEmbedding) error {
+						assert.InDelta(t, 1.0, e.Similarity, 1e-9)
+						return nil
+					})
 			},
 			wantErr: require.NoError,
 		},
@@ -323,7 +327,10 @@ func TestUseCase_ProcessEvent(t *testing.T) {
 					})
 				m.eventsRepo.EXPECT().
 					UpsertEvent(gomock.Any(), gomock.AssignableToTypeOf(domain.EventWithEmbedding{})).
-					Return(nil)
+					DoAndReturn(func(_ context.Context, e domain.EventWithEmbedding) error {
+						assert.InDelta(t, 1.0, e.Similarity, 1e-9)
+						return nil
+					})
 			},
 			wantErr: require.NoError,
 		},

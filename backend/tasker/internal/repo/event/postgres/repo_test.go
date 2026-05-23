@@ -41,6 +41,7 @@ func newEvent(userID domain.UserID, clusterID domain.ClusterID) domain.EventWith
 			Context:    domain.NormalizedEventContext(`{"k":"v"}`),
 			OccurredAt: time.Date(2026, 4, 26, 12, 0, 0, 0, time.UTC),
 			ClusterID:  clusterID,
+			Similarity: 0.87,
 		},
 		Embedding: makeEmbedding(0.5),
 	}
@@ -65,6 +66,7 @@ func Test_repo_UpsertEvent(t *testing.T) {
 			require.NoError(t, err)
 			require.Len(t, got, 1)
 			assert.Equal(t, domain.EventSourceTelegram, got[0].Source)
+			assert.InDelta(t, 0.87, got[0].Similarity, 1e-9)
 		},
 	)
 }
