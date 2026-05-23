@@ -58,6 +58,22 @@ func main() {
 			return err
 		}
 
+		type TimeConfig struct {
+			DefaultTimezone string
+		}
+		timeConfig := TimeConfig{DefaultTimezone: "Europe/Moscow"}
+		if err = app.Config.ReadSection(ctx, "time", &timeConfig); err != nil {
+			app.Log.Infof("time config not found, using defaults: %+v", timeConfig)
+		}
+		defaultLocation, err := time.LoadLocation(timeConfig.DefaultTimezone)
+		if err != nil {
+			return errors.WrapFailf(
+				err,
+				"load default timezone %s",
+				errors.Token("timezone", timeConfig.DefaultTimezone),
+			)
+		}
+
 		poolConfig, err := pgxpool.ParseConfig(dbConfig.ConnectionString())
 		if err != nil {
 			return errors.WrapFail(err, "create pool config")
@@ -141,7 +157,7 @@ func main() {
 			app.Log,
 			sqsConfig,
 			func() *eventsPb.Event { return &eventsPb.Event{} },
-			event.NewHandler(clusterizationUseCase),
+			event.NewHandler(clusterizationUseCase, defaultLocation),
 			10*time.Second,
 			5,
 		)
@@ -157,7 +173,7 @@ func main() {
 		)
 
 		actionabilityService := llm.NewClusterActionabilityService(llmModel, app.Log, promptsService)
-		taskGenerationService := llm.NewTaskGenerationService(llmModel, app.Log, promptsService)
+		taskGenerationService := llm.NewTaskGenerationService(llmModel, app.Log, promptsService, defaultLocation)
 
 		isTestEnv := app.Env == webapp.TestsEnvironment || app.Env == webapp.EvalEnvironment
 

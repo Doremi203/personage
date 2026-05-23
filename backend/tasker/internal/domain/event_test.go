@@ -41,9 +41,10 @@ func TestParseEventSource(t *testing.T) {
 }
 
 func TestFromPB_PopulatesAllSections(t *testing.T) {
+	moscow, err := time.LoadLocation("Europe/Moscow")
+	require.NoError(t, err)
+
 	occurred := time.Date(2026, 4, 1, 9, 30, 0, 0, time.UTC)
-	start := time.Date(2026, 4, 1, 10, 0, 0, 0, time.UTC)
-	end := time.Date(2026, 4, 1, 11, 0, 0, 0, time.UTC)
 
 	pb := &eventsPb.Event{
 		Id:            "event-1",
@@ -53,11 +54,7 @@ func TestFromPB_PopulatesAllSections(t *testing.T) {
 		Context: &eventsPb.Context{
 			Body:    "hello world",
 			Subject: &eventsPb.Context_Subject{Name: "important"},
-			TimeFrame: &eventsPb.TimeFrame{
-				Start: timestamppb.New(start),
-				End:   timestamppb.New(end),
-			},
-			Sender: &eventsPb.Context_Participant{Email: new("alice@example.com")},
+			Sender:  &eventsPb.Context_Participant{Email: new("alice@example.com")},
 			OtherParticipants: []*eventsPb.Context_Participant{
 				{Email: new("zach@example.com")},
 				{Email: new("bob@example.com")},
@@ -65,7 +62,7 @@ func TestFromPB_PopulatesAllSections(t *testing.T) {
 		},
 	}
 
-	got, err := domain.FromPB(pb)
+	got, err := domain.FromPB(pb, moscow)
 	require.NoError(t, err)
 
 	assert.Equal(t, domain.EventID("event-1"), got.ID)
@@ -76,10 +73,10 @@ func TestFromPB_PopulatesAllSections(t *testing.T) {
 	ctx := string(got.Context)
 	assert.Contains(t, ctx, "SOURCE: gmail")
 	assert.Contains(t, ctx, "SUBJECT: important")
-	assert.Contains(t, ctx, "WHEN: "+occurred.Format(time.RFC3339))
+	assert.Contains(t, ctx, "WHEN: 2026-04-01T12:30:00 (Wed)")
 	assert.Contains(t, ctx, "SENDER: [EMAIL alice@example.com NAME  TELEGRAM_TAG ]")
-	assert.Contains(t, ctx, "START TIME: "+start.Format(time.RFC3339))
-	assert.Contains(t, ctx, "END TIME: "+end.Format(time.RFC3339))
+	assert.NotContains(t, ctx, "START TIME:")
+	assert.NotContains(t, ctx, "END TIME:")
 	assert.Contains(t, ctx, "TEXT:\nhello world")
 
 	bobIdx := strings.Index(ctx, "[EMAIL bob@example.com")
@@ -89,7 +86,38 @@ func TestFromPB_PopulatesAllSections(t *testing.T) {
 	assert.Less(t, bobIdx, zachIdx, "participants should be sorted alphabetically")
 }
 
+func TestFromPB_WhenFormatRendersDefaultLocation(t *testing.T) {
+	occurred := time.Date(2026, 5, 21, 7, 0, 0, 0, time.UTC)
+
+	tests := []struct {
+		name     string
+		locName  string
+		expected string
+	}{
+		{name: "moscow", locName: "Europe/Moscow", expected: "WHEN: 2026-05-21T10:00:00 (Thu)"},
+		{name: "utc", locName: "UTC", expected: "WHEN: 2026-05-21T07:00:00 (Thu)"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			loc, err := time.LoadLocation(tt.locName)
+			require.NoError(t, err)
+
+			got, err := domain.FromPB(&eventsPb.Event{
+				Id:         "event-1",
+				UserId:     "user-1",
+				OccurredAt: timestamppb.New(occurred),
+			}, loc)
+			require.NoError(t, err)
+
+			assert.Contains(t, string(got.Context), tt.expected)
+		})
+	}
+}
+
 func TestFromPB_ConnectorTypeMapping(t *testing.T) {
+	moscow, err := time.LoadLocation("Europe/Moscow")
+	require.NoError(t, err)
+
 	tests := []struct {
 		name string
 		in   eventsPb.ConnectorType
@@ -107,25 +135,28 @@ func TestFromPB_ConnectorTypeMapping(t *testing.T) {
 				Id:            "event-1",
 				UserId:        "user-1",
 				ConnectorType: tt.in,
-			})
+			}, moscow)
 			require.NoError(t, err)
 			assert.Equal(t, tt.want, got.Source)
 		})
 	}
 }
 
-func TestFromPB_NilTimeFrameRendersBlank(t *testing.T) {
+func TestFromPB_EmptyContextOmitsTimeFrame(t *testing.T) {
+	moscow, err := time.LoadLocation("Europe/Moscow")
+	require.NoError(t, err)
+
 	pb := &eventsPb.Event{
 		Id:     "event-1",
 		UserId: "user-1",
 	}
 
-	got, err := domain.FromPB(pb)
+	got, err := domain.FromPB(pb, moscow)
 	require.NoError(t, err)
 
 	ctx := string(got.Context)
-	assert.Contains(t, ctx, "START TIME: \n")
-	assert.Contains(t, ctx, "END TIME: \n")
+	assert.NotContains(t, ctx, "START TIME:")
+	assert.NotContains(t, ctx, "END TIME:")
 	assert.Contains(t, ctx, "PARTICIPANTS: \n")
 	assert.Contains(t, ctx, "SUBJECT: \n")
 	assert.Equal(t, domain.EventSourceUnknown, got.Source)

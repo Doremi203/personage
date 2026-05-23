@@ -21,18 +21,21 @@ func NewTaskGenerationService(
 	model model.BaseChatModel,
 	logger log.Logger,
 	prompts PromptProvider,
+	defaultLocation *time.Location,
 ) *taskGenerationService {
 	return &taskGenerationService{
-		model:   model,
-		logger:  logger,
-		prompts: prompts,
+		model:           model,
+		logger:          logger,
+		prompts:         prompts,
+		defaultLocation: defaultLocation,
 	}
 }
 
 type taskGenerationService struct {
-	model   model.BaseChatModel
-	logger  log.Logger
-	prompts PromptProvider
+	model           model.BaseChatModel
+	logger          log.Logger
+	prompts         PromptProvider
+	defaultLocation *time.Location
 }
 
 func (s *taskGenerationService) GenerateTask(ctx context.Context, events []domain.Event) (domain.GeneratedTask, error) {
@@ -112,13 +115,13 @@ func (s *taskGenerationService) parseResponse(responseText string, events []doma
 		EvidenceEventIDs: evidenceEventIDs,
 	}
 
-	deadline, err := parseOptionalTimestamp("deadline", llmResp.Deadline)
+	deadline, err := parseOptionalTimestamp("deadline", llmResp.Deadline, s.defaultLocation)
 	if err != nil {
 		return domain.GeneratedTask{}, err
 	}
 	task.Deadline = deadline
 
-	startTime, err := parseOptionalTimestamp("start_time", llmResp.StartTime)
+	startTime, err := parseOptionalTimestamp("start_time", llmResp.StartTime, s.defaultLocation)
 	if err != nil {
 		return domain.GeneratedTask{}, err
 	}
@@ -194,7 +197,7 @@ func parseEvidenceEventIDs(ids []string, events []domain.Event) ([]domain.EventI
 	return validated, nil
 }
 
-func parseOptionalTimestamp(name string, value *string) (*time.Time, error) {
+func parseOptionalTimestamp(name string, value *string, loc *time.Location) (*time.Time, error) {
 	if value == nil {
 		return nil, nil
 	}
@@ -204,12 +207,43 @@ func parseOptionalTimestamp(name string, value *string) (*time.Time, error) {
 		return nil, nil
 	}
 
-	parsed, err := time.Parse(time.RFC3339, trimmedValue)
-	if err != nil {
-		return nil, errors.WrapFailf(err, "parse %s", name)
+	if hasExplicitZone(trimmedValue) {
+		parsed, err := time.Parse(time.RFC3339, trimmedValue)
+		if err != nil {
+			return nil, errors.WrapFailf(err, "parse %s", name)
+		}
+		utc := parsed.UTC()
+		return &utc, nil
 	}
 
-	return &parsed, nil
+	parsed, err := time.ParseInLocation("2006-01-02T15:04:05", trimmedValue, loc)
+	if err != nil {
+		parsed, err = time.ParseInLocation("2006-01-02T15:04", trimmedValue, loc)
+		if err != nil {
+			return nil, errors.WrapFailf(err, "parse %s", name)
+		}
+	}
+	utc := parsed.UTC()
+	return &utc, nil
+}
+
+func hasExplicitZone(s string) bool {
+	if strings.HasSuffix(s, "Z") {
+		return true
+	}
+	if len(s) < 6 {
+		return false
+	}
+	suffix := s[len(s)-6:]
+	if (suffix[0] != '+' && suffix[0] != '-') || suffix[3] != ':' {
+		return false
+	}
+	for _, idx := range []int{1, 2, 4, 5} {
+		if suffix[idx] < '0' || suffix[idx] > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 func validateCategory(category string) (string, error) {
