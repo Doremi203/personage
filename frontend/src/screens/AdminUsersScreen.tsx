@@ -10,9 +10,10 @@ import { SANS, SERIF, T } from '../mobile/tokens';
 
 interface AdminUsersScreenProps {
   onSelect: (userId: string) => void;
+  onOpenPrompts: () => void;
 }
 
-export function AdminUsersScreen({ onSelect }: AdminUsersScreenProps) {
+export function AdminUsersScreen({ onSelect, onOpenPrompts }: AdminUsersScreenProps) {
   const [users, setUsers] = useState<AdminUserSummary[]>([]);
   const [moderated, setModerated] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -84,22 +85,40 @@ export function AdminUsersScreen({ onSelect }: AdminUsersScreenProps) {
           <div style={{ fontFamily: SERIF, fontSize: 30, color: T.ink, letterSpacing: -0.5 }}>
             Пользователи
           </div>
-          <button
-            type="button"
-            onClick={clearAdminKey}
-            style={{
-              padding: '8px 14px',
-              borderRadius: 10,
-              border: `0.5px solid ${T.hairline}`,
-              background: T.surface,
-              color: T.ink2,
-              fontSize: 13,
-              cursor: 'pointer',
-              fontFamily: SANS,
-            }}
-          >
-            Выйти
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <button
+              type="button"
+              onClick={onOpenPrompts}
+              style={{
+                padding: '8px 14px',
+                borderRadius: 10,
+                border: `0.5px solid ${T.hairline}`,
+                background: T.surface,
+                color: T.ink,
+                fontSize: 13,
+                cursor: 'pointer',
+                fontFamily: SANS,
+              }}
+            >
+              Промпты
+            </button>
+            <button
+              type="button"
+              onClick={clearAdminKey}
+              style={{
+                padding: '8px 14px',
+                borderRadius: 10,
+                border: `0.5px solid ${T.hairline}`,
+                background: T.surface,
+                color: T.ink2,
+                fontSize: 13,
+                cursor: 'pointer',
+                fontFamily: SANS,
+              }}
+            >
+              Выйти
+            </button>
+          </div>
         </div>
 
         {error && (

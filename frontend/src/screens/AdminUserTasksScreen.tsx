@@ -7,10 +7,16 @@ import {
 import { SANS, SERIF, T } from '../mobile/tokens';
 import { AdminTaskDetailSheet } from '../mobile/AdminTaskDetailSheet';
 import { AdminSendPushSheet } from '../mobile/AdminSendPushSheet';
+import { AdminUserClustersTab } from './AdminUserClustersTab';
+import { AdminClusterDetailSheet } from '../mobile/AdminClusterDetailSheet';
+
+export type AdminUserTab = 'tasks' | 'clusters';
 
 interface AdminUserTasksScreenProps {
   userId: string;
+  activeTab: AdminUserTab;
   onBack: () => void;
+  onChangeTab: (tab: AdminUserTab) => void;
 }
 
 function formatDateTime(iso?: string): string {
@@ -32,14 +38,16 @@ const CATEGORY_LABELS: Record<string, string> = {
   personal: 'Личное',
 };
 
-export function AdminUserTasksScreen({ userId, onBack }: AdminUserTasksScreenProps) {
+export function AdminUserTasksScreen({ userId, activeTab, onBack, onChangeTab }: AdminUserTasksScreenProps) {
   const [tasks, setTasks] = useState<AdminTaskItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<AdminTaskItem | null>(null);
   const [pushOpen, setPushOpen] = useState(false);
+  const [taskForCluster, setTaskForCluster] = useState<{ id: string; taskId: string } | null>(null);
 
   const reload = useCallback(async () => {
+    if (activeTab !== 'tasks') return;
     setLoading(true);
     setError(null);
     try {
@@ -49,11 +57,38 @@ export function AdminUserTasksScreen({ userId, onBack }: AdminUserTasksScreenPro
     } finally {
       setLoading(false);
     }
-  }, [userId]);
+  }, [userId, activeTab]);
 
   useEffect(() => {
-    void reload();
-  }, [reload]);
+    if (activeTab === 'tasks') {
+      void reload();
+    }
+  }, [reload, activeTab]);
+
+  const openTaskFromCluster = useCallback(
+    async (taskId: string) => {
+      const existing = tasks.find((t) => t.id === taskId);
+      if (existing) {
+        setSelected(existing);
+        return;
+      }
+      try {
+        const list = activeTab === 'tasks' ? tasks : await listAdminTasks(userId);
+        if (activeTab !== 'tasks') {
+          setTasks(list);
+        }
+        const found = list.find((t) => t.id === taskId);
+        if (found) {
+          setSelected(found);
+        } else {
+          setError('Задача не найдена');
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Не удалось открыть задачу');
+      }
+    },
+    [tasks, userId, activeTab],
+  );
 
   const handleQuickApprove = async (task: AdminTaskItem) => {
     try {
@@ -141,23 +176,61 @@ export function AdminUserTasksScreen({ userId, onBack }: AdminUserTasksScreenPro
             >
               Отправить пуш
             </button>
-            <button
-              type="button"
-              onClick={() => void reload()}
-              style={{
-                padding: '8px 14px',
-                borderRadius: 10,
-                border: `0.5px solid ${T.hairline}`,
-                background: T.surface,
-                color: T.ink2,
-                fontSize: 13,
-                cursor: 'pointer',
-                fontFamily: SANS,
-              }}
-            >
-              Обновить
-            </button>
+            {activeTab === 'tasks' && (
+              <button
+                type="button"
+                onClick={() => void reload()}
+                style={{
+                  padding: '8px 14px',
+                  borderRadius: 10,
+                  border: `0.5px solid ${T.hairline}`,
+                  background: T.surface,
+                  color: T.ink2,
+                  fontSize: 13,
+                  cursor: 'pointer',
+                  fontFamily: SANS,
+                }}
+              >
+                Обновить
+              </button>
+            )}
           </div>
+        </div>
+
+        <div
+          style={{
+            display: 'flex',
+            gap: 4,
+            padding: 4,
+            borderRadius: 12,
+            background: T.surface,
+            border: `0.5px solid ${T.hairline}`,
+            alignSelf: 'flex-start',
+          }}
+        >
+          {(['tasks', 'clusters'] as const).map((tab) => {
+            const active = tab === activeTab;
+            return (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => onChangeTab(tab)}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: 8,
+                  border: 'none',
+                  background: active ? T.ink : 'transparent',
+                  color: active ? T.bg : T.ink2,
+                  fontSize: 13,
+                  fontWeight: active ? 600 : 500,
+                  cursor: 'pointer',
+                  fontFamily: SANS,
+                }}
+              >
+                {tab === 'tasks' ? 'Задачи' : 'Кластеры'}
+              </button>
+            );
+          })}
         </div>
 
         {error && (
@@ -174,7 +247,14 @@ export function AdminUserTasksScreen({ userId, onBack }: AdminUserTasksScreenPro
           </div>
         )}
 
-        {loading ? (
+        {activeTab === 'clusters' && (
+          <AdminUserClustersTab
+            userId={userId}
+            onOpenTask={(taskId) => void openTaskFromCluster(taskId)}
+          />
+        )}
+
+        {activeTab === 'tasks' && (loading ? (
           <div style={{ padding: 24, color: T.ink3, textAlign: 'center' }}>Загрузка…</div>
         ) : tasks.length === 0 ? (
           <div style={{ padding: 24, color: T.ink3, textAlign: 'center' }}>Задач нет</div>
@@ -314,7 +394,7 @@ export function AdminUserTasksScreen({ userId, onBack }: AdminUserTasksScreenPro
               </div>
             ))}
           </div>
-        )}
+        ))}
       </div>
 
       {selected && (
@@ -325,6 +405,27 @@ export function AdminUserTasksScreen({ userId, onBack }: AdminUserTasksScreenPro
           onSaved={(updated) => {
             setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
             setSelected(updated);
+          }}
+          onOpenCluster={
+            selected.clusterId
+              ? (clusterId) => {
+                  setTaskForCluster({ id: clusterId, taskId: selected.id });
+                  setSelected(null);
+                }
+              : undefined
+          }
+        />
+      )}
+
+      {taskForCluster && (
+        <AdminClusterDetailSheet
+          userId={userId}
+          clusterId={taskForCluster.id}
+          summary={null}
+          onClose={() => setTaskForCluster(null)}
+          onOpenTask={(taskId) => {
+            setTaskForCluster(null);
+            void openTaskFromCluster(taskId);
           }}
         />
       )}

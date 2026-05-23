@@ -12,6 +12,7 @@ interface AdminTaskDetailSheetProps {
   task: AdminTaskItem;
   onClose: () => void;
   onSaved: (task: AdminTaskItem) => void;
+  onOpenCluster?: (clusterId: string) => void;
 }
 
 const STATUS_OPTIONS = [
@@ -40,7 +41,7 @@ function localInputToIso(value: string): string | undefined {
   return Number.isNaN(d.getTime()) ? undefined : d.toISOString();
 }
 
-export function AdminTaskDetailSheet({ userId, task, onClose, onSaved }: AdminTaskDetailSheetProps) {
+export function AdminTaskDetailSheet({ userId, task, onClose, onSaved, onOpenCluster }: AdminTaskDetailSheetProps) {
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description);
   const [startLocal, setStartLocal] = useState(isoToLocalInput(task.startTime));
@@ -149,6 +150,26 @@ export function AdminTaskDetailSheet({ userId, task, onClose, onSaved }: AdminTa
         <div style={{ fontSize: 12, color: T.ink3, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>
           {task.id}
         </div>
+
+        {task.clusterId && onOpenCluster && (
+          <button
+            type="button"
+            onClick={() => onOpenCluster(task.clusterId!)}
+            style={{
+              padding: '8px 14px',
+              borderRadius: 10,
+              border: `0.5px solid ${T.hairline}`,
+              background: T.surface,
+              color: T.ink,
+              fontSize: 13,
+              cursor: 'pointer',
+              fontFamily: SANS,
+              alignSelf: 'flex-start',
+            }}
+          >
+            Перейти к кластеру →
+          </button>
+        )}
 
         {!task.isApproved && (
           <div

@@ -7,18 +7,40 @@ import (
 	"github.com/Doremi203/personage/backend/tasker/internal/domain"
 )
 
-const adminListPageSize = 500
+const (
+	adminListPageSize    = 500
+	adminClusterListSize = 50
+)
 
-func NewUseCase(taskRepo domain.TaskRepo, moderationRepo domain.ManualModerationRepo) *UseCase {
+type PromptCacheInvalidator interface {
+	Invalidate(id domain.PromptID)
+}
+
+func NewUseCase(
+	taskRepo domain.TaskRepo,
+	moderationRepo domain.ManualModerationRepo,
+	clusterRepo domain.ClusterRepo,
+	eventRepo domain.EventRepo,
+	promptRepo domain.PromptRepo,
+	promptCache PromptCacheInvalidator,
+) *UseCase {
 	return &UseCase{
 		taskRepo:       taskRepo,
 		moderationRepo: moderationRepo,
+		clusterRepo:    clusterRepo,
+		eventRepo:      eventRepo,
+		promptRepo:     promptRepo,
+		promptCache:    promptCache,
 	}
 }
 
 type UseCase struct {
 	taskRepo       domain.TaskRepo
 	moderationRepo domain.ManualModerationRepo
+	clusterRepo    domain.ClusterRepo
+	eventRepo      domain.EventRepo
+	promptRepo     domain.PromptRepo
+	promptCache    PromptCacheInvalidator
 }
 
 func (uc *UseCase) ListTasks(ctx context.Context, userID domain.UserID) ([]domain.Task, error) {
@@ -65,6 +87,67 @@ func (uc *UseCase) ListModeratedUsers(ctx context.Context) ([]domain.UserID, err
 		return nil, errors.WrapFail(err, "list moderated users")
 	}
 	return userIDs, nil
+}
+
+func (uc *UseCase) ListClustersForUser(ctx context.Context, userID domain.UserID) ([]domain.AdminClusterListItem, error) {
+	clusters, err := uc.clusterRepo.ListAdminClustersByUserID(ctx, userID, adminClusterListSize)
+	if err != nil {
+		return nil, errors.WrapFailf(
+			err,
+			"list admin clusters for user %s",
+			errors.Token("user_id", userID.String()),
+		)
+	}
+	return clusters, nil
+}
+
+func (uc *UseCase) ListClusterEvents(ctx context.Context, clusterID domain.ClusterID) ([]domain.Event, error) {
+	events, err := uc.eventRepo.GetEventsByClusterID(ctx, clusterID)
+	if err != nil {
+		return nil, errors.WrapFailf(
+			err,
+			"list events for cluster %s",
+			errors.Token("cluster_id", clusterID.String()),
+		)
+	}
+	return events, nil
+}
+
+func (uc *UseCase) ListPrompts(ctx context.Context) ([]domain.Prompt, error) {
+	prompts, err := uc.promptRepo.ListPrompts(ctx)
+	if err != nil {
+		return nil, errors.WrapFail(err, "list prompts")
+	}
+	return prompts, nil
+}
+
+func (uc *UseCase) GetPrompt(ctx context.Context, id domain.PromptID) (domain.Prompt, error) {
+	prompt, err := uc.promptRepo.GetPrompt(ctx, id)
+	if err != nil {
+		return domain.Prompt{}, errors.WrapFailf(
+			err,
+			"get prompt %s",
+			errors.Token("prompt_id", id.String()),
+		)
+	}
+	return prompt, nil
+}
+
+func (uc *UseCase) UpdatePrompt(
+	ctx context.Context,
+	id domain.PromptID,
+	update domain.PromptUpdate,
+) (domain.Prompt, error) {
+	prompt, err := uc.promptRepo.UpdatePrompt(ctx, id, update)
+	if err != nil {
+		return domain.Prompt{}, errors.WrapFailf(
+			err,
+			"update prompt %s",
+			errors.Token("prompt_id", id.String()),
+		)
+	}
+	uc.promptCache.Invalidate(id)
+	return prompt, nil
 }
 
 func (uc *UseCase) SetUserModeration(ctx context.Context, userID domain.UserID, enabled bool) error {

@@ -252,6 +252,9 @@ func (s *stubClusterRepo) FinalizeCluster(
 func (s *stubClusterRepo) ListGenerationDiagnosticsByUserID(context.Context, domain.UserID) ([]domain.ClusterGenerationDiagnostic, error) {
 	return nil, nil
 }
+func (s *stubClusterRepo) ListAdminClustersByUserID(context.Context, domain.UserID, int) ([]domain.AdminClusterListItem, error) {
+	return nil, nil
+}
 func (s *stubClusterRepo) DeleteCluster(context.Context, domain.ClusterID) error { return nil }
 func (s *stubClusterRepo) RecoverStaleClusters(context.Context, time.Duration) (int, error) {
 	return 0, nil

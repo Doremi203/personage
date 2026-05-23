@@ -66,7 +66,14 @@ func TestUseCase_ListTasks(t *testing.T) {
 			}
 			tt.setup(m)
 
-			uc := admin.NewUseCase(m.taskRepo, m.moderationRepo)
+			uc := admin.NewUseCase(
+				m.taskRepo,
+				m.moderationRepo,
+				mock_domain.NewMockClusterRepo(ctrl),
+				mock_domain.NewMockEventRepo(ctrl),
+				mock_domain.NewMockPromptRepo(ctrl),
+				noopPromptCache{},
+			)
 			got, err := uc.ListTasks(t.Context(), testUserID)
 
 			tt.wantErr(t, err)
@@ -124,7 +131,14 @@ func TestUseCase_Approve(t *testing.T) {
 			}
 			tt.setup(m)
 
-			uc := admin.NewUseCase(m.taskRepo, m.moderationRepo)
+			uc := admin.NewUseCase(
+				m.taskRepo,
+				m.moderationRepo,
+				mock_domain.NewMockClusterRepo(ctrl),
+				mock_domain.NewMockEventRepo(ctrl),
+				mock_domain.NewMockPromptRepo(ctrl),
+				noopPromptCache{},
+			)
 			got, err := uc.Approve(t.Context(), testTaskID, testUserID)
 
 			tt.wantErr(t, err)
@@ -191,7 +205,14 @@ func TestUseCase_SetUserModeration(t *testing.T) {
 			}
 			tt.setup(m)
 
-			uc := admin.NewUseCase(m.taskRepo, m.moderationRepo)
+			uc := admin.NewUseCase(
+				m.taskRepo,
+				m.moderationRepo,
+				mock_domain.NewMockClusterRepo(ctrl),
+				mock_domain.NewMockEventRepo(ctrl),
+				mock_domain.NewMockPromptRepo(ctrl),
+				noopPromptCache{},
+			)
 			err := uc.SetUserModeration(t.Context(), testUserID, tt.args.enabled)
 
 			tt.wantErr(t, err)
@@ -240,7 +261,14 @@ func TestUseCase_ListModeratedUsers(t *testing.T) {
 			}
 			tt.setup(m)
 
-			uc := admin.NewUseCase(m.taskRepo, m.moderationRepo)
+			uc := admin.NewUseCase(
+				m.taskRepo,
+				m.moderationRepo,
+				mock_domain.NewMockClusterRepo(ctrl),
+				mock_domain.NewMockEventRepo(ctrl),
+				mock_domain.NewMockPromptRepo(ctrl),
+				noopPromptCache{},
+			)
 			got, err := uc.ListModeratedUsers(t.Context())
 
 			tt.wantErr(t, err)
