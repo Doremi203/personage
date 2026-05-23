@@ -151,6 +151,100 @@ export async function setUserModeration(userId: string, enabled: boolean): Promi
   );
 }
 
+export interface AdminClusterListItem {
+  id: string;
+  userId: string;
+  status: string;
+  eventCount: number;
+  generationOutcome?: string;
+  generationReason?: string;
+  taskId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface AdminClusterListResponse {
+  clusters: AdminClusterListItem[];
+}
+
+export async function listAdminClusters(userId: string): Promise<AdminClusterListItem[]> {
+  const data = await fetchAdmin<AdminClusterListResponse>(
+    `${TASKER_API_URL}/admin/users/${encodeURIComponent(userId)}/clusters`,
+  );
+  return data.clusters ?? [];
+}
+
+export interface AdminClusterEventItem {
+  id: string;
+  userId: string;
+  clusterId: string;
+  source: string;
+  occurredAt: string;
+  context: unknown;
+}
+
+interface AdminClusterEventsResponse {
+  events: AdminClusterEventItem[];
+}
+
+export async function listAdminClusterEvents(
+  userId: string,
+  clusterId: string,
+): Promise<AdminClusterEventItem[]> {
+  const data = await fetchAdmin<AdminClusterEventsResponse>(
+    `${TASKER_API_URL}/admin/users/${encodeURIComponent(userId)}/clusters/${encodeURIComponent(clusterId)}/events`,
+  );
+  return data.events ?? [];
+}
+
+export interface AdminPromptItem {
+  id: string;
+  description: string;
+  systemTemplate: string;
+  userTemplate: string;
+  updatedAt: string;
+}
+
+interface AdminPromptListResponse {
+  prompts: AdminPromptItem[];
+}
+
+interface AdminPromptResponse {
+  prompt: AdminPromptItem;
+}
+
+export async function listAdminPrompts(): Promise<AdminPromptItem[]> {
+  const data = await fetchAdmin<AdminPromptListResponse>(`${TASKER_API_URL}/admin/prompts`);
+  return data.prompts ?? [];
+}
+
+export async function getAdminPrompt(promptId: string): Promise<AdminPromptItem> {
+  const data = await fetchAdmin<AdminPromptResponse>(
+    `${TASKER_API_URL}/admin/prompts/${encodeURIComponent(promptId)}`,
+  );
+  return data.prompt;
+}
+
+export interface AdminPromptUpdate {
+  systemTemplate?: string;
+  userTemplate?: string;
+}
+
+export async function updateAdminPrompt(
+  promptId: string,
+  patch: AdminPromptUpdate,
+): Promise<AdminPromptItem> {
+  const data = await fetchAdmin<AdminPromptResponse>(
+    `${TASKER_API_URL}/admin/prompts/${encodeURIComponent(promptId)}`,
+    {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch),
+    },
+  );
+  return data.prompt;
+}
+
 export interface AdminPushPayload {
   title: string;
   body: string;

@@ -19,10 +19,12 @@ import (
 	eventpostgres "github.com/Doremi203/personage/backend/tasker/internal/repo/event/postgres"
 	moderationpostgres "github.com/Doremi203/personage/backend/tasker/internal/repo/moderation/postgres"
 	pausepostgres "github.com/Doremi203/personage/backend/tasker/internal/repo/pause/postgres"
+	promptpostgres "github.com/Doremi203/personage/backend/tasker/internal/repo/prompt/postgres"
 	taskpostgres "github.com/Doremi203/personage/backend/tasker/internal/repo/task/postgres"
 	"github.com/Doremi203/personage/backend/tasker/internal/services/embedding"
 	"github.com/Doremi203/personage/backend/tasker/internal/services/llm"
 	"github.com/Doremi203/personage/backend/tasker/internal/services/notifications"
+	"github.com/Doremi203/personage/backend/tasker/internal/services/prompts"
 	"github.com/Doremi203/personage/backend/tasker/internal/services/userprofile"
 	"github.com/Doremi203/personage/backend/tasker/internal/usecase/admin"
 	"github.com/Doremi203/personage/backend/tasker/internal/usecase/clusterization"
@@ -77,6 +79,9 @@ func main() {
 		postgresTaskRepo := taskpostgres.NewRepo(dbClient)
 		postgresPauseRepo := pausepostgres.NewRepo(dbClient, time.Now)
 		postgresModerationRepo := moderationpostgres.NewRepo(dbClient)
+		postgresPromptRepo := promptpostgres.NewRepo(dbClient, time.Now)
+
+		promptsService := prompts.NewService(postgresPromptRepo, 30*time.Second, time.Now)
 
 		type LLMConfig struct {
 			ApiKey string
@@ -151,8 +156,8 @@ func main() {
 			).WithInterval(time.Second),
 		)
 
-		actionabilityService := llm.NewClusterActionabilityService(llmModel, app.Log)
-		taskGenerationService := llm.NewTaskGenerationService(llmModel, app.Log)
+		actionabilityService := llm.NewClusterActionabilityService(llmModel, app.Log, promptsService)
+		taskGenerationService := llm.NewTaskGenerationService(llmModel, app.Log, promptsService)
 
 		isTestEnv := app.Env == webapp.TestsEnvironment || app.Env == webapp.EvalEnvironment
 
@@ -348,14 +353,26 @@ func main() {
 			return err
 		}
 
-		adminUseCase := admin.NewUseCase(postgresTaskRepo, postgresModerationRepo)
+		adminUseCase := admin.NewUseCase(
+			postgresTaskRepo,
+			postgresModerationRepo,
+			postgresClusterRepo,
+			postgresEventRepo,
+			postgresPromptRepo,
+			promptsService,
+		)
 
 		app.AddHTTPHandler("GET /admin/users/{userId}/tasks", taskergrpc.NewAdminListTasksHandler(adminUseCase, adminConfig.ApiKey))
 		app.AddHTTPHandler("GET /admin/users/{userId}/tasks/{taskId}", taskergrpc.NewAdminGetTaskHandler(adminUseCase, adminConfig.ApiKey))
 		app.AddHTTPHandler("PATCH /admin/users/{userId}/tasks/{taskId}", taskergrpc.NewAdminUpdateTaskHandler(adminUseCase, adminConfig.ApiKey))
 		app.AddHTTPHandler("POST /admin/users/{userId}/tasks/{taskId}/approve", taskergrpc.NewAdminApproveTaskHandler(adminUseCase, adminConfig.ApiKey))
+		app.AddHTTPHandler("GET /admin/users/{userId}/clusters", taskergrpc.NewAdminListClustersHandler(adminUseCase, adminConfig.ApiKey))
+		app.AddHTTPHandler("GET /admin/users/{userId}/clusters/{clusterId}/events", taskergrpc.NewAdminListClusterEventsHandler(adminUseCase, adminConfig.ApiKey))
 		app.AddHTTPHandler("GET /admin/moderation", taskergrpc.NewAdminListModerationHandler(adminUseCase, adminConfig.ApiKey))
 		app.AddHTTPHandler("PUT /admin/moderation/{userId}", taskergrpc.NewAdminSetModerationHandler(adminUseCase, adminConfig.ApiKey))
+		app.AddHTTPHandler("GET /admin/prompts", taskergrpc.NewAdminListPromptsHandler(adminUseCase, adminConfig.ApiKey))
+		app.AddHTTPHandler("GET /admin/prompts/{promptId}", taskergrpc.NewAdminGetPromptHandler(adminUseCase, adminConfig.ApiKey))
+		app.AddHTTPHandler("PUT /admin/prompts/{promptId}", taskergrpc.NewAdminUpdatePromptHandler(adminUseCase, adminConfig.ApiKey))
 
 		if isTestEnv {
 			app.AddGRPCUnaryInterceptor(

@@ -2,18 +2,36 @@ import { useCallback, useEffect, useState } from 'react';
 import { ADMIN_KEY_CHANGE_EVENT, getAdminKey } from '../utils/adminService';
 import { AdminLoginScreen } from './AdminLoginScreen';
 import { AdminUsersScreen } from './AdminUsersScreen';
-import { AdminUserTasksScreen } from './AdminUserTasksScreen';
+import { AdminUserTasksScreen, type AdminUserTab } from './AdminUserTasksScreen';
+import { AdminPromptsScreen } from './AdminPromptsScreen';
 
-const USER_PATH_RE = /^\/admin\/users\/([^/]+)/;
+interface AdminRoute {
+  view: 'users' | 'user' | 'prompts';
+  userId?: string;
+  tab?: AdminUserTab;
+}
 
-function pathSelectedUserId(): string | null {
-  const match = USER_PATH_RE.exec(window.location.pathname);
-  return match ? decodeURIComponent(match[1]) : null;
+const USER_PATH_RE = /^\/admin\/users\/([^/]+)(?:\/(tasks|clusters))?\/?$/;
+
+function parseLocation(): AdminRoute {
+  const path = window.location.pathname;
+  if (path === '/admin/prompts' || path === '/admin/prompts/') {
+    return { view: 'prompts' };
+  }
+  const match = USER_PATH_RE.exec(path);
+  if (match) {
+    return {
+      view: 'user',
+      userId: decodeURIComponent(match[1]),
+      tab: (match[2] as AdminUserTab | undefined) ?? 'tasks',
+    };
+  }
+  return { view: 'users' };
 }
 
 export function AdminApp() {
   const [hasKey, setHasKey] = useState(() => getAdminKey() !== null);
-  const [selectedUserId, setSelectedUserId] = useState<string | null>(() => pathSelectedUserId());
+  const [route, setRoute] = useState<AdminRoute>(() => parseLocation());
 
   useEffect(() => {
     const syncKey = () => setHasKey(getAdminKey() !== null);
@@ -26,28 +44,45 @@ export function AdminApp() {
   }, []);
 
   useEffect(() => {
-    const syncPath = () => setSelectedUserId(pathSelectedUserId());
+    const syncPath = () => setRoute(parseLocation());
     window.addEventListener('popstate', syncPath);
     return () => window.removeEventListener('popstate', syncPath);
   }, []);
 
-  const goToUser = useCallback((userId: string) => {
-    window.history.pushState({}, '', `/admin/users/${encodeURIComponent(userId)}`);
-    setSelectedUserId(userId);
+  const goToUser = useCallback((userId: string, tab: AdminUserTab = 'tasks') => {
+    const path = `/admin/users/${encodeURIComponent(userId)}/${tab}`;
+    window.history.pushState({}, '', path);
+    setRoute({ view: 'user', userId, tab });
   }, []);
 
   const goToUsers = useCallback(() => {
     window.history.pushState({}, '', '/admin');
-    setSelectedUserId(null);
+    setRoute({ view: 'users' });
+  }, []);
+
+  const goToPrompts = useCallback(() => {
+    window.history.pushState({}, '', '/admin/prompts');
+    setRoute({ view: 'prompts' });
   }, []);
 
   if (!hasKey) {
     return <AdminLoginScreen />;
   }
 
-  if (selectedUserId) {
-    return <AdminUserTasksScreen userId={selectedUserId} onBack={goToUsers} />;
+  if (route.view === 'prompts') {
+    return <AdminPromptsScreen onBack={goToUsers} />;
   }
 
-  return <AdminUsersScreen onSelect={goToUser} />;
+  if (route.view === 'user' && route.userId) {
+    return (
+      <AdminUserTasksScreen
+        userId={route.userId}
+        activeTab={route.tab ?? 'tasks'}
+        onBack={goToUsers}
+        onChangeTab={(tab) => goToUser(route.userId!, tab)}
+      />
+    );
+  }
+
+  return <AdminUsersScreen onSelect={(userId) => goToUser(userId)} onOpenPrompts={goToPrompts} />;
 }

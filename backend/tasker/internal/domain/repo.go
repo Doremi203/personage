@@ -31,11 +31,18 @@ type ClusterRepo interface {
 		reason *string,
 	) error
 	ListGenerationDiagnosticsByUserID(ctx context.Context, userID UserID) ([]ClusterGenerationDiagnostic, error)
+	ListAdminClustersByUserID(ctx context.Context, userID UserID, limit int) ([]AdminClusterListItem, error)
 	DeleteCluster(ctx context.Context, clusterID ClusterID) error
 	// RecoverStaleClusters resets clusters stuck in 'processing' for longer than
 	// the given staleThreshold back to 'open' so they can be retried.
 	// Returns the number of recovered clusters.
 	RecoverStaleClusters(ctx context.Context, staleThreshold time.Duration) (int, error)
+}
+
+type PromptRepo interface {
+	GetPrompt(ctx context.Context, id PromptID) (Prompt, error)
+	ListPrompts(ctx context.Context) ([]Prompt, error)
+	UpdatePrompt(ctx context.Context, id PromptID, update PromptUpdate) (Prompt, error)
 }
 
 //go:generate mockgen -source=repo.go -destination=mock/repo_mock.go -typed

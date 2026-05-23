@@ -69,7 +69,7 @@ func TestGetTaskGenerationDecisionRetriesInvalidModelOutput(t *testing.T) {
 		{message: &schema.Message{Content: `{"actionable": true, "reason": "work item"}`}},
 	}}
 
-	service := NewClusterActionabilityService(chatModel, log.Stub{})
+	service := NewClusterActionabilityService(chatModel, log.Stub{}, stubPromptProvider{})
 	decision, err := service.GetTaskGenerationDecision(
 		t.Context(),
 		[]domain.Event{{ID: "event-1", Context: "Please review PR #47."}},
@@ -93,7 +93,7 @@ func TestGetTaskGenerationDecisionInjectsOwnerIdentity(t *testing.T) {
 		{message: &schema.Message{Content: `{"actionable": true, "reason": "direct DM with ask"}`}},
 	}}
 
-	service := NewClusterActionabilityService(chatModel, log.Stub{})
+	service := NewClusterActionabilityService(chatModel, log.Stub{}, stubPromptProvider{})
 	_, err := service.GetTaskGenerationDecision(
 		t.Context(),
 		[]domain.Event{{ID: "event-1", Context: "Hi Owner, please review PR #47."}},

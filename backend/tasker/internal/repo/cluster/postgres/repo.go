@@ -252,6 +252,43 @@ func (r *repo) ListGenerationDiagnosticsByUserID(
 	return slices.Map(entities, clusterGenerationDiagnosticEntity.ToDomain), nil
 }
 
+func (r *repo) ListAdminClustersByUserID(
+	ctx context.Context,
+	userID domain.UserID,
+	limit int,
+) ([]domain.AdminClusterListItem, error) {
+	query := `
+		SELECT
+			c.cluster_id,
+			c.user_id,
+			c.status,
+			c.event_count,
+			c.generation_outcome,
+			c.generation_reason,
+			t.task_id,
+			c.created_at,
+			c.updated_at
+		FROM clusters c
+		LEFT JOIN tasks t ON t.cluster_id = c.cluster_id
+		WHERE c.user_id = $1
+		ORDER BY c.created_at DESC
+		LIMIT $2
+	`
+
+	rows, err := r.client.Query(ctx, query, userID, limit)
+	if err != nil {
+		return nil, errors.WrapFail(err, "list admin clusters by user id")
+	}
+	defer rows.Close()
+
+	entities, err := pgx.CollectRows(rows, pgx.RowToStructByName[adminClusterListItemEntity])
+	if err != nil {
+		return nil, errors.WrapFail(err, "collect admin cluster rows")
+	}
+
+	return slices.Map(entities, adminClusterListItemEntity.ToDomain), nil
+}
+
 func (r *repo) DeleteCluster(ctx context.Context, clusterID domain.ClusterID) error {
 	query := `DELETE FROM clusters WHERE cluster_id = $1`
 
@@ -345,6 +382,44 @@ type clusterGenerationDiagnosticEntity struct {
 	GeneratedTaskCount int       `db:"generated_task_count"`
 	CreatedAt          time.Time `db:"created_at"`
 	UpdatedAt          time.Time `db:"updated_at"`
+}
+
+type adminClusterListItemEntity struct {
+	ClusterID         uuid.UUID  `db:"cluster_id"`
+	UserID            uuid.UUID  `db:"user_id"`
+	Status            string     `db:"status"`
+	EventCount        int        `db:"event_count"`
+	GenerationOutcome *string    `db:"generation_outcome"`
+	GenerationReason  *string    `db:"generation_reason"`
+	TaskID            *uuid.UUID `db:"task_id"`
+	CreatedAt         time.Time  `db:"created_at"`
+	UpdatedAt         time.Time  `db:"updated_at"`
+}
+
+func (e adminClusterListItemEntity) ToDomain() domain.AdminClusterListItem {
+	var outcome *domain.ClusterGenerationOutcome
+	if e.GenerationOutcome != nil {
+		value := domain.ClusterGenerationOutcome(*e.GenerationOutcome)
+		outcome = &value
+	}
+
+	var taskID *domain.TaskID
+	if e.TaskID != nil {
+		value := domain.TaskID(e.TaskID.String())
+		taskID = &value
+	}
+
+	return domain.AdminClusterListItem{
+		ClusterID:         domain.ClusterID(e.ClusterID.String()),
+		UserID:            domain.UserID(e.UserID.String()),
+		Status:            domain.ClusterStatus(e.Status),
+		EventCount:        e.EventCount,
+		GenerationOutcome: outcome,
+		GenerationReason:  e.GenerationReason,
+		TaskID:            taskID,
+		CreatedAt:         e.CreatedAt,
+		UpdatedAt:         e.UpdatedAt,
+	}
 }
 
 func (e clusterGenerationDiagnosticEntity) ToDomain() domain.ClusterGenerationDiagnostic {

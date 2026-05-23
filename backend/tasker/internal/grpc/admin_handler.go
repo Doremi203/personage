@@ -20,6 +20,17 @@ type adminTasksUseCase interface {
 	SetUserModeration(ctx context.Context, userID domain.UserID, enabled bool) error
 }
 
+type adminClustersUseCase interface {
+	ListClustersForUser(ctx context.Context, userID domain.UserID) ([]domain.AdminClusterListItem, error)
+	ListClusterEvents(ctx context.Context, clusterID domain.ClusterID) ([]domain.Event, error)
+}
+
+type adminPromptsUseCase interface {
+	ListPrompts(ctx context.Context) ([]domain.Prompt, error)
+	GetPrompt(ctx context.Context, id domain.PromptID) (domain.Prompt, error)
+	UpdatePrompt(ctx context.Context, id domain.PromptID, update domain.PromptUpdate) (domain.Prompt, error)
+}
+
 type adminTaskItem struct {
 	ID               string     `json:"id"`
 	UserID           string     `json:"userId"`

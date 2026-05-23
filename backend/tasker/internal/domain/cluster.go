@@ -63,3 +63,15 @@ type ClusterGenerationDiagnostic struct {
 	CreatedAt          time.Time
 	UpdatedAt          time.Time
 }
+
+type AdminClusterListItem struct {
+	ClusterID         ClusterID
+	UserID            UserID
+	Status            ClusterStatus
+	EventCount        int
+	GenerationOutcome *ClusterGenerationOutcome
+	GenerationReason  *string
+	TaskID            *TaskID
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+}
