@@ -195,6 +195,7 @@ export interface AdminClusterEventItem {
   source: string;
   occurredAt: string;
   context: string;
+  similarity: number;
 }
 
 interface AdminClusterEventsResponse {

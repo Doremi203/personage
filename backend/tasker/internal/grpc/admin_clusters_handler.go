@@ -27,6 +27,7 @@ type adminClusterEventItem struct {
 	Source     string    `json:"source"`
 	OccurredAt time.Time `json:"occurredAt"`
 	Context    string    `json:"context"`
+	Similarity float64   `json:"similarity"`
 }
 
 func clusterToAdminItem(c domain.AdminClusterListItem) adminClusterListItem {
@@ -56,6 +57,7 @@ func eventToAdminItem(e domain.Event) adminClusterEventItem {
 		Source:     e.Source.String(),
 		OccurredAt: e.OccurredAt,
 		Context:    string(e.Context),
+		Similarity: e.Similarity,
 	}
 }
 

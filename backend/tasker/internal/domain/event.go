@@ -134,6 +134,7 @@ type Event struct {
 	Context    NormalizedEventContext
 	OccurredAt time.Time
 	ClusterID  ClusterID
+	Similarity float64
 }
 
 type EventWithEmbedding struct {

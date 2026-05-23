@@ -34,6 +34,11 @@ function formatDateTime(iso?: string): string {
   return d.toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' });
 }
 
+function formatSimilarity(value: number): string {
+  if (!Number.isFinite(value)) return '—';
+  return `${(value * 100).toFixed(1)}%`;
+}
+
 export function AdminClusterDetailSheet({
   userId,
   clusterId,
@@ -253,6 +258,19 @@ export function AdminClusterDetailSheet({
                     }}
                   >
                     {event.source}
+                  </span>
+                  <span
+                    title="Сходство с центроидом кластера в момент добавления"
+                    style={{
+                      fontSize: 11,
+                      padding: '3px 8px',
+                      borderRadius: 999,
+                      background: event.similarity >= 0.8 ? T.okFill : T.subtle,
+                      color: event.similarity >= 0.8 ? T.ok : T.ink2,
+                      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+                    }}
+                  >
+                    sim {formatSimilarity(event.similarity)}
                   </span>
                   <span style={{ fontSize: 12, color: T.ink3 }}>
                     {formatDateTime(event.occurredAt)}
