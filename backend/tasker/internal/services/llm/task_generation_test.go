@@ -87,7 +87,7 @@ func TestGenerateTaskRoundsStartTimeToSlot(t *testing.T) {
 			}}
 
 			service := NewTaskGenerationService(chatModel, log.Stub{}, stubPromptProvider{}, moscow)
-			task, err := service.GenerateTask(t.Context(), []domain.Event{{ID: "event-1", Context: "Missed call from a friend."}})
+			task, err := service.GenerateTask(t.Context(), []domain.Event{{ID: "event-1", Context: "Missed call from a friend."}}, domain.UserProfile{})
 			require.NoError(t, err)
 			require.NotNil(t, task.StartTime)
 			assert.Equal(t, tt.want, task.StartTime.UTC().Format(time.RFC3339))
