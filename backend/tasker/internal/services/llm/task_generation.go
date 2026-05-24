@@ -118,9 +118,16 @@ func (s *taskGenerationService) parseResponse(responseText string, _ []domain.Ev
 	if err != nil {
 		return domain.GeneratedTask{}, err
 	}
-	task.StartTime = startTime
+	task.StartTime = roundToTimeSlot(startTime)
 
 	return task, nil
+}
+
+func roundToTimeSlot(t *time.Time) *time.Time {
+	if t == nil {
+		return nil
+	}
+	return new(t.Round(domain.TimeSlotSize))
 }
 
 func userIDFromEvents(events []domain.Event) string {

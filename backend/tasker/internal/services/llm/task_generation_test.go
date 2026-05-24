@@ -57,6 +57,57 @@ func TestGenerateTaskRetriesInvalidModelOutput(t *testing.T) {
 	}
 }
 
+func TestGenerateTaskRoundsStartTimeToSlot(t *testing.T) {
+	moscow, err := time.LoadLocation("Europe/Moscow")
+	require.NoError(t, err)
+
+	tests := []struct {
+		name      string
+		startTime string
+		want      string
+	}{
+		{name: "1 min past slot rounds down", startTime: "2026-05-23T19:16:00", want: "2026-05-23T16:15:00Z"},
+		{name: "7 min past slot rounds down", startTime: "2026-05-23T19:22:00", want: "2026-05-23T16:15:00Z"},
+		{name: "8 min past slot rounds up", startTime: "2026-05-23T19:23:00", want: "2026-05-23T16:30:00Z"},
+		{name: "already aligned stays", startTime: "2026-05-23T19:15:00", want: "2026-05-23T16:15:00Z"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			chatModel := &stubChatModel{results: []stubChatModelResult{
+				{message: &schema.Message{Content: `{
+					"title": "Call back",
+					"description": "Return the missed call.",
+					"duration_minutes": 30,
+					"priority": 5,
+					"deadline": null,
+					"start_time": "` + tt.startTime + `",
+					"category": "personal"
+				}`}},
+			}}
+
+			service := NewTaskGenerationService(chatModel, log.Stub{}, stubPromptProvider{}, moscow)
+			task, err := service.GenerateTask(t.Context(), []domain.Event{{ID: "event-1", Context: "Missed call from a friend."}})
+			require.NoError(t, err)
+			require.NotNil(t, task.StartTime)
+			assert.Equal(t, tt.want, task.StartTime.UTC().Format(time.RFC3339))
+		})
+	}
+}
+
+func TestRoundToTimeSlot(t *testing.T) {
+	t.Run("nil stays nil", func(t *testing.T) {
+		assert.Nil(t, roundToTimeSlot(nil))
+	})
+
+	t.Run("rounds to nearest 15 min slot", func(t *testing.T) {
+		in := time.Date(2026, 5, 23, 19, 16, 0, 0, time.UTC)
+		got := roundToTimeSlot(&in)
+		require.NotNil(t, got)
+		assert.Equal(t, "2026-05-23T19:15:00Z", got.UTC().Format(time.RFC3339))
+	})
+}
+
 func TestParseOptionalTimestamp(t *testing.T) {
 	moscow, err := time.LoadLocation("Europe/Moscow")
 	require.NoError(t, err)
