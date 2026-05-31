@@ -8,6 +8,7 @@ import (
 	"github.com/Doremi203/personage/backend/libs/go/postgres"
 	"github.com/Doremi203/personage/backend/tasker/internal/domain"
 	"github.com/google/uuid"
+	"github.com/pgvector/pgvector-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -35,6 +36,33 @@ func newCluster(t *testing.T, userID domain.UserID, status domain.ClusterStatus,
 
 func fixedClock(t time.Time) func() time.Time {
 	return func() time.Time { return t }
+}
+
+func insertEvent(
+	t *testing.T,
+	ctx context.Context,
+	db postgres.Client,
+	userID domain.UserID,
+	clusterID domain.ClusterID,
+	occurredAt time.Time,
+) {
+	t.Helper()
+	_, err := db.Exec(ctx, `
+		INSERT INTO events (
+			event_id, user_id, source, occurred_at, context, embedding, cluster_id, similarity, created_at
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+	`,
+		uuid.NewString(),
+		userID,
+		"gmail",
+		occurredAt,
+		"{}",
+		pgvector.NewVector(makeEmbedding(1)),
+		clusterID,
+		1.0,
+		occurredAt,
+	)
+	require.NoError(t, err)
 }
 
 func Test_repo_UpsertCluster(t *testing.T) {
@@ -260,6 +288,35 @@ func Test_repo_RecoverStaleClusters(t *testing.T) {
 			assert.Equal(t, domain.ClusterStatusOpen, byID[stale.ID])
 			assert.Equal(t, domain.ClusterStatusProcessing, byID[fresh.ID])
 			assert.Equal(t, domain.ClusterStatusOpen, byID[open.ID])
+		},
+	)
+}
+
+func Test_repo_AdminClusterEventCountReflectsActualEvents(t *testing.T) {
+	userA := domain.UserID(uuid.NewString())
+
+	tester.Run(t, "admin count matches real event rows, not denormalized column", nil, 10*time.Second,
+		func(t *testing.T, ctx context.Context, db postgres.Client) {
+			now := time.Date(2026, 4, 26, 12, 0, 0, 0, time.UTC)
+			r := NewRepo(db, fixedClock(now))
+
+			// Denormalized event_count is intentionally inflated to 3, mimicking a
+			// cluster whose count drifted above its real events (e.g. reprocessing).
+			c := newCluster(t, userA, domain.ClusterStatusOpen, 3, now)
+			require.NoError(t, r.UpsertCluster(ctx, c))
+
+			// Only 2 real events actually belong to the cluster.
+			insertEvent(t, ctx, db, userA, c.ID, now)
+			insertEvent(t, ctx, db, userA, c.ID, now.Add(time.Minute))
+
+			got, err := r.GetAdminClusterByID(ctx, c.ID)
+			require.NoError(t, err)
+			assert.Equal(t, 2, got.EventCount)
+
+			list, err := r.ListAdminClustersByUserID(ctx, userA, 10)
+			require.NoError(t, err)
+			require.Len(t, list, 1)
+			assert.Equal(t, 2, list[0].EventCount)
 		},
 	)
 }

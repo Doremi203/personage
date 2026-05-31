@@ -258,12 +258,16 @@ func (r *repo) ListAdminClustersByUserID(
 	userID domain.UserID,
 	limit int,
 ) ([]domain.AdminClusterListItem, error) {
+	// clusters.event_count is a write-through counter that can drift above the
+	// real number of event rows (events are re-counted on reprocessing and can be
+	// moved between clusters without decrementing the source), so the admin view
+	// counts live event rows to stay consistent with the events it actually lists.
 	query := `
 		SELECT
 			c.cluster_id,
 			c.user_id,
 			c.status,
-			c.event_count,
+			(SELECT COUNT(*) FROM events e WHERE e.cluster_id = c.cluster_id) AS event_count,
 			c.generation_outcome,
 			c.generation_reason,
 			t.task_id,
@@ -294,12 +298,14 @@ func (r *repo) GetAdminClusterByID(
 	ctx context.Context,
 	clusterID domain.ClusterID,
 ) (domain.AdminClusterListItem, error) {
+	// See ListAdminClustersByUserID: count live event rows rather than the
+	// drift-prone denormalized clusters.event_count column.
 	query := `
 		SELECT
 			c.cluster_id,
 			c.user_id,
 			c.status,
-			c.event_count,
+			(SELECT COUNT(*) FROM events e WHERE e.cluster_id = c.cluster_id) AS event_count,
 			c.generation_outcome,
 			c.generation_reason,
 			t.task_id,
