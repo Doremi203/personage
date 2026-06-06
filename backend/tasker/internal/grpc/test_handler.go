@@ -15,21 +15,20 @@ type testTaskLister interface {
 }
 
 type testListTaskItem struct {
-	ID               string     `json:"id"`
-	UserID           string     `json:"user_id"`
-	ClusterID        *string    `json:"cluster_id,omitzero"`
-	Title            string     `json:"title"`
-	Description      string     `json:"description"`
-	DurationMinutes  int        `json:"duration_minutes"`
-	Priority         int        `json:"priority"`
-	Deadline         *time.Time `json:"deadline,omitzero"`
-	StartTime        *time.Time `json:"start_time,omitzero"`
-	EndTime          *time.Time `json:"end_time,omitzero"`
-	Status           string     `json:"status"`
-	Category         string     `json:"category"`
-	EvidenceEventIDs []string   `json:"evidence_event_ids,omitzero"`
-	CreatedAt        time.Time  `json:"created_at"`
-	UpdatedAt        time.Time  `json:"updated_at"`
+	ID              string     `json:"id"`
+	UserID          string     `json:"user_id"`
+	ClusterID       *string    `json:"cluster_id,omitzero"`
+	Title           string     `json:"title"`
+	Description     string     `json:"description"`
+	DurationMinutes int        `json:"duration_minutes"`
+	Priority        int        `json:"priority"`
+	Deadline        *time.Time `json:"deadline,omitzero"`
+	StartTime       *time.Time `json:"start_time,omitzero"`
+	EndTime         *time.Time `json:"end_time,omitzero"`
+	Status          string     `json:"status"`
+	Category        string     `json:"category"`
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
 }
 
 type testClusterGenerationDiagnosticsLister interface {
@@ -65,15 +64,6 @@ func generationOutcomeStr(outcome *domain.ClusterGenerationOutcome) *string {
 	return &s
 }
 
-func evidenceEventIDs(ids []domain.EventID) []string {
-	values := make([]string, len(ids))
-	for i, id := range ids {
-		values[i] = id.String()
-	}
-
-	return values
-}
-
 func NewTestListTasksHandler(repo testTaskLister) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
@@ -96,21 +86,20 @@ func NewTestListTasksHandler(repo testTaskLister) http.HandlerFunc {
 		items := make([]testListTaskItem, 0, len(tasks))
 		for _, t := range tasks {
 			items = append(items, testListTaskItem{
-				ID:               t.ID.String(),
-				UserID:           t.UserID.String(),
-				ClusterID:        clusterIDStr(t.ClusterID),
-				Title:            t.Title,
-				Description:      t.Description,
-				DurationMinutes:  int(t.Duration.Minutes()),
-				Priority:         t.Priority,
-				Deadline:         t.Deadline,
-				StartTime:        t.StartTime,
-				EndTime:          t.EndTime,
-				Status:           string(t.Status),
-				Category:         string(t.Category),
-				EvidenceEventIDs: evidenceEventIDs(t.EvidenceEventIDs),
-				CreatedAt:        t.CreatedAt,
-				UpdatedAt:        t.UpdatedAt,
+				ID:              t.ID.String(),
+				UserID:          t.UserID.String(),
+				ClusterID:       clusterIDStr(t.ClusterID),
+				Title:           t.Title,
+				Description:     t.Description,
+				DurationMinutes: int(t.Duration.Minutes()),
+				Priority:        t.Priority,
+				Deadline:        t.Deadline,
+				StartTime:       t.StartTime,
+				EndTime:         t.EndTime,
+				Status:          string(t.Status),
+				Category:        string(t.Category),
+				CreatedAt:       t.CreatedAt,
+				UpdatedAt:       t.UpdatedAt,
 			})
 		}
 

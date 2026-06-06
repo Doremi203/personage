@@ -253,6 +253,7 @@ func main() {
 			actionabilityService,
 			taskGenerationService,
 			userProfileSvc,
+			embeddingService,
 			postgresTxProvider,
 			app.Log,
 			generationSettingsService,

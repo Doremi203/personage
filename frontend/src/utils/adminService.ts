@@ -79,7 +79,6 @@ export interface AdminTaskItem {
   endTime?: string;
   status: string;
   category: string;
-  evidenceEventIds?: string[];
   isApproved: boolean;
   createdAt: string;
   updatedAt: string;

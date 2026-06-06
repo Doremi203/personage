@@ -173,17 +173,16 @@ loop:
 
 func taskSnapshot(t domain.Task) report.TaskSnapshot {
 	snap := report.TaskSnapshot{
-		ID:               t.ID.String(),
-		UserID:           t.UserID.String(),
-		Title:            t.Title,
-		Description:      t.Description,
-		DurationMinutes:  int(t.Duration.Minutes()),
-		Priority:         t.Priority,
-		Deadline:         t.Deadline,
-		StartTime:        t.StartTime,
-		EndTime:          t.EndTime,
-		Category:         string(t.Category),
-		EvidenceEventIDs: eventIDsToStrings(t.EvidenceEventIDs),
+		ID:              t.ID.String(),
+		UserID:          t.UserID.String(),
+		Title:           t.Title,
+		Description:     t.Description,
+		DurationMinutes: int(t.Duration.Minutes()),
+		Priority:        t.Priority,
+		Deadline:        t.Deadline,
+		StartTime:       t.StartTime,
+		EndTime:         t.EndTime,
+		Category:        string(t.Category),
 	}
 	if t.ClusterID != nil {
 		snap.ClusterID = new(t.ClusterID.String())
@@ -436,13 +435,4 @@ func clusterOutcomeToString(outcome *domain.ClusterGenerationOutcome) *string {
 
 	value := string(*outcome)
 	return &value
-}
-
-func eventIDsToStrings(ids []domain.EventID) []string {
-	values := make([]string, len(ids))
-	for i, id := range ids {
-		values[i] = id.String()
-	}
-
-	return values
 }

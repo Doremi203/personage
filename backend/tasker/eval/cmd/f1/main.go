@@ -187,21 +187,20 @@ type taskerClient struct {
 }
 
 type testListItem struct {
-	ID               string     `json:"id"`
-	UserID           string     `json:"user_id"`
-	ClusterID        *string    `json:"cluster_id,omitzero"`
-	Title            string     `json:"title"`
-	Description      string     `json:"description"`
-	DurationMinutes  int        `json:"duration_minutes"`
-	Priority         int        `json:"priority"`
-	Deadline         *time.Time `json:"deadline,omitzero"`
-	StartTime        *time.Time `json:"start_time,omitzero"`
-	EndTime          *time.Time `json:"end_time,omitzero"`
-	Status           string     `json:"status"`
-	Category         string     `json:"category"`
-	EvidenceEventIDs []string   `json:"evidence_event_ids,omitzero"`
-	CreatedAt        time.Time  `json:"created_at"`
-	UpdatedAt        time.Time  `json:"updated_at"`
+	ID              string     `json:"id"`
+	UserID          string     `json:"user_id"`
+	ClusterID       *string    `json:"cluster_id,omitzero"`
+	Title           string     `json:"title"`
+	Description     string     `json:"description"`
+	DurationMinutes int        `json:"duration_minutes"`
+	Priority        int        `json:"priority"`
+	Deadline        *time.Time `json:"deadline,omitzero"`
+	StartTime       *time.Time `json:"start_time,omitzero"`
+	EndTime         *time.Time `json:"end_time,omitzero"`
+	Status          string     `json:"status"`
+	Category        string     `json:"category"`
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
 }
 
 type testClusterDiagnosticItem struct {
@@ -231,15 +230,6 @@ func parseClusterOutcome(s *string) *domain.ClusterGenerationOutcome {
 
 	value := domain.ClusterGenerationOutcome(*s)
 	return &value
-}
-
-func parseEvidenceEventIDs(ids []string) []domain.EventID {
-	parsed := make([]domain.EventID, len(ids))
-	for i, id := range ids {
-		parsed[i] = domain.EventID(id)
-	}
-
-	return parsed
 }
 
 func (c *taskerClient) ListTasks(ctx context.Context, userID string) ([]domain.Task, error) {
@@ -277,21 +267,20 @@ func (c *taskerClient) ListTasks(ctx context.Context, userID string) ([]domain.T
 	tasks := make([]domain.Task, len(items))
 	for i, it := range items {
 		tasks[i] = domain.Task{
-			ID:               domain.TaskID(it.ID),
-			UserID:           domain.UserID(it.UserID),
-			ClusterID:        parseClusterID(it.ClusterID),
-			Title:            it.Title,
-			Description:      it.Description,
-			Duration:         time.Duration(it.DurationMinutes) * time.Minute,
-			Priority:         it.Priority,
-			Deadline:         it.Deadline,
-			StartTime:        it.StartTime,
-			EndTime:          it.EndTime,
-			Status:           domain.TaskStatus(it.Status),
-			Category:         domain.TaskCategory(it.Category),
-			EvidenceEventIDs: parseEvidenceEventIDs(it.EvidenceEventIDs),
-			CreatedAt:        it.CreatedAt,
-			UpdatedAt:        it.UpdatedAt,
+			ID:          domain.TaskID(it.ID),
+			UserID:      domain.UserID(it.UserID),
+			ClusterID:   parseClusterID(it.ClusterID),
+			Title:       it.Title,
+			Description: it.Description,
+			Duration:    time.Duration(it.DurationMinutes) * time.Minute,
+			Priority:    it.Priority,
+			Deadline:    it.Deadline,
+			StartTime:   it.StartTime,
+			EndTime:     it.EndTime,
+			Status:      domain.TaskStatus(it.Status),
+			Category:    domain.TaskCategory(it.Category),
+			CreatedAt:   it.CreatedAt,
+			UpdatedAt:   it.UpdatedAt,
 		}
 	}
 	return tasks, nil

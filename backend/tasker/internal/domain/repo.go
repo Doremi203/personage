@@ -74,4 +74,8 @@ type TaskRepo interface {
 	UpdateTask(ctx context.Context, taskID TaskID, userID UserID, update TaskUpdate) (Task, error)
 	DeleteTask(ctx context.Context, taskID TaskID) error
 	ListTasks(ctx context.Context, filter TaskFilter, pagination Pagination) ([]Task, int, error)
+	// FindMostSimilarActiveTask returns the nearest active (status <> 'completed') task
+	// of the user by cosine similarity to the given embedding. found is false when the
+	// user has no active task with an embedding.
+	FindMostSimilarActiveTask(ctx context.Context, userID UserID, embedding []float32) (TaskID, float64, bool, error)
 }

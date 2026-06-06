@@ -22,6 +22,7 @@ const (
 	ClusterGenerationOutcomeTaskGenerated ClusterGenerationOutcome = "task_generated"
 	ClusterGenerationOutcomeNonActionable ClusterGenerationOutcome = "non_actionable"
 	ClusterGenerationOutcomeEmpty         ClusterGenerationOutcome = "empty"
+	ClusterGenerationOutcomeDuplicate     ClusterGenerationOutcome = "duplicate"
 )
 
 type Cluster struct {

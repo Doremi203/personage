@@ -522,3 +522,95 @@ func Test_repo_ListTasks(t *testing.T) {
 		},
 	)
 }
+
+func unitEmbedding(idx int) []float32 {
+	v := make([]float32, 1536)
+	v[idx%1536] = 1
+	return v
+}
+
+func Test_repo_CreateTask_PersistsEmbedding(t *testing.T) {
+	userA := domain.UserID(uuid.NewString())
+
+	tester.Run(t, "embedding round-trips and dedup query finds it", nil, 15*time.Second,
+		func(t *testing.T, ctx context.Context, db postgres.Client) {
+			r := NewRepo(db)
+
+			task := newTask(t, userA)
+			task.Embedding = unitEmbedding(0)
+			require.NoError(t, r.CreateTask(ctx, task))
+
+			gotID, sim, found, err := r.FindMostSimilarActiveTask(ctx, userA, unitEmbedding(0))
+			require.NoError(t, err)
+			require.True(t, found)
+			assert.Equal(t, task.ID, gotID)
+			assert.InDelta(t, 1.0, sim, 1e-4)
+		},
+	)
+}
+
+func Test_repo_FindMostSimilarActiveTask(t *testing.T) {
+	userA := domain.UserID(uuid.NewString())
+	userB := domain.UserID(uuid.NewString())
+
+	tester.Run(t, "returns nearest active task", nil, 15*time.Second,
+		func(t *testing.T, ctx context.Context, db postgres.Client) {
+			r := NewRepo(db)
+
+			near := newTask(t, userA)
+			near.Embedding = unitEmbedding(0)
+			far := newTask(t, userA)
+			far.Embedding = unitEmbedding(1)
+			require.NoError(t, r.CreateTask(ctx, near))
+			require.NoError(t, r.CreateTask(ctx, far))
+
+			gotID, sim, found, err := r.FindMostSimilarActiveTask(ctx, userA, unitEmbedding(0))
+			require.NoError(t, err)
+			require.True(t, found)
+			assert.Equal(t, near.ID, gotID)
+			assert.Greater(t, sim, 0.9)
+		},
+	)
+
+	tester.Run(t, "excludes completed tasks", nil, 15*time.Second,
+		func(t *testing.T, ctx context.Context, db postgres.Client) {
+			r := NewRepo(db)
+
+			completed := newTask(t, userA)
+			completed.Status = domain.TaskStatusCompleted
+			completed.Embedding = unitEmbedding(0)
+			require.NoError(t, r.CreateTask(ctx, completed))
+
+			_, _, found, err := r.FindMostSimilarActiveTask(ctx, userA, unitEmbedding(0))
+			require.NoError(t, err)
+			assert.False(t, found)
+		},
+	)
+
+	tester.Run(t, "excludes tasks with NULL embedding", nil, 15*time.Second,
+		func(t *testing.T, ctx context.Context, db postgres.Client) {
+			r := NewRepo(db)
+
+			noEmbedding := newTask(t, userA)
+			require.NoError(t, r.CreateTask(ctx, noEmbedding))
+
+			_, _, found, err := r.FindMostSimilarActiveTask(ctx, userA, unitEmbedding(0))
+			require.NoError(t, err)
+			assert.False(t, found)
+		},
+	)
+
+	tester.Run(t, "ignores other users' tasks and returns found=false", nil, 15*time.Second,
+		func(t *testing.T, ctx context.Context, db postgres.Client) {
+			r := NewRepo(db)
+
+			other := newTask(t, userB)
+			other.Embedding = unitEmbedding(0)
+			require.NoError(t, r.CreateTask(ctx, other))
+
+			_, _, found, err := r.FindMostSimilarActiveTask(ctx, userA, unitEmbedding(0))
+			require.NoError(t, err)
+			assert.False(t, found)
+		},
+	)
+}
