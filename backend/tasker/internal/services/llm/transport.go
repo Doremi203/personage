@@ -40,6 +40,12 @@ func (t *loggingTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 		return nil, err
 	}
 
+	// Non-2xx already surfaces as a descriptive error with the body in the OpenAI
+	// client, so leave those responses untouched instead of buffering them here.
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		return resp, nil
+	}
+
 	body, readErr := io.ReadAll(resp.Body)
 	_ = resp.Body.Close()
 	if readErr != nil {
@@ -53,12 +59,6 @@ func (t *loggingTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 }
 
 func (t *loggingTransport) logIfNoUsableChoices(status int, body []byte) {
-	// Non-2xx already surfaces as a descriptive error with the body in the OpenAI
-	// client, so only 2xx responses can silently swallow the real failure.
-	if status < http.StatusOK || status >= http.StatusMultipleChoices {
-		return
-	}
-
 	var parsed struct {
 		Error   json.RawMessage   `json:"error"`
 		Choices []json.RawMessage `json:"choices"`
