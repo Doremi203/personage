@@ -1,0 +1,86 @@
+package settings
+
+import (
+	"context"
+	"sync"
+	"time"
+
+	"github.com/Doremi203/personage/backend/libs/go/errors"
+	"github.com/Doremi203/personage/backend/libs/go/log"
+	"github.com/Doremi203/personage/backend/tasker/internal/domain"
+)
+
+func NewService(
+	repo domain.GenerationSettingsRepo,
+	ttl time.Duration,
+	clock func() time.Time,
+	defaults domain.GenerationSettings,
+	logger log.Logger,
+) *Service {
+	return &Service{
+		repo:     repo,
+		ttl:      ttl,
+		clock:    clock,
+		defaults: defaults,
+		logger:   logger,
+	}
+}
+
+type Service struct {
+	repo     domain.GenerationSettingsRepo
+	ttl      time.Duration
+	clock    func() time.Time
+	defaults domain.GenerationSettings
+	logger   log.Logger
+
+	mu        sync.RWMutex
+	cached    domain.GenerationSettings
+	hasCached bool
+	expiresAt time.Time
+}
+
+func (s *Service) GenerationSettings(ctx context.Context) (domain.GenerationSettings, error) {
+	if value, ok := s.lookup(); ok {
+		return value, nil
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.hasCached && s.clock().Before(s.expiresAt) {
+		return s.cached, nil
+	}
+
+	value, err := s.repo.GetGenerationSettings(ctx)
+	if err != nil {
+		s.logger.Error(errors.WrapFail(err, "load generation settings, using fallback"))
+		if s.hasCached {
+			return s.cached, nil
+		}
+		return s.defaults, nil
+	}
+
+	s.cached = value
+	s.hasCached = true
+	s.expiresAt = s.clock().Add(s.ttl)
+	return value, nil
+}
+
+func (s *Service) Invalidate() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.hasCached = false
+}
+
+func (s *Service) lookup() (domain.GenerationSettings, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if !s.hasCached {
+		return domain.GenerationSettings{}, false
+	}
+	if !s.clock().Before(s.expiresAt) {
+		return domain.GenerationSettings{}, false
+	}
+	return s.cached, true
+}

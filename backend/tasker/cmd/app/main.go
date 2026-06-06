@@ -18,6 +18,7 @@ import (
 	"github.com/Doremi203/personage/backend/tasker/internal/handlers/sqs/event"
 	clusterpostgres "github.com/Doremi203/personage/backend/tasker/internal/repo/cluster/postgres"
 	eventpostgres "github.com/Doremi203/personage/backend/tasker/internal/repo/event/postgres"
+	generationsettingspostgres "github.com/Doremi203/personage/backend/tasker/internal/repo/generationsettings/postgres"
 	moderationpostgres "github.com/Doremi203/personage/backend/tasker/internal/repo/moderation/postgres"
 	pausepostgres "github.com/Doremi203/personage/backend/tasker/internal/repo/pause/postgres"
 	promptpostgres "github.com/Doremi203/personage/backend/tasker/internal/repo/prompt/postgres"
@@ -26,6 +27,7 @@ import (
 	"github.com/Doremi203/personage/backend/tasker/internal/services/llm"
 	"github.com/Doremi203/personage/backend/tasker/internal/services/notifications"
 	"github.com/Doremi203/personage/backend/tasker/internal/services/prompts"
+	"github.com/Doremi203/personage/backend/tasker/internal/services/settings"
 	"github.com/Doremi203/personage/backend/tasker/internal/services/userprofile"
 	"github.com/Doremi203/personage/backend/tasker/internal/usecase/admin"
 	"github.com/Doremi203/personage/backend/tasker/internal/usecase/clusterization"
@@ -97,8 +99,44 @@ func main() {
 		postgresPauseRepo := pausepostgres.NewRepo(dbClient, time.Now)
 		postgresModerationRepo := moderationpostgres.NewRepo(dbClient)
 		postgresPromptRepo := promptpostgres.NewRepo(dbClient, time.Now)
+		postgresGenerationSettingsRepo := generationsettingspostgres.NewRepo(dbClient, time.Now)
 
 		promptsService := prompts.NewService(postgresPromptRepo, 30*time.Second, time.Now)
+
+		type ClusterClosureConfig struct {
+			MaxEventCount     int
+			InactivityMinutes int
+			Interval          time.Duration
+			BatchSize         int
+		}
+
+		clusterClosureConfig := ClusterClosureConfig{
+			MaxEventCount:     5,
+			InactivityMinutes: 5,
+			Interval:          time.Second * 5,
+			BatchSize:         10,
+		}
+		err = app.Config.ReadSection(ctx, "cluster-closure", &clusterClosureConfig)
+		if err != nil {
+			app.Log.Infof("cluster-closure config not found, using defaults: %+v", clusterClosureConfig)
+		}
+
+		generationSettingsDefaults := domain.GenerationSettings{
+			MinSimilarity:             0.65,
+			ClosedSimilarityThreshold: 0.90,
+			TopK:                      5,
+			MaxEventCount:             clusterClosureConfig.MaxEventCount,
+			InactivityTimeout:         time.Duration(clusterClosureConfig.InactivityMinutes) * time.Minute,
+			BatchSize:                 clusterClosureConfig.BatchSize,
+		}
+
+		generationSettingsService := settings.NewService(
+			postgresGenerationSettingsRepo,
+			30*time.Second,
+			time.Now,
+			generationSettingsDefaults,
+			app.Log,
+		)
 
 		type LLMConfig struct {
 			ApiKey string
@@ -148,9 +186,7 @@ func main() {
 			postgresEventRepo,
 			postgresClusterRepo,
 			postgresPauseRepo,
-			0.65,
-			0.90,
-			5,
+			generationSettingsService,
 			time.Now,
 		)
 
@@ -209,24 +245,6 @@ func main() {
 			)
 		}
 
-		type ClusterClosureConfig struct {
-			MaxEventCount     int
-			InactivityMinutes int
-			Interval          time.Duration
-			BatchSize         int
-		}
-
-		clusterClosureConfig := ClusterClosureConfig{
-			MaxEventCount:     5,
-			InactivityMinutes: 5,
-			Interval:          time.Second * 5,
-			BatchSize:         10,
-		}
-		err = app.Config.ReadSection(ctx, "cluster-closure", &clusterClosureConfig)
-		if err != nil {
-			app.Log.Infof("cluster-closure config not found, using defaults: %+v", clusterClosureConfig)
-		}
-
 		taskGenerationUseCase := taskgeneration.NewUseCase(
 			postgresClusterRepo,
 			postgresEventRepo,
@@ -237,14 +255,12 @@ func main() {
 			userProfileSvc,
 			postgresTxProvider,
 			app.Log,
-			clusterClosureConfig.MaxEventCount,
-			time.Duration(clusterClosureConfig.InactivityMinutes)*time.Minute,
+			generationSettingsService,
 			time.Now,
 		)
 
 		clusterClosureWorker := clusterclosure.NewWorker(
 			taskGenerationUseCase,
-			clusterClosureConfig.BatchSize,
 			app.Log,
 		)
 
@@ -379,6 +395,8 @@ func main() {
 			postgresEventRepo,
 			postgresPromptRepo,
 			promptsService,
+			postgresGenerationSettingsRepo,
+			generationSettingsService,
 		)
 
 		app.AddHTTPHandler("GET /admin/users/{userId}/tasks", taskergrpc.NewAdminListTasksHandler(adminUseCase, adminConfig.ApiKey))
@@ -394,6 +412,8 @@ func main() {
 		app.AddHTTPHandler("GET /admin/prompts", taskergrpc.NewAdminListPromptsHandler(adminUseCase, adminConfig.ApiKey))
 		app.AddHTTPHandler("GET /admin/prompts/{promptId}", taskergrpc.NewAdminGetPromptHandler(adminUseCase, adminConfig.ApiKey))
 		app.AddHTTPHandler("PUT /admin/prompts/{promptId}", taskergrpc.NewAdminUpdatePromptHandler(adminUseCase, adminConfig.ApiKey))
+		app.AddHTTPHandler("GET /admin/generation-settings", taskergrpc.NewAdminGetGenerationSettingsHandler(adminUseCase, adminConfig.ApiKey))
+		app.AddHTTPHandler("PUT /admin/generation-settings", taskergrpc.NewAdminUpdateGenerationSettingsHandler(adminUseCase, adminConfig.ApiKey))
 
 		if isTestEnv {
 			app.AddGRPCUnaryInterceptor(

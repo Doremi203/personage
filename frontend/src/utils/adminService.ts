@@ -288,6 +288,45 @@ export async function updateAdminPrompt(
   return data.prompt;
 }
 
+export interface AdminGenerationSettings {
+  minSimilarity: number;
+  closedSimilarityThreshold: number;
+  topK: number;
+  maxEventCount: number;
+  inactivityMinutes: number;
+  batchSize: number;
+  updatedAt: string;
+}
+
+export type AdminGenerationSettingsUpdate = Partial<
+  Omit<AdminGenerationSettings, 'updatedAt'>
+>;
+
+interface AdminGenerationSettingsResponse {
+  settings: AdminGenerationSettings;
+}
+
+export async function getAdminGenerationSettings(): Promise<AdminGenerationSettings> {
+  const data = await fetchAdmin<AdminGenerationSettingsResponse>(
+    `${TASKER_API_URL}/admin/generation-settings`,
+  );
+  return data.settings;
+}
+
+export async function updateAdminGenerationSettings(
+  patch: AdminGenerationSettingsUpdate,
+): Promise<AdminGenerationSettings> {
+  const data = await fetchAdmin<AdminGenerationSettingsResponse>(
+    `${TASKER_API_URL}/admin/generation-settings`,
+    {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch),
+    },
+  );
+  return data.settings;
+}
+
 export interface AdminPushPayload {
   title: string;
   body: string;

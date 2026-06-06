@@ -73,6 +73,8 @@ func TestUseCase_ListTasks(t *testing.T) {
 				mock_domain.NewMockEventRepo(ctrl),
 				mock_domain.NewMockPromptRepo(ctrl),
 				noopPromptCache{},
+				mock_domain.NewMockGenerationSettingsRepo(ctrl),
+				noopSettingsCache{},
 			)
 			got, err := uc.ListTasks(t.Context(), testUserID)
 
@@ -199,6 +201,8 @@ func TestUseCase_Approve(t *testing.T) {
 				mock_domain.NewMockEventRepo(ctrl),
 				mock_domain.NewMockPromptRepo(ctrl),
 				noopPromptCache{},
+				mock_domain.NewMockGenerationSettingsRepo(ctrl),
+				noopSettingsCache{},
 			)
 			got, err := uc.Approve(t.Context(), testTaskID, testUserID)
 
@@ -273,10 +277,86 @@ func TestUseCase_SetUserModeration(t *testing.T) {
 				mock_domain.NewMockEventRepo(ctrl),
 				mock_domain.NewMockPromptRepo(ctrl),
 				noopPromptCache{},
+				mock_domain.NewMockGenerationSettingsRepo(ctrl),
+				noopSettingsCache{},
 			)
 			err := uc.SetUserModeration(t.Context(), testUserID, tt.args.enabled)
 
 			tt.wantErr(t, err)
+		})
+	}
+}
+
+type recordingSettingsCache struct {
+	invalidated int
+}
+
+func (c *recordingSettingsCache) Invalidate() { c.invalidated++ }
+
+func TestUseCase_UpdateGenerationSettings(t *testing.T) {
+	updated := domain.GenerationSettings{MinSimilarity: 0.7, TopK: 5}
+
+	tests := []struct {
+		name            string
+		update          domain.GenerationSettingsUpdate
+		setup           func(repo *mock_domain.MockGenerationSettingsRepo)
+		wantErr         require.ErrorAssertionFunc
+		wantInvalidated int
+	}{
+		{
+			name:   "valid update invalidates cache",
+			update: domain.GenerationSettingsUpdate{MinSimilarity: new(0.7)},
+			setup: func(repo *mock_domain.MockGenerationSettingsRepo) {
+				repo.EXPECT().
+					UpdateGenerationSettings(gomock.Any(), gomock.Any()).
+					Return(updated, nil)
+			},
+			wantErr:         require.NoError,
+			wantInvalidated: 1,
+		},
+		{
+			name:   "invalid update rejected before repo call",
+			update: domain.GenerationSettingsUpdate{MinSimilarity: new(1.5)},
+			setup:  func(*mock_domain.MockGenerationSettingsRepo) {},
+			wantErr: func(t require.TestingT, err error, _ ...any) {
+				require.ErrorIs(t, err, domain.ErrInvalidGenerationSettings)
+			},
+			wantInvalidated: 0,
+		},
+		{
+			name:   "repo error wraps without invalidating",
+			update: domain.GenerationSettingsUpdate{TopK: new(3)},
+			setup: func(repo *mock_domain.MockGenerationSettingsRepo) {
+				repo.EXPECT().
+					UpdateGenerationSettings(gomock.Any(), gomock.Any()).
+					Return(domain.GenerationSettings{}, assert.AnError)
+			},
+			wantErr:         require.Error,
+			wantInvalidated: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			settingsRepo := mock_domain.NewMockGenerationSettingsRepo(ctrl)
+			cache := &recordingSettingsCache{}
+			tt.setup(settingsRepo)
+
+			uc := admin.NewUseCase(
+				mock_domain.NewMockTaskRepo(ctrl),
+				mock_domain.NewMockManualModerationRepo(ctrl),
+				mock_domain.NewMockClusterRepo(ctrl),
+				mock_domain.NewMockEventRepo(ctrl),
+				mock_domain.NewMockPromptRepo(ctrl),
+				noopPromptCache{},
+				settingsRepo,
+				cache,
+			)
+
+			_, err := uc.UpdateGenerationSettings(t.Context(), tt.update)
+			tt.wantErr(t, err)
+			assert.Equal(t, tt.wantInvalidated, cache.invalidated)
 		})
 	}
 }
@@ -329,6 +409,8 @@ func TestUseCase_ListModeratedUsers(t *testing.T) {
 				mock_domain.NewMockEventRepo(ctrl),
 				mock_domain.NewMockPromptRepo(ctrl),
 				noopPromptCache{},
+				mock_domain.NewMockGenerationSettingsRepo(ctrl),
+				noopSettingsCache{},
 			)
 			got, err := uc.ListModeratedUsers(t.Context())
 

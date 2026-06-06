@@ -21,6 +21,7 @@ func TestUseCase_ProcessEvent(t *testing.T) {
 		eventsRepo  *mock_domain.MockEventRepo
 		clusterRepo *mock_domain.MockClusterRepo
 		pauseRepo   *mock_domain.MockProcessingPauseRepo
+		settings    *mock_domain.MockGenerationSettingsProvider
 		txProvider  *stubTxProvider
 	}
 	type args struct {
@@ -32,6 +33,15 @@ func TestUseCase_ProcessEvent(t *testing.T) {
 		closedSimilarityThreshold = 0.9
 		topK                      = 5
 	)
+
+	settingsValue := domain.GenerationSettings{
+		MinSimilarity:             minSimilarity,
+		ClosedSimilarityThreshold: closedSimilarityThreshold,
+		TopK:                      topK,
+		MaxEventCount:             5,
+		InactivityTimeout:         time.Minute,
+		BatchSize:                 10,
+	}
 
 	fixedNow := time.Date(2025, 1, 2, 3, 4, 5, 0, time.UTC)
 	clock := func() time.Time { return fixedNow }
@@ -642,8 +652,13 @@ func TestUseCase_ProcessEvent(t *testing.T) {
 				eventsRepo:  mock_domain.NewMockEventRepo(ctrl),
 				clusterRepo: mock_domain.NewMockClusterRepo(ctrl),
 				pauseRepo:   mock_domain.NewMockProcessingPauseRepo(ctrl),
+				settings:    mock_domain.NewMockGenerationSettingsProvider(ctrl),
 				txProvider:  &stubTxProvider{},
 			}
+			m.settings.EXPECT().
+				GenerationSettings(gomock.Any()).
+				Return(settingsValue, nil).
+				AnyTimes()
 			tt.setup(m, tt.args)
 
 			uc := clusterization.NewUseCase(
@@ -653,9 +668,7 @@ func TestUseCase_ProcessEvent(t *testing.T) {
 				m.eventsRepo,
 				m.clusterRepo,
 				m.pauseRepo,
-				minSimilarity,
-				closedSimilarityThreshold,
-				topK,
+				m.settings,
 				clock,
 			)
 
@@ -666,6 +679,86 @@ func TestUseCase_ProcessEvent(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestUseCase_ProcessEvent_HigherMinSimilarityStartsNewCluster(t *testing.T) {
+	fixedNow := time.Date(2025, 1, 2, 3, 4, 5, 0, time.UTC)
+	clock := func() time.Time { return fixedNow }
+	embedding := []float32{0.1, 0.2, 0.3}
+	event := domain.Event{
+		ID:      domain.EventID("e1"),
+		UserID:  domain.UserID("u1"),
+		Context: domain.NormalizedEventContext("text"),
+	}
+	existing := domain.Cluster{
+		ID:         domain.ClusterID("existing"),
+		UserID:     event.UserID,
+		Centroid:   embedding,
+		EventCount: 2,
+		Status:     domain.ClusterStatusOpen,
+		CreatedAt:  fixedNow.Add(-time.Hour),
+		UpdatedAt:  fixedNow.Add(-time.Hour),
+	}
+
+	run := func(t *testing.T, minSimilarity float64, expectAttach bool) {
+		ctrl := gomock.NewController(t)
+		embedder := mock_domain.NewMockEmbeddingService(ctrl)
+		eventsRepo := mock_domain.NewMockEventRepo(ctrl)
+		clusterRepo := mock_domain.NewMockClusterRepo(ctrl)
+		pauseRepo := mock_domain.NewMockProcessingPauseRepo(ctrl)
+		settingsProvider := mock_domain.NewMockGenerationSettingsProvider(ctrl)
+
+		settingsProvider.EXPECT().
+			GenerationSettings(gomock.Any()).
+			Return(domain.GenerationSettings{
+				MinSimilarity:             minSimilarity,
+				ClosedSimilarityThreshold: 0.9,
+				TopK:                      5,
+			}, nil)
+		pauseRepo.EXPECT().IsPaused(gomock.Any(), event.UserID).Return(false, nil)
+		embedder.EXPECT().
+			GenerateEmbeddings(gomock.Any(), []string{string(event.Context)}).
+			Return([][]float32{embedding}, nil)
+		clusterRepo.EXPECT().
+			FindSimilarClosedClusters(gomock.Any(), event.UserID, embedding, 5).
+			Return(nil, nil)
+		clusterRepo.EXPECT().
+			FindSimilarClusters(gomock.Any(), event.UserID, embedding, 5).
+			Return([]domain.ClusterWithSimilarity{{Cluster: existing, Similarity: 0.7}}, nil)
+		clusterRepo.EXPECT().
+			UpsertCluster(gomock.Any(), gomock.AssignableToTypeOf(domain.Cluster{})).
+			DoAndReturn(func(_ context.Context, c domain.Cluster) error {
+				if expectAttach {
+					assert.Equal(t, domain.ClusterID("existing"), c.ID)
+				} else {
+					assert.NotEqual(t, domain.ClusterID("existing"), c.ID)
+				}
+				return nil
+			})
+		eventsRepo.EXPECT().
+			UpsertEvent(gomock.Any(), gomock.AssignableToTypeOf(domain.EventWithEmbedding{})).
+			Return(nil)
+
+		uc := clusterization.NewUseCase(
+			log.Stub{},
+			&stubTxProvider{},
+			embedder,
+			eventsRepo,
+			clusterRepo,
+			pauseRepo,
+			settingsProvider,
+			clock,
+		)
+
+		require.NoError(t, uc.ProcessEvent(t.Context(), event))
+	}
+
+	t.Run("attaches at min_similarity 0.65", func(t *testing.T) {
+		run(t, 0.65, true)
+	})
+	t.Run("starts new cluster at min_similarity 0.9", func(t *testing.T) {
+		run(t, 0.9, false)
+	})
 }
 
 type stubTxProvider struct{ err error }

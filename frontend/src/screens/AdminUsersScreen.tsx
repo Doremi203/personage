@@ -11,9 +11,14 @@ import { SANS, SERIF, T } from '../mobile/tokens';
 interface AdminUsersScreenProps {
   onSelect: (userId: string) => void;
   onOpenPrompts: () => void;
+  onOpenGenerationSettings: () => void;
 }
 
-export function AdminUsersScreen({ onSelect, onOpenPrompts }: AdminUsersScreenProps) {
+export function AdminUsersScreen({
+  onSelect,
+  onOpenPrompts,
+  onOpenGenerationSettings,
+}: AdminUsersScreenProps) {
   const [users, setUsers] = useState<AdminUserSummary[]>([]);
   const [moderated, setModerated] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -101,6 +106,22 @@ export function AdminUsersScreen({ onSelect, onOpenPrompts }: AdminUsersScreenPr
               }}
             >
               Промпты
+            </button>
+            <button
+              type="button"
+              onClick={onOpenGenerationSettings}
+              style={{
+                padding: '8px 14px',
+                borderRadius: 10,
+                border: `0.5px solid ${T.hairline}`,
+                background: T.surface,
+                color: T.ink,
+                fontSize: 13,
+                cursor: 'pointer',
+                fontFamily: SANS,
+              }}
+            >
+              Настройки генерации
             </button>
             <button
               type="button"

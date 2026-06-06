@@ -16,6 +16,10 @@ type PromptCacheInvalidator interface {
 	Invalidate(id domain.PromptID)
 }
 
+type GenerationSettingsCacheInvalidator interface {
+	Invalidate()
+}
+
 func NewUseCase(
 	taskRepo domain.TaskRepo,
 	moderationRepo domain.ManualModerationRepo,
@@ -23,6 +27,8 @@ func NewUseCase(
 	eventRepo domain.EventRepo,
 	promptRepo domain.PromptRepo,
 	promptCache PromptCacheInvalidator,
+	settingsRepo domain.GenerationSettingsRepo,
+	settingsCache GenerationSettingsCacheInvalidator,
 ) *UseCase {
 	return &UseCase{
 		taskRepo:       taskRepo,
@@ -31,6 +37,8 @@ func NewUseCase(
 		eventRepo:      eventRepo,
 		promptRepo:     promptRepo,
 		promptCache:    promptCache,
+		settingsRepo:   settingsRepo,
+		settingsCache:  settingsCache,
 	}
 }
 
@@ -41,6 +49,8 @@ type UseCase struct {
 	eventRepo      domain.EventRepo
 	promptRepo     domain.PromptRepo
 	promptCache    PromptCacheInvalidator
+	settingsRepo   domain.GenerationSettingsRepo
+	settingsCache  GenerationSettingsCacheInvalidator
 }
 
 func (uc *UseCase) ListTasks(ctx context.Context, userID domain.UserID) ([]domain.Task, error) {
@@ -167,6 +177,30 @@ func (uc *UseCase) UpdatePrompt(
 	}
 	uc.promptCache.Invalidate(id)
 	return prompt, nil
+}
+
+func (uc *UseCase) GetGenerationSettings(ctx context.Context) (domain.GenerationSettings, error) {
+	settings, err := uc.settingsRepo.GetGenerationSettings(ctx)
+	if err != nil {
+		return domain.GenerationSettings{}, errors.WrapFail(err, "get generation settings")
+	}
+	return settings, nil
+}
+
+func (uc *UseCase) UpdateGenerationSettings(
+	ctx context.Context,
+	update domain.GenerationSettingsUpdate,
+) (domain.GenerationSettings, error) {
+	if err := update.Validate(); err != nil {
+		return domain.GenerationSettings{}, errors.WrapFail(err, "validate generation settings update")
+	}
+
+	settings, err := uc.settingsRepo.UpdateGenerationSettings(ctx, update)
+	if err != nil {
+		return domain.GenerationSettings{}, errors.WrapFail(err, "update generation settings")
+	}
+	uc.settingsCache.Invalidate()
+	return settings, nil
 }
 
 func (uc *UseCase) SetUserModeration(ctx context.Context, userID domain.UserID, enabled bool) error {
