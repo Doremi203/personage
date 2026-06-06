@@ -10,6 +10,13 @@ namespace Personage.Auth.Api.Configuration;
 public static class LockboxConfigurationExtensions
 {
     /// <summary>
+    /// Default data-plane endpoint of Yandex Cloud Lockbox (GetPayload). Talking to it
+    /// directly lets us skip the SDK's endpoint-discovery call to api.cloud.yandex.net.
+    /// Overridable via the <c>YandexCloud:LockboxPayloadEndpoint</c> configuration key.
+    /// </summary>
+    private const string DefaultPayloadEndpoint = "payload.lockbox.api.cloud.yandex.net:443";
+
+    /// <summary>
     /// Adds a configuration source that resolves <c>secret:{id}:{version}:{key}</c>
     /// references from Yandex Cloud Lockbox.
     ///
@@ -21,7 +28,7 @@ public static class LockboxConfigurationExtensions
         this IConfigurationBuilder builder,
         bool useMetadataService)
     {
-        // Check if any values actually need resolution before creating the SDK client.
+        // Check if any values actually need resolution before acquiring credentials.
         // This avoids requiring Yandex Cloud credentials in development environments.
         var tempConfig = builder.Build();
         var hasSecrets = tempConfig.AsEnumerable()
@@ -31,10 +38,10 @@ public static class LockboxConfigurationExtensions
         if (!hasSecrets)
             return builder;
 
-        Sdk sdk;
+        ICredentialsProvider credentialsProvider;
         if (useMetadataService)
         {
-            sdk = new Sdk(new MetadataCredentialsProvider());
+            credentialsProvider = new MetadataCredentialsProvider();
         }
         else
         {
@@ -45,10 +52,12 @@ public static class LockboxConfigurationExtensions
                                "YC_TOKEN environment variable is required when secret: references are present " +
                                "and YandexCloud:UseMetadataService is false");
 
-            sdk = new Sdk(new Extensions.IamTokenCredentialsProvider(iamToken));
+            credentialsProvider = new Extensions.IamTokenCredentialsProvider(iamToken);
         }
 
-        builder.Add(new LockboxSecretConfigurationSource(sdk));
+        var payloadEndpoint = tempConfig["YandexCloud:LockboxPayloadEndpoint"] ?? DefaultPayloadEndpoint;
+
+        builder.Add(new LockboxSecretConfigurationSource(credentialsProvider, payloadEndpoint));
         return builder;
     }
 }

@@ -1,20 +1,22 @@
-using Yandex.Cloud;
+using Yandex.Cloud.Credentials;
 
 namespace Personage.Auth.Api.Configuration;
 
 /// <summary>
 /// Configuration source that creates a <see cref="LockboxSecretConfigurationProvider"/>
 /// to resolve <c>secret:{id}:{version}:{key}</c> references from Yandex Cloud Lockbox.
-/// 
+///
 /// This source must be added last so it can post-process values from all preceding sources.
 /// </summary>
 public sealed class LockboxSecretConfigurationSource : IConfigurationSource
 {
-    private readonly Sdk _sdk;
+    private readonly ICredentialsProvider _credentialsProvider;
+    private readonly string _payloadEndpoint;
 
-    public LockboxSecretConfigurationSource(Sdk sdk)
+    public LockboxSecretConfigurationSource(ICredentialsProvider credentialsProvider, string payloadEndpoint)
     {
-        _sdk = sdk;
+        _credentialsProvider = credentialsProvider;
+        _payloadEndpoint = payloadEndpoint;
     }
 
     public IConfigurationProvider Build(IConfigurationBuilder builder)
@@ -29,6 +31,6 @@ public sealed class LockboxSecretConfigurationSource : IConfigurationSource
             )
             .Build();
 
-        return new LockboxSecretConfigurationProvider(innerConfig, _sdk);
+        return new LockboxSecretConfigurationProvider(innerConfig, _credentialsProvider, _payloadEndpoint);
     }
 }

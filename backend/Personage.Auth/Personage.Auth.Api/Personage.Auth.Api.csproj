@@ -11,14 +11,17 @@
     <ItemGroup>
         <PackageReference Include="DotNetEnv" Version="3.1.1" />
         <PackageReference Include="Google.Protobuf" Version="3.33.2" />
-        <PackageReference Include="Grpc.AspNetCore" Version="2.57.0" />
-        <PackageReference Include="Grpc.Tools" Version="2.58.0" PrivateAssets="All" />
+        <PackageReference Include="Grpc.AspNetCore" Version="2.80.0" />
+        <PackageReference Include="Grpc.Tools" Version="2.81.0" PrivateAssets="All" />
         <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.14" />
         <PackageReference Include="Microsoft.AspNetCore.Grpc.JsonTranscoding" Version="9.0.11" />
         <PackageReference Include="Swashbuckle.AspNetCore" Version="7.2.0" />
-        <PackageReference Include="Grpc.AspNetCore.Server.Reflection" Version="2.57.0" />
+        <PackageReference Include="Grpc.AspNetCore.Server.Reflection" Version="2.80.0" />
         <PackageReference Include="Microsoft.AspNetCore.Grpc.Swagger" Version="0.9.11" />
-        <PackageReference Include="Grpc.AspNetCore.Web" Version="2.57.0" />
+        <PackageReference Include="Grpc.AspNetCore.Web" Version="2.80.0" />
+        <!-- Pinned explicitly to override the transitive 2.61.0 pulled in by Yandex.Cloud.SDK,
+             whose older HTTP/2 stack triggered COMPRESSION_ERROR on Lockbox endpoint discovery. -->
+        <PackageReference Include="Grpc.Net.Client" Version="2.80.0" />
         <PackageReference Include="Yandex.Cloud.SDK" Version="1.4.1" />
     </ItemGroup>
     <ItemGroup>

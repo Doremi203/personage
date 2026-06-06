@@ -1,4 +1,6 @@
-using Yandex.Cloud;
+using Grpc.Core;
+using Grpc.Net.Client;
+using Yandex.Cloud.Credentials;
 using Yandex.Cloud.Lockbox.V1;
 
 namespace Personage.Auth.Api.Configuration;
@@ -12,19 +14,35 @@ namespace Personage.Auth.Api.Configuration;
 /// This mirrors the convention used by Go services (webapp/config.go) and
 /// the traitex Python service (config.py), providing a unified approach
 /// to secret management across the entire Personage platform.
+///
+/// The Lockbox call is made over a gRPC channel built here directly, rather than
+/// through <c>Yandex.Cloud.Sdk</c>. The SDK creates its channel without an explicit
+/// <c>HttpClient</c>, which routes calls through the gRPC client-side load balancer
+/// (<c>BalancerHttpHandler</c>) added in Grpc.Net.Client 2.44+. That balancer makes
+/// the call to Yandex Cloud fail with an HTTP/2 <c>COMPRESSION_ERROR</c>
+/// (see yandex-cloud/dotnet-sdk#33 and grpc/grpc-dotnet#2254). Supplying an explicit
+/// <c>HttpClient</c> disables load balancing and uses a plain HTTP/2 connection,
+/// which works. We also talk to the Lockbox payload endpoint directly, skipping the
+/// SDK's endpoint-discovery round-trip to <c>api.cloud.yandex.net</c> (the exact call
+/// that crashed on startup).
 /// </summary>
 public sealed class LockboxSecretConfigurationProvider : ConfigurationProvider
 {
     public const string SecretPrefix = "secret:";
 
     private readonly IConfigurationRoot _innerConfig;
-    private readonly Sdk _sdk;
+    private readonly ICredentialsProvider _credentialsProvider;
+    private readonly string _payloadEndpoint;
     private readonly Dictionary<string, Payload> _payloadCache = new();
 
-    public LockboxSecretConfigurationProvider(IConfigurationRoot innerConfig, Sdk sdk)
+    public LockboxSecretConfigurationProvider(
+        IConfigurationRoot innerConfig,
+        ICredentialsProvider credentialsProvider,
+        string payloadEndpoint)
     {
         _innerConfig = innerConfig;
-        _sdk = sdk;
+        _credentialsProvider = credentialsProvider;
+        _payloadEndpoint = payloadEndpoint;
     }
 
     public override void Load()
@@ -43,15 +61,27 @@ public sealed class LockboxSecretConfigurationProvider : ConfigurationProvider
         if (secretRefs.Count == 0)
             return;
 
+        // Explicit HttpClient => gRPC client-side load balancing is disabled (plain HTTP/2),
+        // avoiding the BalancerHttpHandler path that fails with COMPRESSION_ERROR.
+        using var httpClient = new HttpClient();
+        using var channel = GrpcChannel.ForAddress(
+            $"https://{_payloadEndpoint}",
+            new GrpcChannelOptions
+            {
+                HttpClient = httpClient,
+                DisposeHttpClient = false,
+            });
+
+        var client = new PayloadService.PayloadServiceClient(channel);
+
         // Resolve all secrets synchronously (configuration providers load synchronously in .NET).
         foreach (var (configKey, secretSpec) in secretRefs)
         {
-            var resolved = ResolveSecret(secretSpec);
-            Data[configKey] = resolved;
+            Data[configKey] = ResolveSecret(client, secretSpec);
         }
     }
 
-    private string ResolveSecret(string secretSpec)
+    private string ResolveSecret(PayloadService.PayloadServiceClient client, string secretSpec)
     {
         var (secretId, versionId, key) = ParseSecretSpec(secretSpec);
 
@@ -59,12 +89,18 @@ public sealed class LockboxSecretConfigurationProvider : ConfigurationProvider
 
         if (!_payloadCache.TryGetValue(cacheKey, out var payload))
         {
-            payload = _sdk.Services.Lockbox.PayloadService
-                .Get(new GetPayloadRequest
+            var headers = new Metadata
+            {
+                { "authorization", $"Bearer {_credentialsProvider.GetToken()}" },
+            };
+
+            payload = client.Get(
+                new GetPayloadRequest
                 {
                     SecretId = secretId,
                     VersionId = versionId,
-                });
+                },
+                headers);
 
             _payloadCache[cacheKey] = payload;
         }
