@@ -51,6 +51,8 @@ export function OnboardingPrompt({ authenticated, onDismiss }: OnboardingPromptP
   if (authenticated !== trackedAuthenticated) {
     setTrackedAuthenticated(authenticated);
     setMode(pickMode(authenticated));
+    setPushState('idle');
+    setPushError(null);
   }
 
   if (mode === 'none') return null;
@@ -284,14 +286,18 @@ function PromptHeader({ title, subtitle, icon: Icon, iconBg, iconInk }: PromptHe
           <Icon size={22} strokeWidth={1.8} />
         </div>
       ) : (
-        <div style={{
-          width: 44, height: 44, borderRadius: 11,
-          background: 'linear-gradient(135deg, oklch(0.45 0.07 55) 0%, oklch(0.32 0.04 55) 100%)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: '#fff', fontFamily: SERIF, fontSize: 22, letterSpacing: -0.5,
-          boxShadow: '0 3px 10px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.18)',
-          flexShrink: 0,
-        }}>P</div>
+        <img
+          src="/icon-180x180.png"
+          alt="Personage"
+          width={44}
+          height={44}
+          style={{
+            width: 44, height: 44, borderRadius: 11,
+            objectFit: 'cover',
+            boxShadow: '0 3px 10px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.18)',
+            flexShrink: 0,
+          }}
+        />
       )}
       <div style={{ minWidth: 0 }}>
         <div style={{
