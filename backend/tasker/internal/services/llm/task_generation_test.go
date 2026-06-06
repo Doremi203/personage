@@ -154,11 +154,11 @@ func TestParseOptionalDate(t *testing.T) {
 	require.NoError(t, err)
 
 	tests := []struct {
-		name     string
-		value    *string
-		wantDay  string // YYYY-MM-DD in Moscow loc
-		wantNil  bool
-		wantErr  require.ErrorAssertionFunc
+		name    string
+		value   *string
+		wantDay string // YYYY-MM-DD in Moscow loc
+		wantNil bool
+		wantErr require.ErrorAssertionFunc
 	}{
 		{name: "nil pointer", value: nil, wantNil: true, wantErr: require.NoError},
 		{name: "empty string", value: new(""), wantNil: true, wantErr: require.NoError},
