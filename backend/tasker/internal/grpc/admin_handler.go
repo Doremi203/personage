@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 	"time"
 
 	domerrors "github.com/Doremi203/personage/backend/libs/go/errors"
@@ -136,7 +137,8 @@ type adminCreateTaskRequest struct {
 }
 
 func (req adminCreateTaskRequest) toDomain(id domain.TaskID, userID domain.UserID, now time.Time) (domain.Task, error) {
-	if req.Title == "" {
+	title := strings.TrimSpace(req.Title)
+	if title == "" {
 		return domain.Task{}, domerrors.Error("title is required")
 	}
 
@@ -180,7 +182,7 @@ func (req adminCreateTaskRequest) toDomain(id domain.TaskID, userID domain.UserI
 	return domain.Task{
 		ID:          id,
 		UserID:      userID,
-		Title:       req.Title,
+		Title:       title,
 		Description: req.Description,
 		Duration:    time.Duration(req.DurationMinutes) * time.Minute,
 		Priority:    priority,

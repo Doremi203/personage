@@ -188,8 +188,11 @@ export function AdminTaskCreateSheet({ userId, onClose, onCreated }: AdminTaskCr
               type="number"
               min={1}
               max={10}
+              step={1}
               value={priority}
-              onChange={(event) => setPriority(Number(event.target.value) || 1)}
+              onChange={(event) =>
+                setPriority(Math.min(10, Math.max(1, Math.round(Number(event.target.value) || 1))))
+              }
               style={inputStyle()}
             />
           </LabeledField>
@@ -197,8 +200,11 @@ export function AdminTaskCreateSheet({ userId, onClose, onCreated }: AdminTaskCr
             <input
               type="number"
               min={0}
+              step={1}
               value={durationMinutes}
-              onChange={(event) => setDurationMinutes(Math.max(0, Number(event.target.value) || 0))}
+              onChange={(event) =>
+                setDurationMinutes(Math.max(0, Math.floor(Number(event.target.value) || 0)))
+              }
               style={inputStyle()}
             />
           </LabeledField>
