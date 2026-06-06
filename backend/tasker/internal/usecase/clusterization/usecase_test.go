@@ -230,6 +230,9 @@ func TestUseCase_ProcessEvent(t *testing.T) {
 					Return([]domain.ClusterWithSimilarity{
 						{Cluster: existing, Similarity: 0.9},
 					}, nil)
+				m.eventsRepo.EXPECT().
+					MaxSimilarityByClusters(gomock.Any(), []domain.ClusterID{existing.ID}, embedding).
+					Return(map[domain.ClusterID]float64{existing.ID: 0.9}, nil)
 				m.clusterRepo.EXPECT().
 					UpsertCluster(gomock.Any(), gomock.AssignableToTypeOf(domain.Cluster{})).
 					DoAndReturn(func(_ context.Context, c domain.Cluster) error {
@@ -276,6 +279,9 @@ func TestUseCase_ProcessEvent(t *testing.T) {
 					Return([]domain.ClusterWithSimilarity{
 						{Cluster: existing, Similarity: 0.5},
 					}, nil)
+				m.eventsRepo.EXPECT().
+					MaxSimilarityByClusters(gomock.Any(), []domain.ClusterID{existing.ID}, embedding).
+					Return(map[domain.ClusterID]float64{existing.ID: 0.5}, nil)
 				m.clusterRepo.EXPECT().
 					UpsertCluster(gomock.Any(), gomock.AssignableToTypeOf(domain.Cluster{})).
 					DoAndReturn(func(_ context.Context, c domain.Cluster) error {
@@ -297,6 +303,196 @@ func TestUseCase_ProcessEvent(t *testing.T) {
 					})
 			},
 			wantErr: require.NoError,
+		},
+		{
+			name: "centroid below threshold but max-member above attaches",
+			args: args{event: defaultEvent},
+			setup: func(m mocks, a args) {
+				existing := domain.Cluster{
+					ID:         domain.ClusterID("existing"),
+					UserID:     a.event.UserID,
+					Centroid:   []float32{0.4, 0.5, 0.6},
+					EventCount: 4,
+					Status:     domain.ClusterStatusOpen,
+					CreatedAt:  fixedNow.Add(-time.Hour),
+					UpdatedAt:  fixedNow.Add(-time.Hour),
+				}
+				m.pauseRepo.EXPECT().
+					IsPaused(gomock.Any(), a.event.UserID).
+					Return(false, nil)
+				m.embedder.EXPECT().
+					GenerateEmbeddings(gomock.Any(), []string{string(a.event.Context)}).
+					Return([][]float32{embedding}, nil)
+				m.clusterRepo.EXPECT().
+					FindSimilarClosedClusters(gomock.Any(), a.event.UserID, embedding, topK).
+					Return(nil, nil)
+				m.clusterRepo.EXPECT().
+					FindSimilarClusters(gomock.Any(), a.event.UserID, embedding, topK).
+					Return([]domain.ClusterWithSimilarity{
+						{Cluster: existing, Similarity: 0.6},
+					}, nil)
+				m.eventsRepo.EXPECT().
+					MaxSimilarityByClusters(gomock.Any(), []domain.ClusterID{existing.ID}, embedding).
+					Return(map[domain.ClusterID]float64{existing.ID: 0.92}, nil)
+				m.clusterRepo.EXPECT().
+					UpsertCluster(gomock.Any(), gomock.AssignableToTypeOf(domain.Cluster{})).
+					DoAndReturn(func(_ context.Context, c domain.Cluster) error {
+						assert.Equal(t, domain.ClusterID("existing"), c.ID)
+						assert.Equal(t, 5, c.EventCount)
+						assert.Equal(t, domain.ClusterStatusOpen, c.Status)
+						return nil
+					})
+				m.eventsRepo.EXPECT().
+					UpsertEvent(gomock.Any(), gomock.AssignableToTypeOf(domain.EventWithEmbedding{})).
+					DoAndReturn(func(_ context.Context, e domain.EventWithEmbedding) error {
+						assert.Equal(t, domain.ClusterID("existing"), e.ClusterID)
+						assert.InDelta(t, 0.92, e.Similarity, 1e-9)
+						return nil
+					})
+			},
+			wantErr: require.NoError,
+		},
+		{
+			name: "highest max-member candidate wins over centroid order",
+			args: args{event: defaultEvent},
+			setup: func(m mocks, a args) {
+				first := domain.Cluster{
+					ID:         domain.ClusterID("first"),
+					UserID:     a.event.UserID,
+					Centroid:   []float32{0.1, 0.2, 0.3},
+					EventCount: 2,
+					Status:     domain.ClusterStatusOpen,
+					CreatedAt:  fixedNow.Add(-time.Hour),
+					UpdatedAt:  fixedNow.Add(-time.Hour),
+				}
+				second := domain.Cluster{
+					ID:         domain.ClusterID("second"),
+					UserID:     a.event.UserID,
+					Centroid:   []float32{0.2, 0.3, 0.4},
+					EventCount: 3,
+					Status:     domain.ClusterStatusOpen,
+					CreatedAt:  fixedNow.Add(-time.Hour),
+					UpdatedAt:  fixedNow.Add(-time.Hour),
+				}
+				m.pauseRepo.EXPECT().
+					IsPaused(gomock.Any(), a.event.UserID).
+					Return(false, nil)
+				m.embedder.EXPECT().
+					GenerateEmbeddings(gomock.Any(), []string{string(a.event.Context)}).
+					Return([][]float32{embedding}, nil)
+				m.clusterRepo.EXPECT().
+					FindSimilarClosedClusters(gomock.Any(), a.event.UserID, embedding, topK).
+					Return(nil, nil)
+				m.clusterRepo.EXPECT().
+					FindSimilarClusters(gomock.Any(), a.event.UserID, embedding, topK).
+					Return([]domain.ClusterWithSimilarity{
+						{Cluster: first, Similarity: 0.85},
+						{Cluster: second, Similarity: 0.82},
+					}, nil)
+				m.eventsRepo.EXPECT().
+					MaxSimilarityByClusters(
+						gomock.Any(),
+						[]domain.ClusterID{first.ID, second.ID},
+						embedding,
+					).
+					Return(map[domain.ClusterID]float64{
+						first.ID:  0.86,
+						second.ID: 0.97,
+					}, nil)
+				m.clusterRepo.EXPECT().
+					UpsertCluster(gomock.Any(), gomock.AssignableToTypeOf(domain.Cluster{})).
+					DoAndReturn(func(_ context.Context, c domain.Cluster) error {
+						assert.Equal(t, domain.ClusterID("second"), c.ID)
+						return nil
+					})
+				m.eventsRepo.EXPECT().
+					UpsertEvent(gomock.Any(), gomock.AssignableToTypeOf(domain.EventWithEmbedding{})).
+					DoAndReturn(func(_ context.Context, e domain.EventWithEmbedding) error {
+						assert.Equal(t, domain.ClusterID("second"), e.ClusterID)
+						assert.InDelta(t, 0.97, e.Similarity, 1e-9)
+						return nil
+					})
+			},
+			wantErr: require.NoError,
+		},
+		{
+			name: "max-member missing falls back to centroid similarity",
+			args: args{event: defaultEvent},
+			setup: func(m mocks, a args) {
+				existing := domain.Cluster{
+					ID:         domain.ClusterID("existing"),
+					UserID:     a.event.UserID,
+					Centroid:   []float32{0.1, 0.2, 0.3},
+					EventCount: 2,
+					Status:     domain.ClusterStatusOpen,
+					CreatedAt:  fixedNow.Add(-time.Hour),
+					UpdatedAt:  fixedNow.Add(-time.Hour),
+				}
+				m.pauseRepo.EXPECT().
+					IsPaused(gomock.Any(), a.event.UserID).
+					Return(false, nil)
+				m.embedder.EXPECT().
+					GenerateEmbeddings(gomock.Any(), []string{string(a.event.Context)}).
+					Return([][]float32{embedding}, nil)
+				m.clusterRepo.EXPECT().
+					FindSimilarClosedClusters(gomock.Any(), a.event.UserID, embedding, topK).
+					Return(nil, nil)
+				m.clusterRepo.EXPECT().
+					FindSimilarClusters(gomock.Any(), a.event.UserID, embedding, topK).
+					Return([]domain.ClusterWithSimilarity{
+						{Cluster: existing, Similarity: 0.88},
+					}, nil)
+				m.eventsRepo.EXPECT().
+					MaxSimilarityByClusters(gomock.Any(), []domain.ClusterID{existing.ID}, embedding).
+					Return(nil, nil)
+				m.clusterRepo.EXPECT().
+					UpsertCluster(gomock.Any(), gomock.AssignableToTypeOf(domain.Cluster{})).
+					DoAndReturn(func(_ context.Context, c domain.Cluster) error {
+						assert.Equal(t, domain.ClusterID("existing"), c.ID)
+						return nil
+					})
+				m.eventsRepo.EXPECT().
+					UpsertEvent(gomock.Any(), gomock.AssignableToTypeOf(domain.EventWithEmbedding{})).
+					DoAndReturn(func(_ context.Context, e domain.EventWithEmbedding) error {
+						assert.Equal(t, domain.ClusterID("existing"), e.ClusterID)
+						assert.InDelta(t, 0.88, e.Similarity, 1e-9)
+						return nil
+					})
+			},
+			wantErr: require.NoError,
+		},
+		{
+			name: "max similarity by clusters error",
+			args: args{event: defaultEvent},
+			setup: func(m mocks, a args) {
+				existing := domain.Cluster{
+					ID:         domain.ClusterID("existing"),
+					UserID:     a.event.UserID,
+					Centroid:   []float32{0.1, 0.2, 0.3},
+					EventCount: 2,
+					Status:     domain.ClusterStatusOpen,
+					CreatedAt:  fixedNow.Add(-time.Hour),
+					UpdatedAt:  fixedNow.Add(-time.Hour),
+				}
+				m.pauseRepo.EXPECT().
+					IsPaused(gomock.Any(), a.event.UserID).
+					Return(false, nil)
+				m.embedder.EXPECT().
+					GenerateEmbeddings(gomock.Any(), []string{string(a.event.Context)}).
+					Return([][]float32{embedding}, nil)
+				m.clusterRepo.EXPECT().
+					FindSimilarClosedClusters(gomock.Any(), a.event.UserID, embedding, topK).
+					Return(nil, nil)
+				m.clusterRepo.EXPECT().
+					FindSimilarClusters(gomock.Any(), a.event.UserID, embedding, topK).
+					Return([]domain.ClusterWithSimilarity{
+						{Cluster: existing, Similarity: 0.9},
+					}, nil)
+				m.eventsRepo.EXPECT().
+					MaxSimilarityByClusters(gomock.Any(), []domain.ClusterID{existing.ID}, embedding).
+					Return(nil, assert.AnError)
+			},
+			wantErr: require.Error,
 		},
 		{
 			name: "no similar clusters creates new cluster",

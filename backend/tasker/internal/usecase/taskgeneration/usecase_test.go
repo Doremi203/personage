@@ -238,6 +238,13 @@ func (s stubEventRepo) GetEventsByClusterID(context.Context, domain.ClusterID) (
 	return s.events, s.err
 }
 func (s stubEventRepo) DeleteEventsByClusterID(context.Context, domain.ClusterID) error { return nil }
+func (s stubEventRepo) MaxSimilarityByClusters(
+	context.Context,
+	[]domain.ClusterID,
+	[]float32,
+) (map[domain.ClusterID]float64, error) {
+	return nil, nil
+}
 
 type finalizeCall struct {
 	outcome domain.ClusterGenerationOutcome

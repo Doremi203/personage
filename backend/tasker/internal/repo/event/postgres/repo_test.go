@@ -108,6 +108,47 @@ func Test_repo_GetEventsByClusterID(t *testing.T) {
 	)
 }
 
+func Test_repo_MaxSimilarityByClusters(t *testing.T) {
+	userA := domain.UserID(uuid.NewString())
+
+	tester.Run(t, "returns max member similarity per cluster", nil, 10*time.Second,
+		func(t *testing.T, ctx context.Context, db postgres.Client) {
+			now := time.Date(2026, 4, 26, 12, 0, 0, 0, time.UTC)
+			r := NewRepo(db, func() time.Time { return now })
+
+			clusterA := insertCluster(t, ctx, db, userA, now)
+			clusterB := insertCluster(t, ctx, db, userA, now)
+
+			near := newEvent(userA, clusterA)
+			near.Embedding = makeEmbedding(0.5)
+			far := newEvent(userA, clusterA)
+			far.Embedding = makeEmbedding(0.1)
+			other := newEvent(userA, clusterB)
+			other.Embedding = makeEmbedding(0.5)
+			require.NoError(t, r.UpsertEvent(ctx, near))
+			require.NoError(t, r.UpsertEvent(ctx, far))
+			require.NoError(t, r.UpsertEvent(ctx, other))
+
+			got, err := r.MaxSimilarityByClusters(ctx, []domain.ClusterID{clusterA, clusterB}, makeEmbedding(0.5))
+			require.NoError(t, err)
+			require.Len(t, got, 2)
+			assert.InDelta(t, 1.0, got[clusterA], 1e-6)
+			assert.InDelta(t, 1.0, got[clusterB], 1e-6)
+		},
+	)
+
+	tester.Run(t, "no events returns nil", nil, 10*time.Second,
+		func(t *testing.T, ctx context.Context, db postgres.Client) {
+			now := time.Date(2026, 4, 26, 12, 0, 0, 0, time.UTC)
+			r := NewRepo(db, func() time.Time { return now })
+
+			got, err := r.MaxSimilarityByClusters(ctx, []domain.ClusterID{domain.ClusterID(uuid.NewString())}, makeEmbedding(0.5))
+			require.NoError(t, err)
+			assert.Nil(t, got)
+		},
+	)
+}
+
 func Test_repo_DeleteEventsByClusterID(t *testing.T) {
 	userA := domain.UserID(uuid.NewString())
 

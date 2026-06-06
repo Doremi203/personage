@@ -100,6 +100,43 @@ func (r *repo) GetEventsByClusterID(ctx context.Context, clusterID domain.Cluste
 	return slices.Map(entities, entity.ToDomain), nil
 }
 
+func (r *repo) MaxSimilarityByClusters(
+	ctx context.Context,
+	clusterIDs []domain.ClusterID,
+	embedding []float32,
+) (map[domain.ClusterID]float64, error) {
+	query := `
+		SELECT cluster_id, MAX(1 - (embedding <=> $1)) AS similarity
+		FROM events
+		WHERE cluster_id = ANY($2::uuid[])
+		GROUP BY cluster_id
+	`
+
+	ids := slices.Map(clusterIDs, func(id domain.ClusterID) string { return string(id) })
+
+	rows, err := r.client.Query(ctx, query, pgvector.NewVector(embedding), ids)
+	if err != nil {
+		return nil, errors.WrapFail(err, "query max similarity by clusters")
+	}
+	defer rows.Close()
+
+	entities, err := pgx.CollectRows(rows, pgx.RowToStructByName[clusterSimilarityEntity])
+	if err != nil {
+		return nil, errors.WrapFail(err, "collect max similarity rows")
+	}
+
+	if len(entities) == 0 {
+		return nil, nil
+	}
+
+	result := make(map[domain.ClusterID]float64, len(entities))
+	for _, e := range entities {
+		result[domain.ClusterID(e.ClusterID.String())] = e.Similarity
+	}
+
+	return result, nil
+}
+
 func (r *repo) DeleteEventsByClusterID(ctx context.Context, clusterID domain.ClusterID) error {
 	query := `DELETE FROM events WHERE cluster_id = $1`
 
@@ -109,6 +146,11 @@ func (r *repo) DeleteEventsByClusterID(ctx context.Context, clusterID domain.Clu
 	}
 
 	return nil
+}
+
+type clusterSimilarityEntity struct {
+	ClusterID  uuid.UUID `db:"cluster_id"`
+	Similarity float64   `db:"similarity"`
 }
 
 type entity struct {
