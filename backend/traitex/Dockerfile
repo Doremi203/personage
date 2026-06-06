@@ -33,14 +33,6 @@ RUN python3 -m grpc_tools.protoc \
     --mypy_out=./externalClients/personage_auth/proto \
     externalClients/personage_auth/proto/*.proto
 
-FROM alpine AS certs
-
-RUN apk add --no-cache wget && \
-    mkdir -p ~/.postgresql && \
-    wget "https://storage.yandexcloud.net/cloud-certs/CA.pem" \
-        --output-document ~/.postgresql/root.crt && \
-    chmod 0655 ~/.postgresql/root.crt
-
 # Runtime stage
 FROM python:3.14-slim
 
@@ -51,8 +43,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy certificate from certs stage
-COPY --from=certs /root/.postgresql /root/.postgresql
+# Yandex Cloud CA certificate is vendored at backend/certs/root.crt
+# (see backend/certs/README.md) instead of being fetched over the network.
+COPY certs/root.crt /root/.postgresql/root.crt
 
 # Copy Python dependencies from build stage
 COPY --from=build /usr/local/lib/python3.14/site-packages /usr/local/lib/python3.14/site-packages

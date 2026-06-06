@@ -1,11 +1,3 @@
-FROM alpine AS certs
-
-RUN apk add --no-cache wget && \
-    mkdir -p /certs && \
-    wget "https://storage.yandexcloud.net/cloud-certs/CA.pem" \
-        --output-document /certs/root.crt && \
-    chmod 0655 /certs/root.crt
-
 # ============================================================================
 # Stage 1: restore — cache NuGet packages in a separate layer
 # ============================================================================
@@ -43,8 +35,9 @@ FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
 
 WORKDIR /app
 
-# Copy Yandex Cloud CA certificate from the certs stage
-COPY --from=certs /certs/root.crt /root/.postgresql/root.crt
+# Yandex Cloud CA certificate is vendored at Personage.Auth/certs/root.crt
+# (see certs/README.md) instead of being fetched over the network.
+COPY certs/root.crt /root/.postgresql/root.crt
 
 COPY --from=publish /app/publish .
 
