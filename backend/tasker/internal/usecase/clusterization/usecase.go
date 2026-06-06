@@ -130,19 +130,50 @@ func (uc *UseCase) ProcessEvent(ctx context.Context, e domain.Event) error {
 		)
 	}
 
+	var bestCandidate domain.ClusterWithSimilarity
+	var bestMaxSimilarity float64
+	var hasBestCandidate bool
 	if len(similarClusters) > 0 {
+		clusterIDs := make([]domain.ClusterID, 0, len(similarClusters))
+		for _, c := range similarClusters {
+			clusterIDs = append(clusterIDs, c.ID)
+		}
+
+		maxSimilarities, err := uc.eventsRepo.MaxSimilarityByClusters(ctx, clusterIDs, embedding)
+		if err != nil {
+			return errors.WrapFailf(
+				err,
+				"find max member similarity for event %s for user %s",
+				errors.Token("event_id", e.ID.String()),
+				errors.Token("user_id", e.UserID.String()),
+			)
+		}
+
+		for _, c := range similarClusters {
+			similarity, ok := maxSimilarities[c.ID]
+			if !ok {
+				similarity = c.Similarity
+			}
+			if !hasBestCandidate || similarity > bestMaxSimilarity {
+				bestCandidate = c
+				bestMaxSimilarity = similarity
+				hasBestCandidate = true
+			}
+		}
+
 		uc.logger.Infof(
-			"highest similarity for event %s for user %s is %s",
+			"highest max-member similarity for event %s for user %s is %s",
 			errors.Token("event_id", e.ID.String()),
 			errors.Token("user_id", e.UserID.String()),
-			errors.Token("similarity", similarClusters[0].Similarity),
+			errors.Token("similarity", bestMaxSimilarity),
 		)
 	}
+
 	var chosenCluster domain.Cluster
 	var attachedToExisting bool
-	if len(similarClusters) > 0 && similarClusters[0].Similarity >= uc.minSimilarity {
-		chosenCluster = similarClusters[0].Cluster
-		eventWithEmbedding.Similarity = similarClusters[0].Similarity
+	if hasBestCandidate && bestMaxSimilarity >= uc.minSimilarity {
+		chosenCluster = bestCandidate.Cluster
+		eventWithEmbedding.Similarity = bestMaxSimilarity
 		chosenCluster.AddEvent(eventWithEmbedding, uc.clock())
 		attachedToExisting = true
 	} else {
