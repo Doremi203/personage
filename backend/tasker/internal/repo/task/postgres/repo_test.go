@@ -71,6 +71,34 @@ func Test_repo_CreateTask_GetTaskByID(t *testing.T) {
 	)
 }
 
+func Test_repo_CreateTask_PreservesMoscowDate(t *testing.T) {
+	userA := domain.UserID(uuid.NewString())
+
+	tester.Run(t, "moscow midnight survives DATE round-trip", nil, 10*time.Second,
+		func(t *testing.T, ctx context.Context, db postgres.Client) {
+			r := NewRepo(db)
+
+			moscow, err := time.LoadLocation("Europe/Moscow")
+			require.NoError(t, err)
+			// Midnight in Moscow = 21:00 UTC the previous day. If anything along the way
+			// coerces this to UTC before pgx encodes it, the stored DATE shifts to May 23.
+			date := time.Date(2026, 5, 24, 0, 0, 0, 0, moscow)
+
+			task := newTask(t, userA)
+			task.Date = &date
+			require.NoError(t, r.CreateTask(ctx, task))
+
+			got, err := r.GetTaskByID(ctx, task.ID, userA)
+			require.NoError(t, err)
+			require.NotNil(t, got.Date)
+			gotMSK := got.Date.In(moscow)
+			assert.Equal(t, 2026, gotMSK.Year())
+			assert.Equal(t, time.May, gotMSK.Month())
+			assert.Equal(t, 24, gotMSK.Day())
+		},
+	)
+}
+
 func Test_repo_GetTasksByUserID(t *testing.T) {
 	userA := domain.UserID(uuid.NewString())
 	userB := domain.UserID(uuid.NewString())

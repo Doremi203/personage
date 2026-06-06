@@ -37,6 +37,7 @@ func (r *repo) CreateTask(ctx context.Context, task domain.Task) error {
 			priority,
 			deadline,
 			start_time,
+			date,
 			end_time,
 			status,
 			category,
@@ -45,7 +46,7 @@ func (r *repo) CreateTask(ctx context.Context, task domain.Task) error {
 			created_at,
 			updated_at
 		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17
 		)
 		ON CONFLICT (cluster_id) DO NOTHING
 	`
@@ -71,6 +72,7 @@ func (r *repo) CreateTask(ctx context.Context, task domain.Task) error {
 		task.Priority,
 		task.Deadline,
 		task.StartTime,
+		task.Date,
 		task.EndTime,
 		task.Status,
 		task.Category,
@@ -99,6 +101,7 @@ func (r *repo) GetTaskByID(ctx context.Context, taskID domain.TaskID, userID dom
 			priority,
 			deadline,
 			start_time,
+			date,
 			end_time,
 			status,
 			category,
@@ -139,6 +142,7 @@ func (r *repo) GetTasksByUserID(ctx context.Context, userID domain.UserID) ([]do
 			priority,
 			deadline,
 			start_time,
+			date,
 			end_time,
 			status,
 			category,
@@ -177,6 +181,7 @@ func (r *repo) GetTasksByStatus(ctx context.Context, userID domain.UserID, statu
 			priority,
 			deadline,
 			start_time,
+			date,
 			end_time,
 			status,
 			category,
@@ -220,6 +225,7 @@ func (r *repo) GetPlannedTasksInRange(
 			priority,
 			deadline,
 			start_time,
+			date,
 			end_time,
 			status,
 			category,
@@ -391,6 +397,12 @@ func (r *repo) UpdateTask(ctx context.Context, taskID domain.TaskID, userID doma
 		argIdx++
 	}
 
+	if update.Date != nil {
+		setClauses = append(setClauses, fmt.Sprintf("date = $%d", argIdx))
+		args = append(args, *update.Date)
+		argIdx++
+	}
+
 	if update.Priority != nil {
 		setClauses = append(setClauses, fmt.Sprintf("priority = $%d", argIdx))
 		args = append(args, *update.Priority)
@@ -430,6 +442,7 @@ func (r *repo) UpdateTask(ctx context.Context, taskID domain.TaskID, userID doma
 			priority,
 			deadline,
 			start_time,
+			date,
 			end_time,
 			status,
 			category,
@@ -522,6 +535,7 @@ func (r *repo) ListTasks(ctx context.Context, filter domain.TaskFilter, paginati
 			priority,
 			deadline,
 			start_time,
+			date,
 			end_time,
 			status,
 			category,
@@ -560,6 +574,7 @@ type taskEntity struct {
 	Priority         int         `db:"priority"`
 	Deadline         *time.Time  `db:"deadline"`
 	StartTime        *time.Time  `db:"start_time"`
+	Date             *time.Time  `db:"date"`
 	EndTime          *time.Time  `db:"end_time"`
 	Status           string      `db:"status"`
 	Category         string      `db:"category"`
@@ -591,6 +606,7 @@ func (e taskEntity) ToDomain() domain.Task {
 		Priority:         e.Priority,
 		Deadline:         e.Deadline,
 		StartTime:        e.StartTime,
+		Date:             e.Date,
 		EndTime:          e.EndTime,
 		Status:           domain.TaskStatus(e.Status),
 		Category:         domain.TaskCategory(e.Category),

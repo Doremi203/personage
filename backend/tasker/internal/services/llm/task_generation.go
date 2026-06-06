@@ -73,6 +73,7 @@ type llmTaskResponse struct {
 	Priority        int     `json:"priority"`
 	Deadline        *string `json:"deadline"`
 	StartTime       *string `json:"start_time"`
+	Date            *string `json:"date"`
 	Category        string  `json:"category"`
 }
 
@@ -119,6 +120,12 @@ func (s *taskGenerationService) parseResponse(responseText string, _ []domain.Ev
 		return domain.GeneratedTask{}, err
 	}
 	task.StartTime = roundToTimeSlot(startTime)
+
+	date, err := parseOptionalDate("date", llmResp.Date, s.defaultLocation)
+	if err != nil {
+		return domain.GeneratedTask{}, err
+	}
+	task.Date = date
 
 	return task, nil
 }
@@ -184,6 +191,26 @@ func parseOptionalTimestamp(name string, value *string, loc *time.Location) (*ti
 	}
 	utc := parsed.UTC()
 	return &utc, nil
+}
+
+// parseOptionalDate parses a YYYY-MM-DD calendar day. The returned time keeps loc so that
+// pgx encodes the intended local Y/M/D into the DATE column — converting to UTC here would
+// shift the stored day by the loc offset.
+func parseOptionalDate(name string, value *string, loc *time.Location) (*time.Time, error) {
+	if value == nil {
+		return nil, nil
+	}
+
+	trimmedValue := strings.TrimSpace(*value)
+	if trimmedValue == "" || trimmedValue == "null" {
+		return nil, nil
+	}
+
+	parsed, err := time.ParseInLocation("2006-01-02", trimmedValue, loc)
+	if err != nil {
+		return nil, errors.WrapFailf(err, "parse %s", name)
+	}
+	return &parsed, nil
 }
 
 func hasExplicitZone(s string) bool {
