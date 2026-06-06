@@ -45,6 +45,7 @@ class ServiceContainer(containers.DeclarativeContainer):
     telegram_processing_service = providers.Singleton(
         TelegramProcessingService,
         telegram_processing_repository=repositories.telegram_processing_repository,
+        telegram_seen_message_repository=repositories.telegram_seen_message_repository,
         processing_results_repository=repositories.processing_results_repository,
         processing_snapshot_repository=repositories.processing_snapshot_repository,
         state_tracking_client=clients.state_tracking_client,

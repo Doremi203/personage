@@ -25,6 +25,7 @@ from app.services.segmentation import (
 from dataAccess.interfaces.IProcessingResultsRepository import IProcessingResultsRepository
 from dataAccess.interfaces.IProcessingSnapshotRepository import IProcessingSnapshotRepository
 from dataAccess.interfaces.ITelegramProcessingRepository import ITelegramProcessingRepository
+from dataAccess.interfaces.ITelegramSeenMessageRepository import ITelegramSeenMessageRepository
 from dataAccess.models.telegram.UserTelegramProcessingInfo import UserTelegramProcessingInfo
 from externalClients.personage_auth.StateTrackingClient import StateTrackingClient
 from externalClients.telegram.TelegramApiClient import TelegramApiClient
@@ -35,9 +36,18 @@ class TelegramProcessingService(ITelegramProcessingService):
     USERS_FOR_PROCESSING_BATCH_SIZE = 5
     SECONDS_SINCE_LAST_PROCESS = 5 * 60
 
+    # Seen-message dedup cache retention. Duplicates arise within minutes (the
+    # same conversation re-fetched on consecutive polling cycles), so a few days
+    # is plenty; older rows are pruned to bound table growth.
+    SEEN_MESSAGE_RETENTION = datetime.timedelta(days=7)
+    # Run the TTL cleanup roughly once per this many fetch-result batches to
+    # avoid issuing a DELETE on every single polling cycle.
+    SEEN_CLEANUP_EVERY_N_BATCHES = 50
+
     def __init__(
             self,
             telegram_processing_repository: ITelegramProcessingRepository,
+            telegram_seen_message_repository: ITelegramSeenMessageRepository,
             processing_results_repository: IProcessingResultsRepository,
             processing_snapshot_repository: IProcessingSnapshotRepository,
             state_tracking_client: StateTrackingClient,
@@ -46,12 +56,14 @@ class TelegramProcessingService(ITelegramProcessingService):
             segment_buffer: SegmentBuffer | None = None,
     ):
         self.telegram_processing_repository = telegram_processing_repository
+        self.telegram_seen_message_repository = telegram_seen_message_repository
         self.processing_results_repository = processing_results_repository
         self.processing_snapshot_repository = processing_snapshot_repository
         self.state_tracking_client = state_tracking_client
         self.telegram_api_client = telegram_api_client
         self.event_producer = event_producer
         self._segment_buffer = segment_buffer or SegmentBuffer(SegmentationConfig())
+        self._seen_cleanup_counter = 0
         self.logger = logging.getLogger("[TelegramProcessingService]")
 
     async def get_users_for_processing(self) -> List[UserForProcessingModel]:
@@ -163,12 +175,26 @@ class TelegramProcessingService(ITelegramProcessingService):
                 user_processed_at_map[user_id] = datetime.datetime.now(timezone.utc)
                 continue
 
-            await self._process_user_messages(
-                user_id,
-                result.messages,
-                retain_processed_messages,
-                active_chat_ids=active_chat_ids_by_user.get(user_id, frozenset()),
-            )
+            # Drop messages already processed on a previous cycle. The global
+            # Telegram fetch ignores the saved cursor and keeps returning the
+            # same recent messages, so without this the segment buffer would be
+            # re-fed the same messages and emit overlapping, growing segments
+            # (each with a fresh event_id, defeating SQS dedup).
+            new_messages = await self._drop_already_seen(user_id, result.messages)
+
+            if new_messages:
+                await self._process_user_messages(
+                    user_id,
+                    new_messages,
+                    retain_processed_messages,
+                    active_chat_ids=active_chat_ids_by_user.get(user_id, frozenset()),
+                )
+                # Mark seen only after the messages were handed to the buffer.
+                await self.telegram_seen_message_repository.mark_seen(
+                    user_id,
+                    [(m.chat_id, m.message_id) for m in new_messages],
+                )
+
             user_processed_at_map[user_id] = datetime.datetime.now(timezone.utc)
 
             if result.new_last_message_id:
@@ -181,6 +207,8 @@ class TelegramProcessingService(ITelegramProcessingService):
 
         if successful_fetches:
             await self.telegram_processing_repository.save_users_processing_info(successful_fetches)
+
+        await self._cleanup_seen_messages_periodically()
 
         current_timestamp = datetime.datetime.now(timezone.utc)
         processed_users = [
@@ -196,6 +224,34 @@ class TelegramProcessingService(ITelegramProcessingService):
                 processed_users,
                 service_type=ConnectorTypeModel.Telegram
             )
+
+    async def _drop_already_seen(
+            self,
+            user_id: UUID,
+            messages: List[RawTelegramMessage],
+    ) -> List[RawTelegramMessage]:
+        """Return only messages not yet recorded in the seen-message cache."""
+        pairs = [(m.chat_id, m.message_id) for m in messages]
+        seen = await self.telegram_seen_message_repository.get_seen(user_id, pairs)
+        if not seen:
+            return messages
+
+        new_messages = [m for m in messages if (m.chat_id, m.message_id) not in seen]
+        dropped = len(messages) - len(new_messages)
+        if dropped:
+            self.logger.info(
+                f"Dropped {dropped} already-seen Telegram messages for user {user_id}"
+            )
+        return new_messages
+
+    async def _cleanup_seen_messages_periodically(self) -> None:
+        """Prune old seen-message rows every N batches to bound table growth."""
+        self._seen_cleanup_counter += 1
+        if self._seen_cleanup_counter < self.SEEN_CLEANUP_EVERY_N_BATCHES:
+            return
+        self._seen_cleanup_counter = 0
+        cutoff = datetime.datetime.now(timezone.utc) - self.SEEN_MESSAGE_RETENTION
+        await self.telegram_seen_message_repository.delete_seen_before(cutoff)
 
     async def _process_user_messages(
             self,
