@@ -88,42 +88,27 @@ func (n *upcomingEventNotifier) NotifyUpcomingEvents(
 	)
 
 	sentCount := 0
+	skippedNoStartTime := 0
+	skippedBelowMinPriority := 0
+	skippedNotPlanned := 0
+	skippedUnapproved := 0
 	for _, task := range tasks {
 		if task.StartTime == nil {
-			n.logger.Infof(
-				"skip task without start_time %s %s",
-				errors.Token("user_id", userID.String()),
-				errors.Token("task_id", task.ID.String()),
-			)
+			skippedNoStartTime++
 			continue
 		}
 		if task.Priority < n.config.UpcomingEventMinPriority {
-			n.logger.Infof(
-				"skip task below min priority %s %s %s %s",
-				errors.Token("user_id", userID.String()),
-				errors.Token("task_id", task.ID.String()),
-				errors.Token("priority", task.Priority),
-				errors.Token("min_priority", n.config.UpcomingEventMinPriority),
-			)
+			skippedBelowMinPriority++
 			continue
 		}
 
 		if task.Status != domain.TaskStatusPlanned {
-			n.logger.Infof(
-				"skip non-planned task %s %s %s",
-				errors.Token("user_id", userID.String()),
-				errors.Token("task_id", task.ID.String()),
-				errors.Token("status", string(task.Status)),
-			)
+			skippedNotPlanned++
 			continue
 		}
 
 		if !task.IsApproved {
-			n.logger.Infof(
-				"skip unapproved task %s %s",
-				errors.Token("user_id", userID.String()),
-				errors.Token("task_id", task.ID.String()),
-			)
+			skippedUnapproved++
 			continue
 		}
 
@@ -162,9 +147,13 @@ func (n *upcomingEventNotifier) NotifyUpcomingEvents(
 	}
 
 	n.logger.Infof(
-		"NotifyUpcomingEvents done for user %s %s",
+		"NotifyUpcomingEvents done for user %s %s %s %s %s %s",
 		errors.Token("user_id", userID.String()),
 		errors.Token("sent_count", sentCount),
+		errors.Token("skipped_no_start_time", skippedNoStartTime),
+		errors.Token("skipped_below_min_priority", skippedBelowMinPriority),
+		errors.Token("skipped_not_planned", skippedNotPlanned),
+		errors.Token("skipped_unapproved", skippedUnapproved),
 	)
 
 	return nil
