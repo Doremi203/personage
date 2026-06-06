@@ -82,6 +82,67 @@ func TestUseCase_ListTasks(t *testing.T) {
 	}
 }
 
+func TestUseCase_CreateTask(t *testing.T) {
+	type mocks struct {
+		taskRepo       *mock_domain.MockTaskRepo
+		moderationRepo *mock_domain.MockManualModerationRepo
+	}
+
+	task := domain.Task{ID: testTaskID, UserID: testUserID, Title: "manual task", IsApproved: true}
+
+	tests := []struct {
+		name    string
+		setup   func(m mocks)
+		want    domain.Task
+		wantErr require.ErrorAssertionFunc
+	}{
+		{
+			name: "persists task and returns it",
+			setup: func(m mocks) {
+				m.taskRepo.EXPECT().
+					CreateTask(gomock.Any(), task).
+					Return(nil)
+			},
+			want:    task,
+			wantErr: require.NoError,
+		},
+		{
+			name: "repo error wraps",
+			setup: func(m mocks) {
+				m.taskRepo.EXPECT().
+					CreateTask(gomock.Any(), gomock.Any()).
+					Return(assert.AnError)
+			},
+			want:    domain.Task{},
+			wantErr: require.Error,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			m := mocks{
+				taskRepo:       mock_domain.NewMockTaskRepo(ctrl),
+				moderationRepo: mock_domain.NewMockManualModerationRepo(ctrl),
+			}
+			tt.setup(m)
+
+			uc := admin.NewUseCase(
+				m.taskRepo,
+				m.moderationRepo,
+				mock_domain.NewMockClusterRepo(ctrl),
+				mock_domain.NewMockEventRepo(ctrl),
+				mock_domain.NewMockPromptRepo(ctrl),
+				noopPromptCache{},
+			)
+			got, err := uc.CreateTask(t.Context(), task)
+
+			tt.wantErr(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
 func TestUseCase_Approve(t *testing.T) {
 	type mocks struct {
 		taskRepo       *mock_domain.MockTaskRepo

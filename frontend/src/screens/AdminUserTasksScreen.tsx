@@ -6,6 +6,7 @@ import {
 } from '../utils/adminService';
 import { SANS, SERIF, T } from '../mobile/tokens';
 import { AdminTaskDetailSheet } from '../mobile/AdminTaskDetailSheet';
+import { AdminTaskCreateSheet } from '../mobile/AdminTaskCreateSheet';
 import { AdminSendPushSheet } from '../mobile/AdminSendPushSheet';
 import { AdminUserClustersTab } from './AdminUserClustersTab';
 import { AdminUserNotificationsTab } from './AdminUserNotificationsTab';
@@ -53,6 +54,7 @@ export function AdminUserTasksScreen({ userId, activeTab, onBack, onChangeTab }:
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<AdminTaskItem | null>(null);
   const [pushOpen, setPushOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
   const [taskForCluster, setTaskForCluster] = useState<{ id: string; taskId: string } | null>(null);
 
   const reload = useCallback(async () => {
@@ -186,22 +188,41 @@ export function AdminUserTasksScreen({ userId, activeTab, onBack, onChangeTab }:
               Отправить пуш
             </button>
             {activeTab === 'tasks' && (
-              <button
-                type="button"
-                onClick={() => void reload()}
-                style={{
-                  padding: '8px 14px',
-                  borderRadius: 10,
-                  border: `0.5px solid ${T.hairline}`,
-                  background: T.surface,
-                  color: T.ink2,
-                  fontSize: 13,
-                  cursor: 'pointer',
-                  fontFamily: SANS,
-                }}
-              >
-                Обновить
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => setCreateOpen(true)}
+                  style={{
+                    padding: '8px 14px',
+                    borderRadius: 10,
+                    border: 'none',
+                    background: T.ink,
+                    color: T.bg,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    fontFamily: SANS,
+                  }}
+                >
+                  Создать задачу
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void reload()}
+                  style={{
+                    padding: '8px 14px',
+                    borderRadius: 10,
+                    border: `0.5px solid ${T.hairline}`,
+                    background: T.surface,
+                    color: T.ink2,
+                    fontSize: 13,
+                    cursor: 'pointer',
+                    fontFamily: SANS,
+                  }}
+                >
+                  Обновить
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -440,6 +461,14 @@ export function AdminUserTasksScreen({ userId, activeTab, onBack, onChangeTab }:
             setTaskForCluster(null);
             void openTaskFromCluster(taskId);
           }}
+        />
+      )}
+
+      {createOpen && (
+        <AdminTaskCreateSheet
+          userId={userId}
+          onClose={() => setCreateOpen(false)}
+          onCreated={(created) => setTasks((prev) => [created, ...prev])}
         />
       )}
 

@@ -9,11 +9,13 @@ import (
 
 	domerrors "github.com/Doremi203/personage/backend/libs/go/errors"
 	"github.com/Doremi203/personage/backend/tasker/internal/domain"
+	"github.com/google/uuid"
 )
 
 type adminTasksUseCase interface {
 	ListTasks(ctx context.Context, userID domain.UserID) ([]domain.Task, error)
 	GetTask(ctx context.Context, taskID domain.TaskID, userID domain.UserID) (domain.Task, error)
+	CreateTask(ctx context.Context, task domain.Task) (domain.Task, error)
 	UpdateTask(ctx context.Context, taskID domain.TaskID, userID domain.UserID, update domain.TaskUpdate) (domain.Task, error)
 	Approve(ctx context.Context, taskID domain.TaskID, userID domain.UserID) (domain.Task, error)
 	ListModeratedUsers(ctx context.Context) ([]domain.UserID, error)
@@ -120,6 +122,79 @@ func (req adminUpdateTaskRequest) toDomain() (domain.TaskUpdate, error) {
 	return update, nil
 }
 
+type adminCreateTaskRequest struct {
+	Title           string     `json:"title"`
+	Description     string     `json:"description"`
+	DurationMinutes int        `json:"durationMinutes"`
+	Priority        int        `json:"priority"`
+	Deadline        *time.Time `json:"deadline,omitempty"`
+	StartTime       *time.Time `json:"startTime,omitempty"`
+	EndTime         *time.Time `json:"endTime,omitempty"`
+	Status          string     `json:"status"`
+	Category        string     `json:"category"`
+	IsApproved      *bool      `json:"isApproved,omitempty"`
+}
+
+func (req adminCreateTaskRequest) toDomain(id domain.TaskID, userID domain.UserID, now time.Time) (domain.Task, error) {
+	if req.Title == "" {
+		return domain.Task{}, domerrors.Error("title is required")
+	}
+
+	status := domain.TaskStatusUnplanned
+	if req.Status != "" {
+		switch s := domain.TaskStatus(req.Status); s {
+		case domain.TaskStatusUnplanned, domain.TaskStatusPlanned, domain.TaskStatusCompleted:
+			status = s
+		default:
+			return domain.Task{}, domerrors.Errorf("invalid status %v", domerrors.Token("value", req.Status))
+		}
+	}
+
+	category := domain.TaskCategoryPersonal
+	if req.Category != "" {
+		switch c := domain.TaskCategory(req.Category); c {
+		case domain.TaskCategoryWork, domain.TaskCategoryStudy, domain.TaskCategoryPersonal:
+			category = c
+		default:
+			return domain.Task{}, domerrors.Errorf("invalid category %v", domerrors.Token("value", req.Category))
+		}
+	}
+
+	priority := 5
+	if req.Priority != 0 {
+		if req.Priority < 1 || req.Priority > 10 {
+			return domain.Task{}, domerrors.Errorf("invalid priority %v: must be 1-10", domerrors.Token("value", req.Priority))
+		}
+		priority = req.Priority
+	}
+
+	if req.DurationMinutes < 0 {
+		return domain.Task{}, domerrors.Errorf("invalid durationMinutes %v: must be >= 0", domerrors.Token("value", req.DurationMinutes))
+	}
+
+	isApproved := true
+	if req.IsApproved != nil {
+		isApproved = *req.IsApproved
+	}
+
+	return domain.Task{
+		ID:          id,
+		UserID:      userID,
+		Title:       req.Title,
+		Description: req.Description,
+		Duration:    time.Duration(req.DurationMinutes) * time.Minute,
+		Priority:    priority,
+		Deadline:    req.Deadline,
+		StartTime:   req.StartTime,
+		EndTime:     req.EndTime,
+		Status:      status,
+		Category:    category,
+		IsApproved:  isApproved,
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}, nil
+}
+
 type adminSetModerationRequest struct {
 	Enabled bool `json:"enabled"`
 }
@@ -197,6 +272,40 @@ func NewAdminGetTaskHandler(uc adminTasksUseCase, apiKey string) http.HandlerFun
 		}
 
 		writeJSON(w, http.StatusOK, map[string]any{"task": taskToAdminItem(task)})
+	}
+}
+
+func NewAdminCreateTaskHandler(uc adminTasksUseCase, apiKey string, clock func() time.Time) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !checkAdminKey(w, r, apiKey) {
+			return
+		}
+
+		userID := r.PathValue("userId")
+		if userID == "" {
+			http.Error(w, "userId is required", http.StatusBadRequest)
+			return
+		}
+
+		var req adminCreateTaskRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "invalid request body", http.StatusBadRequest)
+			return
+		}
+
+		task, err := req.toDomain(domain.TaskID(uuid.New().String()), domain.UserID(userID), clock())
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		created, err := uc.CreateTask(r.Context(), task)
+		if err != nil {
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+
+		writeJSON(w, http.StatusCreated, map[string]any{"task": taskToAdminItem(created)})
 	}
 }
 

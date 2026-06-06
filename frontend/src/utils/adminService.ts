@@ -100,6 +100,34 @@ export async function listAdminTasks(userId: string): Promise<AdminTaskItem[]> {
   return data.tasks ?? [];
 }
 
+export interface AdminCreateTaskPayload {
+  title: string;
+  description?: string;
+  durationMinutes?: number;
+  priority?: number;
+  deadline?: string; // ISO 8601
+  startTime?: string; // ISO 8601
+  endTime?: string; // ISO 8601
+  status?: string; // "unplanned" | "planned" | "completed"
+  category?: string; // "work" | "study" | "personal"
+  isApproved?: boolean;
+}
+
+export async function createAdminTask(
+  userId: string,
+  payload: AdminCreateTaskPayload,
+): Promise<AdminTaskItem> {
+  const data = await fetchAdmin<AdminTaskResponse>(
+    `${TASKER_API_URL}/admin/users/${encodeURIComponent(userId)}/tasks`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    },
+  );
+  return data.task;
+}
+
 export async function getAdminTask(userId: string, taskId: string): Promise<AdminTaskItem> {
   const data = await fetchAdmin<AdminTaskResponse>(
     `${TASKER_API_URL}/admin/users/${encodeURIComponent(userId)}/tasks/${encodeURIComponent(taskId)}`,
