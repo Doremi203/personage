@@ -5,7 +5,6 @@ ALWAYS PREFER LSP TOOLS INSTEAD OF GREP IF SEARCHING FOR CODE SYMBOLS DEFINITION
 
 ### Git Worktrees
 - **Never use a git worktree for any code change if user not explicitly said overwise.** Create and enter one before touching any file if user said **use worktree**.
-- **Create worktrees under `/tmp/personage/worktrees/`.** Do not create worktrees outside this directory.
 - After creating and entering a worktree, run `cd backend && make generate` to generate all protobuf/gRPC gen files before making changes.
 - After finishing work in a worktree, always create a pull request before removing the worktree.
 - When development is complete, ask the user "Ready to remove the worktree?" before calling ExitWorktree with `action: "remove"`.
