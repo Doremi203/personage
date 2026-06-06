@@ -127,19 +127,10 @@ func (n *upcomingEventNotifier) NotifyUpcomingEvents(
 			continue
 		}
 
-		taskSent := false
 		for _, interval := range n.config.UpcomingEventIntervals {
 			notificationTime := task.StartTime.Add(-interval)
 
 			if !now.After(notificationTime.Add(-time.Minute)) || !now.Before(notificationTime.Add(time.Minute)) {
-				n.logger.Infof(
-					"outside notification window %s %s %s %s %s",
-					errors.Token("user_id", userID.String()),
-					errors.Token("task_id", task.ID.String()),
-					errors.Token("interval", interval.String()),
-					errors.Token("notification_time", notificationTime.Format(time.RFC3339)),
-					errors.Token("diff", now.Sub(notificationTime).String()),
-				)
 				continue
 			}
 
@@ -166,16 +157,7 @@ func (n *upcomingEventNotifier) NotifyUpcomingEvents(
 					errors.Token("task_id", task.ID),
 				)
 			}
-			taskSent = true
 			sentCount++
-		}
-
-		if !taskSent {
-			n.logger.Infof(
-				"no notification window matched for task %s %s",
-				errors.Token("user_id", userID.String()),
-				errors.Token("task_id", task.ID.String()),
-			)
 		}
 	}
 
