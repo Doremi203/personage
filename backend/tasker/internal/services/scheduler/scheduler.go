@@ -14,6 +14,10 @@ func CalculateSchedule(
 	windowDuration time.Duration,
 	loc *time.Location,
 ) domain.Schedule {
+	if loc == nil {
+		loc = time.UTC
+	}
+
 	totalSlots := int(math.Ceil(float64(windowDuration) / float64(domain.TimeSlotSize)))
 
 	grid := make([]bool, totalSlots)
@@ -131,58 +135,69 @@ func CalculateSchedule(
 			highIdx = min(highIdx, timeToIndex(*task.Deadline))
 		}
 		if task.Date != nil {
-			mskDate := task.Date.In(loc)
-			dayStart := time.Date(mskDate.Year(), mskDate.Month(), mskDate.Day(), 0, 0, 0, 0, loc).UTC()
-			dayEnd := dayStart.Add(24 * time.Hour)
-			// Date is best-effort: ignore it when it pushes the task past an explicit deadline.
-			if task.Deadline == nil || !dayStart.After(*task.Deadline) {
+			// task.Date denotes a calendar day; read it in loc to recover that day. A stored DATE
+			// comes back as UTC midnight and a freshly parsed value as loc midnight — both resolve
+			// to the same civil day under .In(loc) for east-of-UTC zones like Europe/Moscow.
+			day := task.Date.In(loc)
+			dayStart := time.Date(day.Year(), day.Month(), day.Day(), 0, 0, 0, 0, loc)
+			dayEnd := time.Date(day.Year(), day.Month(), day.Day()+1, 0, 0, 0, 0, loc)
+			// Date is best-effort: ignore it when its day has already elapsed, or when it would push
+			// the task past an explicit deadline — in both cases schedule the task normally instead.
+			if dayEnd.After(planningStart) && (task.Deadline == nil || !dayStart.After(*task.Deadline)) {
 				lowIdx = max(lowIdx, timeToIndex(dayStart))
 				highIdx = min(highIdx, timeToIndex(dayEnd))
 			}
 		}
 
-		found := false
-		for startIdx := lowIdx; startIdx+slotsNeeded <= highIdx; startIdx++ {
-			endIdx := startIdx + slotsNeeded
-
-			allAvailable := true
-			for i := startIdx; i < endIdx; i++ {
-				if grid[i] || sleep[i] {
-					allAvailable = false
-					// Skip past the blocking slot — next iteration starts at i+1.
-					startIdx = i
-					break
-				}
-			}
-
-			if allAvailable {
-				for i := startIdx; i < endIdx; i++ {
-					grid[i] = true
-				}
-
-				startTime := indexToTime(startIdx)
-				endTime := indexToTime(startIdx + slotsNeeded)
-
-				planned = append(planned, domain.PlannedTask{
-					ID:    task.ID,
-					Start: startTime,
-					End:   endTime,
-				})
-
-				found = true
-				break
-			}
+		startIdx, ok := findFreeGap(grid, sleep, lowIdx, highIdx, slotsNeeded, true)
+		if !ok && task.Deadline != nil {
+			// Sleep is a soft preference; let an explicit deadline override it rather than leaving
+			// the task unscheduled past a deadline the user cares about.
+			startIdx, ok = findFreeGap(grid, sleep, lowIdx, highIdx, slotsNeeded, false)
 		}
-
-		if !found {
+		if !ok {
 			unscheduled = append(unscheduled, task)
+			continue
 		}
+
+		for i := startIdx; i < startIdx+slotsNeeded; i++ {
+			grid[i] = true
+		}
+		planned = append(planned, domain.PlannedTask{
+			ID:    task.ID,
+			Start: indexToTime(startIdx),
+			End:   indexToTime(startIdx + slotsNeeded),
+		})
 	}
 
 	return domain.Schedule{
 		Planned:     planned,
 		Unscheduled: unscheduled,
 	}
+}
+
+// findFreeGap returns the first start index in [lowIdx, highIdx) where slotsNeeded contiguous
+// slots are free. When honorSleep is true, sleep slots are treated as occupied.
+func findFreeGap(grid, sleep []bool, lowIdx, highIdx, slotsNeeded int, honorSleep bool) (int, bool) {
+	for startIdx := lowIdx; startIdx+slotsNeeded <= highIdx; startIdx++ {
+		endIdx := startIdx + slotsNeeded
+
+		blocked := false
+		for i := startIdx; i < endIdx; i++ {
+			if grid[i] || (honorSleep && sleep[i]) {
+				blocked = true
+				// Skip past the blocking slot — next iteration starts at i+1.
+				startIdx = i
+				break
+			}
+		}
+
+		if !blocked {
+			return startIdx, true
+		}
+	}
+
+	return 0, false
 }
 
 func isSleepSlot(slotStart time.Time, loc *time.Location) bool {

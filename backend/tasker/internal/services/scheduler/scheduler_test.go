@@ -1453,6 +1453,115 @@ func TestSchedule_ExplicitStartTimeAt02_IsRespected(t *testing.T) {
 	}
 }
 
+func TestSchedule_DateInPast_FallsBackToNormalScheduling(t *testing.T) {
+	moscow := time.FixedZone("MSK", 3*60*60)
+	planningStart := time.Date(2026, 5, 24, 10, 0, 0, 0, moscow).UTC()
+	window := 48 * time.Hour
+	// Date day is entirely before planningStart — a stale best-effort hint that must be ignored
+	// rather than permanently stranding the task.
+	date := time.Date(2026, 5, 23, 0, 0, 0, 0, moscow).UTC()
+
+	tasks := []domain.Task{
+		{
+			ID:       "t",
+			Duration: 30 * time.Minute,
+			Priority: 5,
+			Date:     &date,
+		},
+	}
+
+	result := CalculateSchedule(tasks, planningStart, window, moscow)
+
+	if len(result.Planned) != 1 {
+		t.Fatalf("Expected 1 planned task, got %d", len(result.Planned))
+	}
+	expected := time.Date(2026, 5, 24, 10, 0, 0, 0, moscow).UTC()
+	if !result.Planned[0].Start.Equal(expected) {
+		t.Errorf("Expected start at %v (10:00 MSK, stale date ignored), got %v", expected, result.Planned[0].Start)
+	}
+}
+
+func TestSchedule_DateInPastWithFutureDeadline_StillScheduled(t *testing.T) {
+	moscow := time.FixedZone("MSK", 3*60*60)
+	planningStart := time.Date(2026, 5, 24, 10, 0, 0, 0, moscow).UTC()
+	window := 96 * time.Hour
+	// Stale date in the past, but a generous future deadline — the task must still be scheduled
+	// before the deadline, not dropped because of the elapsed date hint.
+	date := time.Date(2026, 5, 23, 0, 0, 0, 0, moscow).UTC()
+	deadline := time.Date(2026, 5, 26, 18, 0, 0, 0, moscow).UTC()
+
+	tasks := []domain.Task{
+		{
+			ID:       "t",
+			Duration: 30 * time.Minute,
+			Priority: 5,
+			Date:     &date,
+			Deadline: &deadline,
+		},
+	}
+
+	result := CalculateSchedule(tasks, planningStart, window, moscow)
+
+	if len(result.Planned) != 1 {
+		t.Fatalf("Expected 1 planned task, got %d", len(result.Planned))
+	}
+	expected := time.Date(2026, 5, 24, 10, 0, 0, 0, moscow).UTC()
+	if !result.Planned[0].Start.Equal(expected) {
+		t.Errorf("Expected start at %v (10:00 MSK, stale date ignored), got %v", expected, result.Planned[0].Start)
+	}
+}
+
+func TestSchedule_DeadlineInsideSleepWindow_OverridesSleep(t *testing.T) {
+	moscow := time.FixedZone("MSK", 3*60*60)
+	planningStart := time.Date(2026, 5, 24, 2, 0, 0, 0, moscow).UTC()
+	window := 24 * time.Hour
+	// Entire feasible interval [02:00, 05:00) is sleep, but a real deadline must override the
+	// sleep preference rather than letting the deadline silently pass.
+	deadline := time.Date(2026, 5, 24, 5, 0, 0, 0, moscow).UTC()
+
+	tasks := []domain.Task{
+		{
+			ID:       "t",
+			Duration: 30 * time.Minute,
+			Priority: 5,
+			Deadline: &deadline,
+		},
+	}
+
+	result := CalculateSchedule(tasks, planningStart, window, moscow)
+
+	if len(result.Planned) != 1 {
+		t.Fatalf("Expected 1 planned task, got %d", len(result.Planned))
+	}
+	expected := time.Date(2026, 5, 24, 2, 0, 0, 0, moscow).UTC()
+	if !result.Planned[0].Start.Equal(expected) {
+		t.Errorf("Expected start at %v (02:00 MSK, deadline overrides sleep), got %v", expected, result.Planned[0].Start)
+	}
+	if result.Planned[0].End.After(deadline) {
+		t.Errorf("End %v must be at or before deadline %v", result.Planned[0].End, deadline)
+	}
+}
+
+func TestSchedule_NoDeadline_DoesNotOverrideSleep(t *testing.T) {
+	moscow := time.FixedZone("MSK", 3*60*60)
+	planningStart := time.Date(2026, 5, 24, 2, 0, 0, 0, moscow).UTC()
+	window := 3 * time.Hour // 02:00 → 05:00 MSK, entirely inside the sleep window
+
+	tasks := []domain.Task{
+		{
+			ID:       "t",
+			Duration: 30 * time.Minute,
+			Priority: 5,
+		},
+	}
+
+	result := CalculateSchedule(tasks, planningStart, window, moscow)
+
+	if len(result.Unscheduled) != 1 {
+		t.Fatalf("Expected 1 unscheduled task (no deadline, only sleep slots), got %d", len(result.Unscheduled))
+	}
+}
+
 // Helper function to find a planned task by ID
 func findPlannedTask(planned []domain.PlannedTask, id domain.TaskID) *domain.PlannedTask {
 	for i := range planned {
