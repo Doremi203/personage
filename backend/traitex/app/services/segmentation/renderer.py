@@ -1,6 +1,7 @@
 import uuid
 from collections import Counter
 
+from zoneinfo import ZoneInfo
 from app.domain.models.ConnectorTypeModel import ConnectorTypeModel
 from app.domain.models.events.enriched.EnrichedEventModel import EnrichedEventModel
 from app.domain.models.traits.SenderTrait import SenderTrait
@@ -64,6 +65,7 @@ def _segment_event_id(segment: ConversationSegment) -> uuid.UUID:
     return uuid.uuid5(_SEGMENT_NAMESPACE, name)
 
 
+moscow_tz = ZoneInfo('Europe/Moscow')
 def build_segment_event(segment: ConversationSegment) -> EnrichedEventModel | None:
     """Render a closed segment into an EnrichedEventModel, or None if it has
     no signal-bearing messages (pure noise — should not be emitted).
@@ -85,11 +87,12 @@ def build_segment_event(segment: ConversationSegment) -> EnrichedEventModel | No
         )
     ]
 
+    moscow_date = primary.date.astimezone(moscow_tz)
     return EnrichedEventModel(
         id=_segment_event_id(segment),
         user_id=segment.user_id,
         connector_type=ConnectorTypeModel.Telegram,
-        occurred_at=primary.date,
+        occurred_at=moscow_date,
         main_body=body,
         traits=traits,
     )
