@@ -82,7 +82,7 @@ func NewAdminGetGenerationSettingsHandler(uc adminGenerationSettingsUseCase, api
 
 		settings, err := uc.GetGenerationSettings(r.Context())
 		if err != nil {
-			http.Error(w, "internal error", http.StatusInternalServerError)
+			writeGenerationSettingsError(w, err)
 			return
 		}
 

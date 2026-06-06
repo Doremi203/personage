@@ -725,6 +725,9 @@ func TestUseCase_ProcessEvent_HigherMinSimilarityStartsNewCluster(t *testing.T) 
 		clusterRepo.EXPECT().
 			FindSimilarClusters(gomock.Any(), event.UserID, embedding, 5).
 			Return([]domain.ClusterWithSimilarity{{Cluster: existing, Similarity: 0.7}}, nil)
+		eventsRepo.EXPECT().
+			MaxSimilarityByClusters(gomock.Any(), []domain.ClusterID{existing.ID}, embedding).
+			Return(map[domain.ClusterID]float64{existing.ID: 0.7}, nil)
 		clusterRepo.EXPECT().
 			UpsertCluster(gomock.Any(), gomock.AssignableToTypeOf(domain.Cluster{})).
 			DoAndReturn(func(_ context.Context, c domain.Cluster) error {

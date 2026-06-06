@@ -53,10 +53,10 @@ func (s *Service) GenerationSettings(ctx context.Context) (domain.GenerationSett
 
 	value, err := s.repo.GetGenerationSettings(ctx)
 	if err != nil {
-		s.logger.Error(errors.WrapFail(err, "load generation settings, using fallback"))
 		if s.hasCached {
 			return s.cached, nil
 		}
+		s.logger.Error(errors.WrapFail(err, "load generation settings, using defaults"))
 		return s.defaults, nil
 	}
 

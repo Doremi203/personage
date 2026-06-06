@@ -136,6 +136,8 @@ func TestUseCase_CreateTask(t *testing.T) {
 				mock_domain.NewMockEventRepo(ctrl),
 				mock_domain.NewMockPromptRepo(ctrl),
 				noopPromptCache{},
+				mock_domain.NewMockGenerationSettingsRepo(ctrl),
+				noopSettingsCache{},
 			)
 			got, err := uc.CreateTask(t.Context(), task)
 

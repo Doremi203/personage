@@ -52,16 +52,6 @@ func (uc *UseCase) ProcessEvent(ctx context.Context, e domain.Event) error {
 		errors.Token("user_id", e.UserID.String()),
 	)
 
-	cfg, err := uc.settings.GenerationSettings(ctx)
-	if err != nil {
-		return errors.WrapFailf(
-			err,
-			"load generation settings for event %s for user %s",
-			errors.Token("event_id", e.ID.String()),
-			errors.Token("user_id", e.UserID.String()),
-		)
-	}
-
 	paused, err := uc.pauseRepo.IsPaused(ctx, e.UserID)
 	if err != nil {
 		return errors.WrapFailf(
@@ -102,6 +92,16 @@ func (uc *UseCase) ProcessEvent(ctx context.Context, e domain.Event) error {
 	eventWithEmbedding := domain.EventWithEmbedding{
 		Event:     e,
 		Embedding: embedding,
+	}
+
+	cfg, err := uc.settings.GenerationSettings(ctx)
+	if err != nil {
+		return errors.WrapFailf(
+			err,
+			"load generation settings for event %s for user %s",
+			errors.Token("event_id", e.ID.String()),
+			errors.Token("user_id", e.UserID.String()),
+		)
 	}
 
 	closedClusters, err := uc.clusterRepo.FindSimilarClosedClusters(ctx, e.UserID, embedding, cfg.TopK)
