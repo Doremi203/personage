@@ -112,8 +112,9 @@ func main() {
 		}
 
 		llmModel, err := openrouter.NewChatModel(ctx, &openrouter.Config{
-			APIKey: llmConfig.ApiKey,
-			Model:  llmConfig.Model,
+			APIKey:     llmConfig.ApiKey,
+			Model:      llmConfig.Model,
+			HTTPClient: llm.NewHTTPClient(app.Log),
 		})
 		if err != nil {
 			return errors.WrapFail(err, "init openrouter llm model")
