@@ -15,6 +15,9 @@ const DISMISS_BTN = { name: 'Не сейчас' } as const;
 
 const ORIGIN = 'http://localhost:3000';
 
+const IOS_INSTALL_DISMISSED_KEY = 'personage_ios_install_dismissed';
+const PUSH_DISMISSED_KEY = 'personage_push_dismissed';
+
 // Replace `window.Notification` with a Proxy. The app's pickMode reads
 // `Notification.permission` and the click handler calls
 // `Notification.requestPermission()` — overriding both lets us drive the
@@ -45,7 +48,8 @@ async function stubNotification(
 
 async function clearOnboardingFlag(page: Page): Promise<void> {
   await page.addInitScript(() => {
-    localStorage.removeItem('personage_onboarding_completed');
+    localStorage.removeItem('personage_ios_install_dismissed');
+    localStorage.removeItem('personage_push_dismissed');
   });
 }
 
@@ -96,8 +100,8 @@ async function stubPushManager(page: Page): Promise<void> {
 }
 
 test.describe('Onboarding prompt — visibility logic', () => {
-  test('hidden when personage_onboarding_completed=true', async ({ page }) => {
-    // auth.setup.ts already set the flag; reuse it as-is.
+  test('hidden when both dismissal flags are set', async ({ page }) => {
+    // auth.setup.ts already set the flags; reuse them as-is.
     await page.goto('/');
     await page.waitForLoadState('domcontentloaded');
     await expect(page.getByText(PUSH_TITLE)).toBeHidden();
@@ -141,8 +145,9 @@ test.describe('Push prompt — dismissal', () => {
     await expect(page.getByText(PUSH_TITLE)).toBeVisible();
     await page.getByRole('button', DISMISS_BTN).click();
     await expect(page.getByText(PUSH_TITLE)).toBeHidden();
-    const flag = await page.evaluate(() =>
-      localStorage.getItem('personage_onboarding_completed'),
+    const flag = await page.evaluate(
+      (key) => localStorage.getItem(key),
+      PUSH_DISMISSED_KEY,
     );
     expect(flag).toBe('true');
   });
@@ -206,8 +211,9 @@ test.describe('Push prompt — full subscribe flow', () => {
     // OnboardingPrompt schedules dismiss at 1.2 s after success.
     await expect(page.getByText(GRANTED_TITLE)).toBeHidden({ timeout: 5_000 });
 
-    const flag = await page.evaluate(() =>
-      localStorage.getItem('personage_onboarding_completed'),
+    const flag = await page.evaluate(
+      (key) => localStorage.getItem(key),
+      PUSH_DISMISSED_KEY,
     );
     expect(flag).toBe('true');
   });
@@ -257,8 +263,9 @@ test.describe('iOS install prompt', () => {
     await expect(page.getByText(IOS_TITLE)).toBeVisible();
     await page.getByRole('button', DISMISS_BTN).click();
     await expect(page.getByText(IOS_TITLE)).toBeHidden();
-    const flag = await page.evaluate(() =>
-      localStorage.getItem('personage_onboarding_completed'),
+    const flag = await page.evaluate(
+      (key) => localStorage.getItem(key),
+      IOS_INSTALL_DISMISSED_KEY,
     );
     expect(flag).toBe('true');
   });
@@ -268,8 +275,9 @@ test.describe('iOS install prompt', () => {
     await expect(page.getByText(IOS_TITLE)).toBeVisible();
     await page.getByRole('button', { name: 'Понятно' }).click();
     await expect(page.getByText(IOS_TITLE)).toBeHidden();
-    const flag = await page.evaluate(() =>
-      localStorage.getItem('personage_onboarding_completed'),
+    const flag = await page.evaluate(
+      (key) => localStorage.getItem(key),
+      IOS_INSTALL_DISMISSED_KEY,
     );
     expect(flag).toBe('true');
   });

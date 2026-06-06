@@ -16,14 +16,21 @@ import {
   setupPushNotifications,
 } from '../utils/pushNotifications';
 
-const DISMISSED_KEY = 'personage_onboarding_completed';
+const IOS_INSTALL_DISMISSED_KEY = 'personage_ios_install_dismissed';
+const PUSH_DISMISSED_KEY = 'personage_push_dismissed';
 
 type Mode = 'ios-install' | 'push' | 'none';
 type PushState = 'idle' | 'loading' | 'granted' | 'denied' | 'unsupported' | 'error';
 
-function pickMode(): Mode {
-  if (localStorage.getItem(DISMISSED_KEY) === 'true') return 'none';
-  if (isIos() && !isStandalonePWA()) return 'ios-install';
+function pickMode(authenticated: boolean): Mode {
+  const iosInstallEligible =
+    isIos() &&
+    !isStandalonePWA() &&
+    localStorage.getItem(IOS_INSTALL_DISMISSED_KEY) !== 'true';
+  if (iosInstallEligible) return 'ios-install';
+
+  if (!authenticated) return 'none';
+  if (localStorage.getItem(PUSH_DISMISSED_KEY) === 'true') return 'none';
   if (!isPushSupported()) return 'none';
   const perm = getNotificationPermission();
   if (perm === 'unsupported' || perm === 'granted' || perm === 'denied') return 'none';
@@ -31,19 +38,32 @@ function pickMode(): Mode {
 }
 
 interface OnboardingPromptProps {
+  authenticated: boolean;
   onDismiss?: () => void;
 }
 
-export function OnboardingPrompt({ onDismiss }: OnboardingPromptProps) {
-  const [mode, setMode] = useState<Mode>(() => pickMode());
+export function OnboardingPrompt({ authenticated, onDismiss }: OnboardingPromptProps) {
+  const [mode, setMode] = useState<Mode>(() => pickMode(authenticated));
+  const [trackedAuthenticated, setTrackedAuthenticated] = useState(authenticated);
   const [pushState, setPushState] = useState<PushState>('idle');
   const [pushError, setPushError] = useState<string | null>(null);
+
+  if (authenticated !== trackedAuthenticated) {
+    setTrackedAuthenticated(authenticated);
+    setMode(pickMode(authenticated));
+    setPushState('idle');
+    setPushError(null);
+  }
 
   if (mode === 'none') return null;
 
   const dismiss = () => {
-    localStorage.setItem(DISMISSED_KEY, 'true');
-    setMode('none');
+    if (mode === 'ios-install') {
+      localStorage.setItem(IOS_INSTALL_DISMISSED_KEY, 'true');
+    } else if (mode === 'push') {
+      localStorage.setItem(PUSH_DISMISSED_KEY, 'true');
+    }
+    setMode(pickMode(authenticated));
     onDismiss?.();
   };
 
@@ -266,14 +286,18 @@ function PromptHeader({ title, subtitle, icon: Icon, iconBg, iconInk }: PromptHe
           <Icon size={22} strokeWidth={1.8} />
         </div>
       ) : (
-        <div style={{
-          width: 44, height: 44, borderRadius: 11,
-          background: 'linear-gradient(135deg, oklch(0.45 0.07 55) 0%, oklch(0.32 0.04 55) 100%)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: '#fff', fontFamily: SERIF, fontSize: 22, letterSpacing: -0.5,
-          boxShadow: '0 3px 10px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.18)',
-          flexShrink: 0,
-        }}>P</div>
+        <img
+          src="/icon-180x180.png"
+          alt="Personage"
+          width={44}
+          height={44}
+          style={{
+            width: 44, height: 44, borderRadius: 11,
+            objectFit: 'cover',
+            boxShadow: '0 3px 10px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.18)',
+            flexShrink: 0,
+          }}
+        />
       )}
       <div style={{ minWidth: 0 }}>
         <div style={{
