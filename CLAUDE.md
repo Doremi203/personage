@@ -5,7 +5,7 @@ ALWAYS PREFER LSP TOOLS INSTEAD OF GREP IF SEARCHING FOR CODE SYMBOLS DEFINITION
 
 ### Git Worktrees
 - **Never use a git worktree for any code change if user not explicitly said overwise.** Create and enter one before touching any file if user said **use worktree**.
-- **Create worktrees under `.claude/worktrees/`.** Do not create worktrees outside this directory.
+- **Create worktrees under `/tmp/personage/worktrees/`.** Do not create worktrees outside this directory.
 - After creating and entering a worktree, run `cd backend && make generate` to generate all protobuf/gRPC gen files before making changes.
 - After finishing work in a worktree, always create a pull request before removing the worktree.
 - When development is complete, ask the user "Ready to remove the worktree?" before calling ExitWorktree with `action: "remove"`.
@@ -222,3 +222,6 @@ Traitex snapshot recording is time-window based. Creating a snapshot only insert
 
 ### Tasker cluster generation outcomes
 `backend/tasker` task generation now uses a two-step LLM flow: cluster-level actionability classification first, then single-task extraction only for actionable clusters. Final cluster decisions are persisted on `clusters` via `generation_outcome` (`task_generated`, `non_actionable`, `empty`) and optional `generation_reason`; generated tasks persist supporting source event IDs in `tasks.evidence_event_ids`. Eval/debug cluster metrics read from the non-prod `/v1/test/clusters/list` endpoint backed by `ClusterRepo.ListGenerationDiagnosticsByUserID`.
+
+### Tasker prompts editing
+The `task_generator` (and other) prompts live in the `prompts` table and are edited manually by the user through the admin UI (`PUT /admin/prompts/{promptId}`). DO NOT create migrations to update prompt text and DO NOT edit the prompt via SQL or admin endpoints yourself. When the user asks to tune a prompt, just output the proposed text in the chat for them to apply by hand. Existing migrations `00008`–`00010` that set/updated `task_generator` are legacy seed/baseline only — the live prompt may have diverged from them.
