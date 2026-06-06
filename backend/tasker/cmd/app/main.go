@@ -382,6 +382,7 @@ func main() {
 		)
 
 		app.AddHTTPHandler("GET /admin/users/{userId}/tasks", taskergrpc.NewAdminListTasksHandler(adminUseCase, adminConfig.ApiKey))
+		app.AddHTTPHandler("POST /admin/users/{userId}/tasks", taskergrpc.NewAdminCreateTaskHandler(adminUseCase, adminConfig.ApiKey, time.Now))
 		app.AddHTTPHandler("GET /admin/users/{userId}/tasks/{taskId}", taskergrpc.NewAdminGetTaskHandler(adminUseCase, adminConfig.ApiKey))
 		app.AddHTTPHandler("PATCH /admin/users/{userId}/tasks/{taskId}", taskergrpc.NewAdminUpdateTaskHandler(adminUseCase, adminConfig.ApiKey))
 		app.AddHTTPHandler("POST /admin/users/{userId}/tasks/{taskId}/approve", taskergrpc.NewAdminApproveTaskHandler(adminUseCase, adminConfig.ApiKey))

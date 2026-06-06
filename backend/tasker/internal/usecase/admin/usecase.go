@@ -63,6 +63,13 @@ func (uc *UseCase) GetTask(ctx context.Context, taskID domain.TaskID, userID dom
 	return task, nil
 }
 
+func (uc *UseCase) CreateTask(ctx context.Context, task domain.Task) (domain.Task, error) {
+	if err := uc.taskRepo.CreateTask(ctx, task); err != nil {
+		return domain.Task{}, errors.WrapFail(err, "create task for admin")
+	}
+	return task, nil
+}
+
 func (uc *UseCase) UpdateTask(
 	ctx context.Context,
 	taskID domain.TaskID,
