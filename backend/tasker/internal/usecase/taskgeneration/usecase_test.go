@@ -21,6 +21,7 @@ func TestProcessClosableClustersUsesRuntimeSettings(t *testing.T) {
 		stubActionabilityService{},
 		stubTaskGenerationService{},
 		stubUserProfileService{},
+		stubEmbeddingService{},
 		stubTxProvider{},
 		log.Stub{},
 		stubSettingsProvider{settings: domain.GenerationSettings{
@@ -65,7 +66,7 @@ func TestProcessClusterFinalizesNonActionableCluster(t *testing.T) {
 		time.Now,
 	)
 
-	err := uc.processCluster(t.Context(), domain.Cluster{ID: "cluster-1", UserID: "user-1"})
+	err := uc.processCluster(t.Context(), domain.Cluster{ID: "cluster-1", UserID: "user-1"}, 0.97)
 	if err != nil {
 		t.Fatalf("processCluster returned error: %v", err)
 	}
@@ -117,7 +118,7 @@ func TestProcessClusterStoresGeneratedTask(t *testing.T) {
 		time.Now,
 	)
 
-	err := uc.processCluster(t.Context(), domain.Cluster{ID: "cluster-1", UserID: "user-1"})
+	err := uc.processCluster(t.Context(), domain.Cluster{ID: "cluster-1", UserID: "user-1"}, 0.97)
 	if err != nil {
 		t.Fatalf("processCluster returned error: %v", err)
 	}
@@ -162,12 +163,11 @@ func TestProcessClusterSkipsDuplicateGeneratedTask(t *testing.T) {
 		stubEmbeddingService{embeddings: [][]float32{{0.1, 0.2, 0.3}}},
 		stubTxProvider{},
 		log.Stub{},
-		5,
-		time.Minute,
+		stubSettingsProvider{settings: domain.GenerationSettings{TaskDuplicateThreshold: 0.97}},
 		time.Now,
 	)
 
-	if err := uc.processCluster(t.Context(), domain.Cluster{ID: "cluster-1", UserID: "user-1"}); err != nil {
+	if err := uc.processCluster(t.Context(), domain.Cluster{ID: "cluster-1", UserID: "user-1"}, 0.97); err != nil {
 		t.Fatalf("processCluster returned error: %v", err)
 	}
 
@@ -199,12 +199,11 @@ func TestProcessClusterCreatesTaskWithEmbeddingWhenNotDuplicate(t *testing.T) {
 		stubEmbeddingService{embeddings: [][]float32{embedding}},
 		stubTxProvider{},
 		log.Stub{},
-		5,
-		time.Minute,
+		stubSettingsProvider{settings: domain.GenerationSettings{TaskDuplicateThreshold: 0.97}},
 		time.Now,
 	)
 
-	if err := uc.processCluster(t.Context(), domain.Cluster{ID: "cluster-1", UserID: "user-1"}); err != nil {
+	if err := uc.processCluster(t.Context(), domain.Cluster{ID: "cluster-1", UserID: "user-1"}, 0.97); err != nil {
 		t.Fatalf("processCluster returned error: %v", err)
 	}
 
@@ -235,12 +234,11 @@ func TestProcessClusterCreatesTaskWhenEmbeddingFails(t *testing.T) {
 		stubEmbeddingService{embeddings: nil},
 		stubTxProvider{},
 		log.Stub{},
-		5,
-		time.Minute,
+		stubSettingsProvider{settings: domain.GenerationSettings{TaskDuplicateThreshold: 0.97}},
 		time.Now,
 	)
 
-	if err := uc.processCluster(t.Context(), domain.Cluster{ID: "cluster-1", UserID: "user-1"}); err != nil {
+	if err := uc.processCluster(t.Context(), domain.Cluster{ID: "cluster-1", UserID: "user-1"}, 0.97); err != nil {
 		t.Fatalf("processCluster returned error: %v", err)
 	}
 
@@ -279,7 +277,7 @@ func TestProcessClusterMarksTaskUnapprovedWhenUserRequiresModeration(t *testing.
 		time.Now,
 	)
 
-	err := uc.processCluster(t.Context(), domain.Cluster{ID: "cluster-1", UserID: "user-1"})
+	err := uc.processCluster(t.Context(), domain.Cluster{ID: "cluster-1", UserID: "user-1"}, 0.97)
 	if err != nil {
 		t.Fatalf("processCluster returned error: %v", err)
 	}
@@ -312,7 +310,7 @@ func TestProcessClusterPassesUserProfileToTaskGenerator(t *testing.T) {
 		time.Now,
 	)
 
-	if err := uc.processCluster(t.Context(), domain.Cluster{ID: "cluster-1", UserID: "user-1"}); err != nil {
+	if err := uc.processCluster(t.Context(), domain.Cluster{ID: "cluster-1", UserID: "user-1"}, 0.97); err != nil {
 		t.Fatalf("processCluster returned error: %v", err)
 	}
 
@@ -340,7 +338,7 @@ func TestProcessClusterPassesUserProfileToClassifier(t *testing.T) {
 		time.Now,
 	)
 
-	if err := uc.processCluster(t.Context(), domain.Cluster{ID: "cluster-1", UserID: "user-1"}); err != nil {
+	if err := uc.processCluster(t.Context(), domain.Cluster{ID: "cluster-1", UserID: "user-1"}, 0.97); err != nil {
 		t.Fatalf("processCluster returned error: %v", err)
 	}
 
@@ -368,7 +366,7 @@ func TestProcessClusterDegradesWhenUserProfileLookupFails(t *testing.T) {
 		time.Now,
 	)
 
-	if err := uc.processCluster(t.Context(), domain.Cluster{ID: "cluster-1", UserID: "user-1"}); err != nil {
+	if err := uc.processCluster(t.Context(), domain.Cluster{ID: "cluster-1", UserID: "user-1"}, 0.97); err != nil {
 		t.Fatalf("processCluster returned error: %v", err)
 	}
 

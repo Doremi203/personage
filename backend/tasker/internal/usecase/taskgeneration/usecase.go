@@ -12,8 +12,6 @@ import (
 	"github.com/google/uuid"
 )
 
-const taskDuplicateThreshold = 0.97
-
 func NewUseCase(
 	clusterRepo domain.ClusterRepo,
 	eventRepo domain.EventRepo,
@@ -112,7 +110,7 @@ func (uc *UseCase) ProcessClosableClusters(ctx context.Context) error {
 	}
 
 	for _, cluster := range clusters {
-		if err = uc.processCluster(ctx, cluster); err != nil {
+		if err = uc.processCluster(ctx, cluster, cfg.TaskDuplicateThreshold); err != nil {
 			uc.logger.Error(errors.WrapFailf(
 				err,
 				"process cluster %s for user %s (skipping)",
@@ -125,7 +123,7 @@ func (uc *UseCase) ProcessClosableClusters(ctx context.Context) error {
 	return nil
 }
 
-func (uc *UseCase) processCluster(ctx context.Context, cluster domain.Cluster) error {
+func (uc *UseCase) processCluster(ctx context.Context, cluster domain.Cluster, duplicateThreshold float64) error {
 	uc.logger.Infof(
 		"processing cluster %s for user %s",
 		errors.Token("cluster_id", cluster.ID.String()),
@@ -278,7 +276,7 @@ func (uc *UseCase) processCluster(ctx context.Context, cluster domain.Cluster) e
 			)
 		}
 
-		if found && similarity >= taskDuplicateThreshold {
+		if found && similarity >= duplicateThreshold {
 			reason := fmt.Sprintf("duplicate of task %s (similarity=%.4f)", similarTaskID.String(), similarity)
 			uc.logger.Infof(
 				"cluster %s for user %s generated a duplicate of task %s (similarity=%s), skipping create",

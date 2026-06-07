@@ -17,7 +17,8 @@ type FieldKey =
   | 'topK'
   | 'maxEventCount'
   | 'inactivityMinutes'
-  | 'batchSize';
+  | 'batchSize'
+  | 'taskDuplicateThreshold';
 
 interface FieldDef {
   key: FieldKey;
@@ -70,6 +71,13 @@ const FIELDS: FieldDef[] = [
     kind: 'integer',
     step: 1,
   },
+  {
+    key: 'taskDuplicateThreshold',
+    label: 'task_duplicate_threshold',
+    hint: 'Порог семантического дедупа сгенерированных задач (0–1).',
+    kind: 'similarity',
+    step: 0.01,
+  },
 ];
 
 function formatDateTime(iso?: string): string {
@@ -87,6 +95,7 @@ function toFormValues(s: AdminGenerationSettings): Record<FieldKey, string> {
     maxEventCount: String(s.maxEventCount),
     inactivityMinutes: String(s.inactivityMinutes),
     batchSize: String(s.batchSize),
+    taskDuplicateThreshold: String(s.taskDuplicateThreshold),
   };
 }
 

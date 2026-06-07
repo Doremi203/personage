@@ -294,6 +294,7 @@ export interface AdminGenerationSettings {
   maxEventCount: number;
   inactivityMinutes: number;
   batchSize: number;
+  taskDuplicateThreshold: number;
   updatedAt: string;
 }
 

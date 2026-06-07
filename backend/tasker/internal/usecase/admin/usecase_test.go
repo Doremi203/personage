@@ -326,6 +326,15 @@ func TestUseCase_UpdateGenerationSettings(t *testing.T) {
 			wantInvalidated: 0,
 		},
 		{
+			name:   "invalid task duplicate threshold rejected before repo call",
+			update: domain.GenerationSettingsUpdate{TaskDuplicateThreshold: new(1.5)},
+			setup:  func(*mock_domain.MockGenerationSettingsRepo) {},
+			wantErr: func(t require.TestingT, err error, _ ...any) {
+				require.ErrorIs(t, err, domain.ErrInvalidGenerationSettings)
+			},
+			wantInvalidated: 0,
+		},
+		{
 			name:   "repo error wraps without invalidating",
 			update: domain.GenerationSettingsUpdate{TopK: new(3)},
 			setup: func(repo *mock_domain.MockGenerationSettingsRepo) {
