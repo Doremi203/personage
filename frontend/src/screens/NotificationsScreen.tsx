@@ -7,7 +7,6 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import {
-  LargeHeader,
   Segmented,
   type SegmentedItem,
 } from '../mobile/Chrome';
@@ -81,25 +80,31 @@ const NotificationsScreen = () => {
 
   return (
     <>
-      <LargeHeader
-        title="Уведомления"
-        subtitle={unreadCount > 0 ? `${unreadCount} непрочитанных` : 'Всё прочитано'}
-        trailing={
-          unreadCount > 0
-            ? (
-              <button
-                type="button"
-                onClick={() => { void markAllRead(); }}
-                style={{
-                  padding: '6px 12px', borderRadius: 999,
-                  background: T.subtle, border: 'none', cursor: 'pointer',
-                  fontFamily: SANS, fontSize: 13, fontWeight: 500, color: T.ink,
-                }}
-              >Прочитать всё</button>
-            )
-            : undefined
-        }
-      />
+      <div style={{ padding: '8px 20px 10px', background: T.bg }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+        }}>
+          <div style={{
+            fontFamily: SERIF, fontSize: 34, lineHeight: 1.05,
+            color: T.ink, letterSpacing: -0.5,
+          }}>Уведомления</div>
+          {unreadCount > 0 && (
+            <button
+              type="button"
+              onClick={() => { void markAllRead(); }}
+              style={{
+                flexShrink: 0,
+                padding: '6px 12px', borderRadius: 999,
+                background: T.subtle, border: 'none', cursor: 'pointer',
+                fontFamily: SANS, fontSize: 13, fontWeight: 500, color: T.ink,
+              }}
+            >Прочитать всё</button>
+          )}
+        </div>
+        <div style={{ fontSize: 13.5, color: T.ink3, marginTop: 4, lineHeight: 1.4 }}>
+          {unreadCount > 0 ? `${unreadCount} непрочитанных` : 'Всё прочитано'}
+        </div>
+      </div>
 
       <Segmented value={filter} onChange={setFilter} items={segItems} />
 
