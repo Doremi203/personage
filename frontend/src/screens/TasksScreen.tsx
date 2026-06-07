@@ -276,7 +276,7 @@ const TasksScreen = () => {
       ) : tasks.length === 0 ? (
         <EmptyState filter={filter} />
       ) : (
-        <div style={{ padding: '0 16px', display: 'grid', gap: 10 }}>
+        <div style={{ padding: '0 16px', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 10 }}>
           {tasks.map((task) => (
             <TaskListCard
               key={task.id}
