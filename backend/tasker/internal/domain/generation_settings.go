@@ -17,6 +17,7 @@ type GenerationSettings struct {
 	InactivityTimeout         time.Duration
 	BatchSize                 int
 	TaskDuplicateThreshold    float64
+	LLMModel                  string // empty means fall back to the model configured at startup
 	UpdatedAt                 time.Time
 }
 
@@ -28,6 +29,7 @@ type GenerationSettingsUpdate struct {
 	InactivityMinutes         *int
 	BatchSize                 *int
 	TaskDuplicateThreshold    *float64
+	LLMModel                  *string // empty string resets to the startup model
 }
 
 func (u GenerationSettingsUpdate) Validate() error {

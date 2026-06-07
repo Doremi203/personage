@@ -8,25 +8,24 @@ import (
 	"github.com/Doremi203/personage/backend/libs/go/errors"
 	"github.com/Doremi203/personage/backend/libs/go/log"
 	"github.com/Doremi203/personage/backend/tasker/internal/domain"
-	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/components/prompt"
 	"github.com/cloudwego/eino/schema"
 )
 
 func NewClusterActionabilityService(
-	model model.BaseChatModel,
+	models ChatModelProvider,
 	logger log.Logger,
 	prompts PromptProvider,
 ) *clusterActionabilityService {
 	return &clusterActionabilityService{
-		model:   model,
+		models:  models,
 		logger:  logger,
 		prompts: prompts,
 	}
 }
 
 type clusterActionabilityService struct {
-	model   model.BaseChatModel
+	models  ChatModelProvider
 	logger  log.Logger
 	prompts PromptProvider
 }
@@ -60,7 +59,12 @@ func (s *clusterActionabilityService) GetTaskGenerationDecision(
 		return domain.TaskGenerationDecision{}, errors.WrapFail(err, "format messages for actionability llm")
 	}
 
-	return generateAndParseWithRetry(ctx, s.logger, s.model, messages, userIDFromEvents(events), parseActionabilityResponse)
+	chatModel, err := s.models.ChatModel(ctx)
+	if err != nil {
+		return domain.TaskGenerationDecision{}, errors.WrapFail(err, "resolve chat model for actionability llm")
+	}
+
+	return generateAndParseWithRetry(ctx, s.logger, chatModel, messages, userIDFromEvents(events), parseActionabilityResponse)
 }
 
 func parseActionabilityResponse(responseText string) (domain.TaskGenerationDecision, error) {

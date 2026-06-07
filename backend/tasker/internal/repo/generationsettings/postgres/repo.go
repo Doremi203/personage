@@ -24,7 +24,7 @@ type repo struct {
 
 func (r *repo) GetGenerationSettings(ctx context.Context) (domain.GenerationSettings, error) {
 	query := `
-		SELECT min_similarity, closed_similarity_threshold, top_k, max_event_count, inactivity_minutes, batch_size, task_duplicate_threshold, updated_at
+		SELECT min_similarity, closed_similarity_threshold, top_k, max_event_count, inactivity_minutes, batch_size, task_duplicate_threshold, llm_model, updated_at
 		FROM generation_settings
 		WHERE id = 1
 	`
@@ -56,9 +56,10 @@ func (r *repo) UpdateGenerationSettings(
 		    inactivity_minutes          = COALESCE($6, inactivity_minutes),
 		    batch_size                  = COALESCE($7, batch_size),
 		    task_duplicate_threshold    = COALESCE($8, task_duplicate_threshold),
+		    llm_model                   = COALESCE($9, llm_model),
 		    updated_at                  = $1
 		WHERE id = 1
-		RETURNING min_similarity, closed_similarity_threshold, top_k, max_event_count, inactivity_minutes, batch_size, task_duplicate_threshold, updated_at
+		RETURNING min_similarity, closed_similarity_threshold, top_k, max_event_count, inactivity_minutes, batch_size, task_duplicate_threshold, llm_model, updated_at
 	`
 
 	rows, err := r.client.Query(
@@ -72,6 +73,7 @@ func (r *repo) UpdateGenerationSettings(
 		update.InactivityMinutes,
 		update.BatchSize,
 		update.TaskDuplicateThreshold,
+		update.LLMModel,
 	)
 	if err != nil {
 		return domain.GenerationSettings{}, errors.WrapFail(err, "update generation settings")
@@ -94,6 +96,7 @@ type generationSettingsEntity struct {
 	InactivityMinutes         int       `db:"inactivity_minutes"`
 	BatchSize                 int       `db:"batch_size"`
 	TaskDuplicateThreshold    float64   `db:"task_duplicate_threshold"`
+	LLMModel                  string    `db:"llm_model"`
 	UpdatedAt                 time.Time `db:"updated_at"`
 }
 
@@ -106,6 +109,7 @@ func (e generationSettingsEntity) ToDomain() domain.GenerationSettings {
 		InactivityTimeout:         time.Duration(e.InactivityMinutes) * time.Minute,
 		BatchSize:                 e.BatchSize,
 		TaskDuplicateThreshold:    e.TaskDuplicateThreshold,
+		LLMModel:                  e.LLMModel,
 		UpdatedAt:                 e.UpdatedAt,
 	}
 }

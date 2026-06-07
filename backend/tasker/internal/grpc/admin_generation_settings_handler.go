@@ -23,6 +23,7 @@ type adminGenerationSettingsItem struct {
 	InactivityMinutes         int       `json:"inactivityMinutes"`
 	BatchSize                 int       `json:"batchSize"`
 	TaskDuplicateThreshold    float64   `json:"taskDuplicateThreshold"`
+	LLMModel                  string    `json:"llmModel"`
 	UpdatedAt                 time.Time `json:"updatedAt"`
 }
 
@@ -35,6 +36,7 @@ func generationSettingsToAdminItem(s domain.GenerationSettings) adminGenerationS
 		InactivityMinutes:         int(s.InactivityTimeout.Minutes()),
 		BatchSize:                 s.BatchSize,
 		TaskDuplicateThreshold:    s.TaskDuplicateThreshold,
+		LLMModel:                  s.LLMModel,
 		UpdatedAt:                 s.UpdatedAt,
 	}
 }
@@ -47,6 +49,7 @@ type adminUpdateGenerationSettingsRequest struct {
 	InactivityMinutes         *int     `json:"inactivityMinutes,omitempty"`
 	BatchSize                 *int     `json:"batchSize,omitempty"`
 	TaskDuplicateThreshold    *float64 `json:"taskDuplicateThreshold,omitempty"`
+	LLMModel                  *string  `json:"llmModel,omitempty"`
 }
 
 func (req adminUpdateGenerationSettingsRequest) isEmpty() bool {
@@ -56,7 +59,8 @@ func (req adminUpdateGenerationSettingsRequest) isEmpty() bool {
 		req.MaxEventCount == nil &&
 		req.InactivityMinutes == nil &&
 		req.BatchSize == nil &&
-		req.TaskDuplicateThreshold == nil
+		req.TaskDuplicateThreshold == nil &&
+		req.LLMModel == nil
 }
 
 func (req adminUpdateGenerationSettingsRequest) toDomain() domain.GenerationSettingsUpdate {
@@ -68,6 +72,7 @@ func (req adminUpdateGenerationSettingsRequest) toDomain() domain.GenerationSett
 		InactivityMinutes:         req.InactivityMinutes,
 		BatchSize:                 req.BatchSize,
 		TaskDuplicateThreshold:    req.TaskDuplicateThreshold,
+		LLMModel:                  req.LLMModel,
 	}
 }
 
