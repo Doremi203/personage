@@ -500,6 +500,9 @@ func (s *stubTaskRepo) UpdateTaskSchedule(context.Context, domain.TaskID, time.T
 func (s *stubTaskRepo) UpdateTaskStatus(context.Context, domain.TaskID, domain.TaskStatus) error {
 	return nil
 }
+func (s *stubTaskRepo) UnscheduleTask(context.Context, domain.TaskID) error {
+	return nil
+}
 func (s *stubTaskRepo) UpdateTask(context.Context, domain.TaskID, domain.UserID, domain.TaskUpdate) (domain.Task, error) {
 	return domain.Task{}, nil
 }

@@ -266,6 +266,40 @@ func Test_repo_UpdateTaskStatus(t *testing.T) {
 	)
 }
 
+func Test_repo_UnscheduleTask(t *testing.T) {
+	userA := domain.UserID(uuid.NewString())
+
+	tester.Run(t, "clears slot and unplans", nil, 10*time.Second,
+		func(t *testing.T, ctx context.Context, db postgres.Client) {
+			r := NewRepo(db)
+
+			task := newTask(t, userA)
+			require.NoError(t, r.CreateTask(ctx, task))
+
+			start := time.Date(2026, 5, 23, 21, 0, 0, 0, time.UTC)
+			end := time.Date(2026, 5, 23, 21, 30, 0, 0, time.UTC)
+			require.NoError(t, r.UpdateTaskSchedule(ctx, task.ID, start, end, domain.TaskStatusPlanned))
+
+			require.NoError(t, r.UnscheduleTask(ctx, task.ID))
+
+			got, err := r.GetTaskByID(ctx, task.ID, userA)
+			require.NoError(t, err)
+			assert.Equal(t, domain.TaskStatusUnplanned, got.Status)
+			assert.Nil(t, got.StartTime)
+			assert.Nil(t, got.EndTime)
+		},
+	)
+
+	tester.Run(t, "unknown task returns error", nil, 10*time.Second,
+		func(t *testing.T, ctx context.Context, db postgres.Client) {
+			r := NewRepo(db)
+
+			err := r.UnscheduleTask(ctx, domain.TaskID(uuid.NewString()))
+			require.Error(t, err)
+		},
+	)
+}
+
 func Test_repo_DeleteTask(t *testing.T) {
 	userA := domain.UserID(uuid.NewString())
 

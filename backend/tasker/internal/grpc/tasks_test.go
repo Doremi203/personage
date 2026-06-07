@@ -361,7 +361,7 @@ func TestTasksService_PostponeTaskV1(t *testing.T) {
 						GetTaskByID(gomock.Any(), domain.TaskID(grpcTaskID), domain.UserID(grpcUserID.String())).
 						Return(domain.Task{ID: domain.TaskID(grpcTaskID)}, nil),
 					d.taskRepo.EXPECT().
-						UpdateTaskStatus(gomock.Any(), domain.TaskID(grpcTaskID), domain.TaskStatusUnplanned).
+						UnscheduleTask(gomock.Any(), domain.TaskID(grpcTaskID)).
 						Return(nil),
 				)
 			},
