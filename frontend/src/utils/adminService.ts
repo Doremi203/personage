@@ -295,6 +295,7 @@ export interface AdminGenerationSettings {
   inactivityMinutes: number;
   batchSize: number;
   taskDuplicateThreshold: number;
+  llmModel: string;
   updatedAt: string;
 }
 

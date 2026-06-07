@@ -116,6 +116,7 @@ function validateField(field: FieldDef, raw: string): string | null {
 export function AdminGenerationSettingsScreen({ onBack }: AdminGenerationSettingsScreenProps) {
   const [settings, setSettings] = useState<AdminGenerationSettings | null>(null);
   const [values, setValues] = useState<Record<FieldKey, string> | null>(null);
+  const [modelValue, setModelValue] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -127,6 +128,7 @@ export function AdminGenerationSettingsScreen({ onBack }: AdminGenerationSetting
       const loaded = await getAdminGenerationSettings();
       setSettings(loaded);
       setValues(toFormValues(loaded));
+      setModelValue(loaded.llmModel);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Не удалось загрузить настройки');
     } finally {
@@ -159,13 +161,18 @@ export function AdminGenerationSettingsScreen({ onBack }: AdminGenerationSetting
     );
   }, [settings, values]);
 
-  const dirty = changedKeys.length > 0;
+  const modelChanged = settings ? modelValue.trim() !== settings.llmModel : false;
+
+  const dirty = changedKeys.length > 0 || modelChanged;
 
   const handleSave = async () => {
     if (!settings || !values || !dirty || hasErrors) return;
     const patch: AdminGenerationSettingsUpdate = {};
     for (const key of changedKeys) {
       patch[key] = Number(values[key]);
+    }
+    if (modelChanged) {
+      patch.llmModel = modelValue.trim();
     }
 
     setSaving(true);
@@ -174,6 +181,7 @@ export function AdminGenerationSettingsScreen({ onBack }: AdminGenerationSetting
       const updated = await updateAdminGenerationSettings(patch);
       setSettings(updated);
       setValues(toFormValues(updated));
+      setModelValue(updated.llmModel);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Не удалось сохранить настройки');
     } finally {
@@ -318,6 +326,43 @@ export function AdminGenerationSettingsScreen({ onBack }: AdminGenerationSetting
                 </label>
               );
             })}
+
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <span
+                style={{
+                  fontSize: 12,
+                  color: T.ink3,
+                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+                }}
+              >
+                llm_model
+              </span>
+              <input
+                type="text"
+                value={modelValue}
+                onChange={(event) => setModelValue(event.target.value)}
+                placeholder="например, nvidia/nemotron-3-super-120b-a12b"
+                spellCheck={false}
+                autoCapitalize="off"
+                autoCorrect="off"
+                style={{
+                  padding: '10px 12px',
+                  borderRadius: 10,
+                  border: `1px solid ${T.hairline}`,
+                  background: T.subtle,
+                  fontSize: 14,
+                  color: T.ink,
+                  outline: 'none',
+                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+                  width: '100%',
+                  boxSizing: 'border-box',
+                }}
+              />
+              <span style={{ fontSize: 12, color: T.ink3 }}>
+                Идентификатор модели OpenRouter для классификатора и генератора задач. Пусто —
+                модель из конфигурации сервиса.
+              </span>
+            </label>
 
             <div style={{ fontSize: 12, color: T.ink3 }}>
               Обновлено: {formatDateTime(settings.updatedAt)}. Изменения подхватываются tasker в

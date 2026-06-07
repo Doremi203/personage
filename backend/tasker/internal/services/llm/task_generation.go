@@ -10,19 +10,18 @@ import (
 	"github.com/Doremi203/personage/backend/libs/go/errors"
 	"github.com/Doremi203/personage/backend/libs/go/log"
 	"github.com/Doremi203/personage/backend/tasker/internal/domain"
-	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/components/prompt"
 	"github.com/cloudwego/eino/schema"
 )
 
 func NewTaskGenerationService(
-	model model.BaseChatModel,
+	models ChatModelProvider,
 	logger log.Logger,
 	prompts PromptProvider,
 	defaultLocation *time.Location,
 ) *taskGenerationService {
 	return &taskGenerationService{
-		model:           model,
+		models:          models,
 		logger:          logger,
 		prompts:         prompts,
 		defaultLocation: defaultLocation,
@@ -30,7 +29,7 @@ func NewTaskGenerationService(
 }
 
 type taskGenerationService struct {
-	model           model.BaseChatModel
+	models          ChatModelProvider
 	logger          log.Logger
 	prompts         PromptProvider
 	defaultLocation *time.Location
@@ -61,7 +60,12 @@ func (s *taskGenerationService) GenerateTask(ctx context.Context, events []domai
 		return domain.GeneratedTask{}, errors.WrapFail(err, "format messages for llm")
 	}
 
-	return generateAndParseWithRetry(ctx, s.logger, s.model, messages, userIDFromEvents(events), func(responseText string) (domain.GeneratedTask, error) {
+	chatModel, err := s.models.ChatModel(ctx)
+	if err != nil {
+		return domain.GeneratedTask{}, errors.WrapFail(err, "resolve chat model for task generation llm")
+	}
+
+	return generateAndParseWithRetry(ctx, s.logger, chatModel, messages, userIDFromEvents(events), func(responseText string) (domain.GeneratedTask, error) {
 		return s.parseResponse(responseText, events)
 	})
 }

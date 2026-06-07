@@ -38,6 +38,7 @@ import (
 	schedulingworker "github.com/Doremi203/personage/backend/tasker/internal/workers/scheduling"
 	"github.com/cloudwego/eino-ext/components/embedding/openai"
 	"github.com/cloudwego/eino-ext/components/model/openrouter"
+	"github.com/cloudwego/eino/components/model"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	pgxvec "github.com/pgvector/pgvector-go/pgx"
@@ -150,14 +151,24 @@ func main() {
 			return err
 		}
 
-		llmModel, err := openrouter.NewChatModel(ctx, &openrouter.Config{
-			APIKey:     llmConfig.ApiKey,
-			Model:      llmConfig.Model,
-			HTTPClient: llm.NewHTTPClient(app.Log),
-		})
-		if err != nil {
+		llmHTTPClient := llm.NewHTTPClient(app.Log)
+		chatModelFactory := func(ctx context.Context, modelName string) (model.BaseChatModel, error) {
+			return openrouter.NewChatModel(ctx, &openrouter.Config{
+				APIKey:     llmConfig.ApiKey,
+				Model:      modelName,
+				HTTPClient: llmHTTPClient,
+			})
+		}
+
+		if _, err = chatModelFactory(ctx, llmConfig.Model); err != nil {
 			return errors.WrapFail(err, "init openrouter llm model")
 		}
+
+		chatModelProvider := llm.NewSettingsChatModelProvider(
+			generationSettingsService,
+			chatModelFactory,
+			llmConfig.Model,
+		)
 
 		type EmbeddingConfig struct {
 			Model  string
@@ -211,8 +222,8 @@ func main() {
 			).WithInterval(time.Second),
 		)
 
-		actionabilityService := llm.NewClusterActionabilityService(llmModel, app.Log, promptsService)
-		taskGenerationService := llm.NewTaskGenerationService(llmModel, app.Log, promptsService, defaultLocation)
+		actionabilityService := llm.NewClusterActionabilityService(chatModelProvider, app.Log, promptsService)
+		taskGenerationService := llm.NewTaskGenerationService(chatModelProvider, app.Log, promptsService, defaultLocation)
 
 		isTestEnv := app.Env == webapp.TestsEnvironment || app.Env == webapp.EvalEnvironment
 
