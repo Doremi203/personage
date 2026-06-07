@@ -56,9 +56,12 @@ def test_body_contains_header_and_chronological_messages():
     lines = body.splitlines()
     assert lines[0].startswith("[telegram conversation: chat=\"Family\" type=group")
     assert "messages=3" in lines[0]
-    assert "Alice [10:01]" in lines[1]
-    assert "Alice [10:02]" in lines[2]
-    assert "Alice [10:03]: ок" in lines[3]
+    # span rendered in Moscow local time: 10:01 UTC -> 13:01+03:00
+    assert "span=2026-04-29T13:01:00+0300..2026-04-29T13:03:00+0300" in lines[0]
+    # 10:0x UTC rendered in Moscow local time (+03:00)
+    assert "Alice [13:01]" in lines[1]
+    assert "Alice [13:02]" in lines[2]
+    assert "Alice [13:03]: ок" in lines[3]
 
 
 def test_album_renders_with_media_summary():
