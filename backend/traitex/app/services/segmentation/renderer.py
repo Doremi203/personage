@@ -1,5 +1,6 @@
 import uuid
 from collections import Counter
+from zoneinfo import ZoneInfo
 
 from app.domain.models.ConnectorTypeModel import ConnectorTypeModel
 from app.domain.models.events.enriched.EnrichedEventModel import EnrichedEventModel
@@ -11,6 +12,11 @@ from app.services.segmentation.buffer import BufferedMessage, ConversationSegmen
 
 _SEGMENT_NAMESPACE = uuid.UUID("a1d6c4f4-1f15-4a47-9a09-7e1b6f48c0a0")
 
+# Telegram message dates arrive UTC-aware; segment chunks render times in
+# Moscow local time. The offset is fixed (+03:00, no DST since 2014), so the
+# rendered text — and the embedding derived from it — stays stable on replay.
+_MOSCOW_TZ = ZoneInfo("Europe/Moscow")
+
 
 def _format_media_summary(media_kinds: list[str]) -> str:
     if not media_kinds:
@@ -21,9 +27,7 @@ def _format_media_summary(media_kinds: list[str]) -> str:
 
 
 def _format_message_line(seg_first_at, message: BufferedMessage) -> str:
-    # Time relative to UTC with seconds precision keeps embeddings stable
-    # when the same conversation is replayed from snapshot.
-    timestamp = message.date.strftime("%H:%M")
+    timestamp = message.date.astimezone(_MOSCOW_TZ).strftime("%H:%M")
     speaker = message.sender_display or (
         f"@{message.sender_username}" if message.sender_username else "unknown"
     )
@@ -39,8 +43,10 @@ def _format_message_line(seg_first_at, message: BufferedMessage) -> str:
 def render_segment_body(segment: ConversationSegment) -> str:
     if segment.first_at is None:
         return ""
-    span_start = segment.first_at.strftime("%Y-%m-%dT%H:%M:%SZ")
-    span_end = (segment.last_at or segment.first_at).strftime("%Y-%m-%dT%H:%M:%SZ")
+    span_start = segment.first_at.astimezone(_MOSCOW_TZ).strftime("%Y-%m-%dT%H:%M:%S%z")
+    span_end = (
+        (segment.last_at or segment.first_at).astimezone(_MOSCOW_TZ).strftime("%Y-%m-%dT%H:%M:%S%z")
+    )
     chat_label = segment.chat_title or f"chat#{segment.chat_id}"
     participant_count = len(segment.participants)
     header = (
