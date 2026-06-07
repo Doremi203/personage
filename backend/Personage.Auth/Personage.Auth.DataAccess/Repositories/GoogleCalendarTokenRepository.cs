@@ -90,4 +90,73 @@ public class GoogleCalendarTokenRepository(IDbConnectionFactory connectionFactor
                 userId
             });
     }
+
+    public async Task RemoveTokens(Guid[] tokenIds, CancellationToken ct)
+    {
+        using var connection = await connectionFactory.CreateConnection(ct);
+
+        await connection.ExecuteAsync(
+            """
+            --GoogleCalendarTokenRepository.RemoveTokens
+            DELETE FROM calendar_token
+            WHERE id = any(@tokenIds);
+            """,
+            new
+            {
+                tokenIds
+            });
+    }
+
+    public async Task UpdateToken(Guid tokenId, string accessToken, string refreshToken, DateTime expiresAt, CancellationToken ct)
+    {
+        using var connection = await connectionFactory.CreateConnection(ct);
+
+        await connection.ExecuteAsync(
+            """
+            --GoogleCalendarTokenRepository.UpdateToken
+            UPDATE calendar_token
+            SET
+                access_token = @accessToken,
+                refresh_token = @refreshToken,
+                expires_at = @expiresAt
+            WHERE
+                id = @tokenId;
+            """,
+            new
+            {
+                accessToken,
+                refreshToken,
+                expiresAt,
+                tokenId
+            });
+    }
+
+    public async Task<(Guid TokenId, int FailedAttempts)[]> UpdateRefreshInfo((Guid TokenId, bool RefreshSuccess)[] refreshes, CancellationToken ct)
+    {
+        using var connection = await connectionFactory.CreateConnection(ct);
+
+        var result = await connection.QueryAsync<(Guid TokenId, int FailedAttempts)>(
+            """
+            --GoogleCalendarTokenRepository.UpdateRefreshInfo
+            UPDATE calendar_token AS ct
+            SET
+                failed_refreshes = CASE 
+                    WHEN refresh_data.refresh_success THEN 0 
+                    ELSE ct.failed_refreshes + 1 
+                END
+            FROM (SELECT
+                UNNEST(@TokenIds) as token_id,
+                UNNEST(@RefreshSuccesses) as refresh_success
+            ) AS refresh_data
+            WHERE ct.id = refresh_data.token_id
+            RETURNING ct.id AS token_id, ct.failed_refreshes;
+            """,
+            new
+            {
+                TokenIds = refreshes.Select(x => x.TokenId).ToArray(),
+                RefreshSuccesses = refreshes.Select(x => x.RefreshSuccess).ToArray()
+            });
+
+        return result.ToArray();
+    }
 }

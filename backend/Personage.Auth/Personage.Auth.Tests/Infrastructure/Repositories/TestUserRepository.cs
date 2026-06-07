@@ -23,7 +23,9 @@ public class TestUserRepository(IDbConnectionFactory connectionFactory)
             new { email });
     }
 
-    public async Task<(Guid UserId, OAuthToken Token)> CreateUserWithToken(DateTime? userProcessedAt)
+    public async Task<(Guid UserId, OAuthToken Token)> CreateUserWithToken(
+        DateTime? userProcessedAt,
+        DateTime? expiresAt = null)
     {
         var userId = await CreateUser();
         using var connection = await connectionFactory.CreateConnection(CancellationToken.None);
@@ -44,10 +46,25 @@ public class TestUserRepository(IDbConnectionFactory connectionFactory)
                 userId,
                 accessToken = Fixture.Create<string>(),
                 refreshToken = Fixture.Create<string>(),
-                expiresAt = DateTime.UtcNow.AddMinutes(Random.Shared.Next(10, 20)),
+                expiresAt = expiresAt ?? DateTime.UtcNow.AddMinutes(Random.Shared.Next(10, 20)),
                 gmailEmail = Fixture.Create<string>(),
                 userProcessedAt
             });
         return (userId, token);
+    }
+
+    public async Task<(bool Exists, int FailedRefreshes)> GetGmailTokenState(Guid userId)
+    {
+        using var connection = await connectionFactory.CreateConnection(CancellationToken.None);
+
+        var failedRefreshes = await connection.QueryFirstOrDefaultAsync<int?>(
+            """
+            SELECT failed_refreshes
+            FROM gmail_token
+            WHERE user_id = @userId;
+            """,
+            new { userId });
+
+        return (failedRefreshes.HasValue, failedRefreshes ?? 0);
     }
 }

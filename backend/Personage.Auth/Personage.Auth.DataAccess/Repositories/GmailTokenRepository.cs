@@ -69,6 +69,22 @@ public class GmailTokenRepository(IDbConnectionFactory connectionFactory) : IGma
             token);
     }
 
+    public async Task RemoveTokens(Guid[] tokenIds, CancellationToken ct)
+    {
+        using var connection = await connectionFactory.CreateConnection(ct);
+
+        await connection.ExecuteAsync(
+            """
+            --GmailTokenRepository.RemoveTokens
+            DELETE FROM gmail_token
+            WHERE id = ANY(@tokenIds);
+            """,
+            new
+            {
+                tokenIds
+            });
+    }
+
     public async Task UpdateToken(Guid tokenId, string accessToken, string refreshToken, DateTime expiresAt, CancellationToken ct)
     {
         using var connection = await connectionFactory.CreateConnection(ct);
@@ -91,6 +107,35 @@ public class GmailTokenRepository(IDbConnectionFactory connectionFactory) : IGma
                 expiresAt,
                 tokenId
             });
+    }
+
+    public async Task<(Guid TokenId, int FailedAttempts)[]> UpdateRefreshInfo((Guid TokenId, bool RefreshSuccess)[] refreshes, CancellationToken ct)
+    {
+        using var connection = await connectionFactory.CreateConnection(ct);
+
+        var result = await connection.QueryAsync<(Guid TokenId, int FailedAttempts)>(
+            """
+            --GmailTokenRepository.UpdateRefreshInfo
+            UPDATE gmail_token AS gt
+            SET
+                failed_refreshes = CASE 
+                    WHEN refresh_data.refresh_success THEN 0 
+                    ELSE gt.failed_refreshes + 1 
+                END
+            FROM (SELECT
+                UNNEST(@TokenIds) as token_id,
+                UNNEST(@RefreshSuccesses) as refresh_success
+            ) AS refresh_data
+            WHERE gt.id = refresh_data.token_id
+            RETURNING gt.id AS token_id, gt.failed_refreshes;
+            """,
+            new
+            {
+                TokenIds = refreshes.Select(x => x.TokenId).ToArray(),
+                RefreshSuccesses = refreshes.Select(x => x.RefreshSuccess).ToArray()
+            });
+
+        return result.ToArray();
     }
 
     public async Task<Guid[]> GetUsersWithoutToken(Guid[] userIds, CancellationToken ct)
