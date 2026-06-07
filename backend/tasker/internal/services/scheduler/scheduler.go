@@ -56,30 +56,18 @@ func CalculateSchedule(
 		endTime := task.StartTime.Add(task.Duration)
 		endIdx := timeToIndex(endTime)
 
-		// Handle tasks that end exactly on a slot boundary
-		if endTime.Sub(indexToTime(endIdx)) == 0 && endIdx > 0 {
-			// Task ends exactly at slot boundary, don't include that slot
-		} else if endTime.Sub(indexToTime(endIdx)) > 0 {
-			// Task extends into this slot, include it
+		// Round the slot-aligned end up when the task spills past its boundary slot.
+		if endTime.Sub(indexToTime(endIdx)) > 0 {
 			endIdx++
 		}
 
-		// Clamp to window boundaries
-		if startIdx < 0 {
-			startIdx = 0
-		}
-		if endIdx > totalSlots {
-			endIdx = totalSlots
-		}
-
-		// Mark slots as occupied
-		for i := startIdx; i < endIdx && i < totalSlots; i++ {
-			if i >= 0 {
-				grid[i] = true
-			}
+		// Grid occupancy is confined to the window, so clamp only the marked range — never the
+		// stored End. A wall whose start lies beyond the window must keep its real slot-aligned
+		// finish; clamping End to the window end would push it before Start.
+		for i := max(startIdx, 0); i < min(endIdx, totalSlots); i++ {
+			grid[i] = true
 		}
 
-		// Add to planned with slot-aligned end time
 		planned = append(planned, domain.PlannedTask{
 			ID:    task.ID,
 			Start: *task.StartTime,
