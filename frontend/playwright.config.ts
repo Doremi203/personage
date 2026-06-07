@@ -33,7 +33,12 @@ export default defineConfig({
     },
     {
       name: 'authenticated',
-      testIgnore: [/auth\.spec\.ts/, /errors\.spec\.ts/, /.*\.setup\.ts/],
+      testIgnore: [
+        /auth\.spec\.ts/,
+        /errors\.spec\.ts/,
+        /task-display\.spec\.ts/,
+        /.*\.setup\.ts/,
+      ],
       use: {
         ...devices['Desktop Chrome'],
         storageState: STORAGE_STATE,
@@ -45,6 +50,16 @@ export default defineConfig({
       // page.route, so they don't need live creds or the `setup` step.
       name: 'errors',
       testMatch: /errors\.spec\.ts/,
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: { cookies: [], origins: [] },
+      },
+    },
+    {
+      // Self-contained task time-field display tests. Like `errors`, all
+      // backend traffic is mocked, so no live creds or `setup` step needed.
+      name: 'display',
+      testMatch: /task-display\.spec\.ts/,
       use: {
         ...devices['Desktop Chrome'],
         storageState: { cookies: [], origins: [] },

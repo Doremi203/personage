@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
+  AlarmClock,
   Calendar as CalendarIcon,
+  CalendarOff,
   Check,
   ChevronDown,
   Clock,
@@ -21,6 +23,7 @@ import {
   type Category,
   type Priority,
 } from './tokens';
+import { formatDateTimeLabel, formatDeadlineLabel } from '../utils/dateFormat';
 import {
   ApiTaskCategory,
   type UpdateTaskPatch,
@@ -33,10 +36,15 @@ export interface DetailTask {
   status: 'unplanned' | 'planned' | 'completed';
   priority: Priority;
   category: Category;
-  startLabel: string;
-  endLabel: string;
-  startISO?: string;
-  endISO?: string;
+  startISO?: string;     // запланированный слот — начало (валиден только когда задача запланирована)
+  endISO?: string;       // запланированный слот — конец
+  deadlineISO?: string;  // дедлайн (крайний срок) — независим от планирования
+}
+
+function parseISO(iso?: string): Date | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? null : d;
 }
 
 interface TaskDetailSheetProps {
@@ -98,7 +106,16 @@ export function TaskDetailSheet({
   const statusLabel =
     task.status === 'completed' ? 'Завершено' :
     task.status === 'planned'   ? 'Запланировано' :
-                                  'Без даты';
+                                  'Не запланировано';
+
+  // Слот «Начало/Конец» осмыслен только когда задача действительно запланирована.
+  // У отложенной (unplanned) задачи start/end могут оставаться от прошлого плана — игнорируем их.
+  const startDate = parseISO(task.startISO);
+  const endDate = parseISO(task.endISO);
+  const deadlineDate = parseISO(task.deadlineISO);
+  const isScheduled = (task.status === 'planned' || task.status === 'completed') && startDate !== null;
+  const deadlineOverdue =
+    deadlineDate !== null && task.status !== 'completed' && deadlineDate.getTime() < Date.now();
 
   const [running, setRunning] = useState<Action>(null);
   const [mountTarget, setMountTarget] = useState<HTMLElement | null>(null);
@@ -328,10 +345,27 @@ export function TaskDetailSheet({
           </Section>
         ) : (
           <Section>
-            <Row icon={CalendarIcon} iconBg={T.amberFill} iconInk={T.amberDp}
-              label="Начало" value={task.startLabel} />
-            <Row icon={Clock} iconBg={T.infoFill} iconInk={T.info}
-              label="Конец" value={task.endLabel} />
+            {isScheduled ? (
+              <>
+                <Row icon={CalendarIcon} iconBg={T.amberFill} iconInk={T.amberDp}
+                  label="Начало" value={startDate ? formatDateTimeLabel(startDate) : '—'} />
+                <Row icon={Clock} iconBg={T.infoFill} iconInk={T.info}
+                  label="Конец" value={endDate ? formatDateTimeLabel(endDate) : '—'} />
+              </>
+            ) : task.status === 'unplanned' ? (
+              <Row icon={CalendarOff} iconBg={T.subtle} iconInk={T.ink3}
+                label="В расписании" value="Нет слота" />
+            ) : null}
+            {deadlineDate && (
+              <Row
+                icon={AlarmClock}
+                iconBg={deadlineOverdue ? T.dangerFill : T.amberFill}
+                iconInk={deadlineOverdue ? T.danger : T.amberInk}
+                label="Дедлайн"
+                value={formatDeadlineLabel(deadlineDate)}
+                valueColor={deadlineOverdue ? T.danger : undefined}
+              />
+            )}
             <Row icon={Flag} iconBg={pal.fill} iconInk={pal.ink}
               label="Приоритет" value={PRIORITY_LABELS[task.priority]} dot={pal.rail} last />
           </Section>
@@ -378,10 +412,11 @@ interface RowProps {
   label: string;
   value: string;
   dot?: string;
+  valueColor?: string;
   last?: boolean;
 }
 
-function Row({ icon: Icon, iconBg, iconInk, label, value, dot, last }: RowProps) {
+function Row({ icon: Icon, iconBg, iconInk, label, value, dot, valueColor, last }: RowProps) {
   return (
     <div style={{
       display: 'flex', alignItems: 'center', gap: 12,
@@ -396,7 +431,8 @@ function Row({ icon: Icon, iconBg, iconInk, label, value, dot, last }: RowProps)
       </div>
       <div style={{ flex: 1, fontSize: 14, color: T.ink, fontWeight: 500 }}>{label}</div>
       <div style={{
-        fontSize: 14, color: T.ink2,
+        fontSize: 14, color: valueColor ?? T.ink2,
+        fontWeight: valueColor ? 600 : 400,
         display: 'flex', alignItems: 'center', gap: 6,
       }}>
         {dot && <span style={{ width: 7, height: 7, borderRadius: '50%', background: dot }} />}

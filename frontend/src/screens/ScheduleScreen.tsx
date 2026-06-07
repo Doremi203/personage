@@ -67,6 +67,9 @@ function mapStatus(s: string): DetailTask['status'] {
 }
 
 function mapApiTaskToEvent(t: ApiTaskItem): ScheduleEvent | null {
+  // Отложенная (unplanned) задача могла сохранить start/end от прошлого плана —
+  // её слот недействителен, в расписании она показываться не должна.
+  if (t.status === ApiTaskStatus.UNPLANNED) return null;
   if (!t.startTime) return null;
   const start = new Date(t.startTime);
   if (Number.isNaN(start.getTime())) return null;
@@ -366,22 +369,10 @@ function toDetailTask(e: ScheduleEvent): DetailTask {
     status: mapStatus(e.raw.status),
     priority: e.priority,
     category: e.category,
-    startLabel: formatDateTime(e.startTime),
-    endLabel: formatDateTime(e.endTime),
     startISO: e.raw.startTime,
     endISO:   e.raw.endTime,
+    deadlineISO: e.raw.deadline,
   };
-}
-
-function formatDateTime(d: Date): string {
-  const today = startOfDay(new Date());
-  const tomorrow = new Date(today);
-  tomorrow.setDate(today.getDate() + 1);
-  const day = startOfDay(d);
-  const time = toHHMM(d);
-  if (day.getTime() === today.getTime())    return `Сегодня, ${time}`;
-  if (day.getTime() === tomorrow.getTime()) return `Завтра, ${time}`;
-  return `${d.getDate()} ${RU_MONTHS_GEN[d.getMonth()]}, ${time}`;
 }
 
 interface AgendaRowProps {
