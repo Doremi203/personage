@@ -18,6 +18,14 @@ Before reading files in the main session, use the Explore agent whenever you are
 ### Implementing plans
 When executing a multi-task plan create a todo list and spawn a separate agent per task whenever you have enough context to write detailed instructions for it. This keeps the main session context lean and allows parallel execution.
 
+### Debugging prod PostgreSQL
+For read-only debugging against the prod Yandex Cloud DB:
+- Credentials live in a gitignored `.pgdebug.env` at the repo root as `PGURL=postgres://user:pass@host:6432/<db>?sslmode=verify-full`. The user provides/maintains this file and the network access to the cluster (VPN/tunnel/security group). If it's missing, ask the user to create it.
+- **Do not parse `PGURL` via `source`/URL-decoding** — the password contains special chars (`@ % ; ^` …) that break shell quoting and percent-decoding. Split it by hand: strip `postgres://`, take everything up to the **last** `@` as `user:pass`, the rest as `host:port/db?params`, then pass the parts as separate `PG*` env vars (no URL encoding needed).
+- `psql`/`pg_dump` are **not installed locally**. Run them inside the docker image `pgvector/pgvector:pg18-trixie`, mounting the bundled YC CA `backend/certs/root.crt` and setting `PGSSLMODE=verify-full` + `PGSSLROOTCERT=/root.crt`.
+- A gitignored helper `.pgq.sh` at the repo root wires all of this up: `./.pgq.sh -c "SQL"` (it's per-machine and gitignored — recreate it if absent). It defaults to db `tasker`; switch with `PGDATABASE=traitex ./.pgq.sh …`. Separate DBs per service: `tasker`, `notificator`, `auth`, `traitex` (same cluster).
+- Keep it read-only; this is for diagnosing data, not mutating prod.
+
 
 ## Project Overview
 
