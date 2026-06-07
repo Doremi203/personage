@@ -38,7 +38,7 @@ class TelegramConsumer(BaseConsumer):
         while self.is_running:
             try:
                 await self.run_iteration()
-                await asyncio.sleep(60)  # Check every minute
+                await asyncio.sleep(35)  # Check every 35 seconds
             except asyncio.CancelledError:
                 break
             except Exception as e:
