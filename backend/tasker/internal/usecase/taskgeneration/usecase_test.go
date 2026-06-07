@@ -388,6 +388,9 @@ func (s stubEventRepo) UpsertEvent(context.Context, domain.EventWithEmbedding) e
 func (s stubEventRepo) GetEventsByClusterID(context.Context, domain.ClusterID) ([]domain.Event, error) {
 	return s.events, s.err
 }
+func (s stubEventRepo) GetEventsByUserID(context.Context, domain.UserID, int) ([]domain.Event, error) {
+	return s.events, s.err
+}
 func (s stubEventRepo) DeleteEventsByClusterID(context.Context, domain.ClusterID) error { return nil }
 func (s stubEventRepo) MaxSimilarityByClusters(
 	context.Context,

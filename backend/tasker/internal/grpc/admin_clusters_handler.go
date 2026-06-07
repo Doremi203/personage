@@ -114,6 +114,33 @@ func NewAdminGetClusterHandler(uc adminClustersUseCase, apiKey string) http.Hand
 	}
 }
 
+func NewAdminListUserEventsHandler(uc adminClustersUseCase, apiKey string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !checkAdminKey(w, r, apiKey) {
+			return
+		}
+
+		userID := r.PathValue("userId")
+		if userID == "" {
+			http.Error(w, "userId is required", http.StatusBadRequest)
+			return
+		}
+
+		events, err := uc.ListEventsForUser(r.Context(), domain.UserID(userID))
+		if err != nil {
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+
+		items := make([]adminClusterEventItem, 0, len(events))
+		for _, e := range events {
+			items = append(items, eventToAdminItem(e))
+		}
+
+		writeJSON(w, http.StatusOK, map[string]any{"events": items})
+	}
+}
+
 func NewAdminListClusterEventsHandler(uc adminClustersUseCase, apiKey string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !checkAdminKey(w, r, apiKey) {

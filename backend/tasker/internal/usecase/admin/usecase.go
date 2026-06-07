@@ -10,6 +10,7 @@ import (
 const (
 	adminListPageSize    = 500
 	adminClusterListSize = 50
+	adminEventListSize   = 200
 )
 
 type PromptCacheInvalidator interface {
@@ -128,6 +129,18 @@ func (uc *UseCase) GetCluster(ctx context.Context, clusterID domain.ClusterID) (
 		)
 	}
 	return cluster, nil
+}
+
+func (uc *UseCase) ListEventsForUser(ctx context.Context, userID domain.UserID) ([]domain.Event, error) {
+	events, err := uc.eventRepo.GetEventsByUserID(ctx, userID, adminEventListSize)
+	if err != nil {
+		return nil, errors.WrapFailf(
+			err,
+			"list events for user %s",
+			errors.Token("user_id", userID.String()),
+		)
+	}
+	return events, nil
 }
 
 func (uc *UseCase) ListClusterEvents(ctx context.Context, clusterID domain.ClusterID) ([]domain.Event, error) {

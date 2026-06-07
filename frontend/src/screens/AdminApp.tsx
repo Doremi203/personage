@@ -12,7 +12,7 @@ interface AdminRoute {
   tab?: AdminUserTab;
 }
 
-const USER_PATH_RE = /^\/admin\/users\/([^/]+)(?:\/(tasks|clusters|notifications))?\/?$/;
+const USER_PATH_RE = /^\/admin\/users\/([^/]+)(?:\/(tasks|clusters|events|notifications))?\/?$/;
 
 function parseLocation(): AdminRoute {
   const path = window.location.pathname;
