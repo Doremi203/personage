@@ -148,6 +148,8 @@ public class StateTrackingService(
         });
 
         var results = await Task.WhenAll(refreshTasks);
+        if (results.Length == 0)
+            return [];
         var refreshFailed = results.Where(r => !r.Success).Select(r => r.User).ToList();
 
         var oauthRepository = GetOAuthRepository(oauthServiceType);

@@ -131,7 +131,7 @@ public class GoogleCalendarTokenRepository(IDbConnectionFactory connectionFactor
             });
     }
 
-    public async Task<(Guid TokenId, int FailedAttempts)[]> UpdateRefreshInfo((Guid tokenId, bool RefreshSuccess)[] refreshes, CancellationToken ct)
+    public async Task<(Guid TokenId, int FailedAttempts)[]> UpdateRefreshInfo((Guid TokenId, bool RefreshSuccess)[] refreshes, CancellationToken ct)
     {
         using var connection = await connectionFactory.CreateConnection(ct);
 
@@ -143,15 +143,18 @@ public class GoogleCalendarTokenRepository(IDbConnectionFactory connectionFactor
                 failed_refreshes = CASE 
                     WHEN refresh_data.refresh_success THEN 0 
                     ELSE ct.failed_refreshes + 1 
-                END,
-                last_refresh_attempt = NOW()
-            FROM UNNEST(@Refreshes) AS refresh_data(token_id UUID, refresh_success BOOLEAN)
+                END
+            FROM (SELECT
+                UNNEST(@TokenIds) as token_id,
+                UNNEST(@RefreshSuccesses) as refresh_success
+            ) AS refresh_data
             WHERE ct.id = refresh_data.token_id
             RETURNING ct.id AS token_id, ct.failed_refreshes;
             """,
             new
             {
-                Refreshes = refreshes.Select(r => new { r.tokenId, r.RefreshSuccess }).ToArray()
+                TokenIds = refreshes.Select(x => x.TokenId).ToArray(),
+                RefreshSuccesses = refreshes.Select(x => x.RefreshSuccess).ToArray()
             });
         
         return result.ToArray();

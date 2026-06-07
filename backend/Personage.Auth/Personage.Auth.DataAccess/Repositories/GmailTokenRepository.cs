@@ -109,7 +109,7 @@ public class GmailTokenRepository(IDbConnectionFactory connectionFactory) : IGma
             });
     }
 
-    public async Task<(Guid TokenId, int FailedAttempts)[]> UpdateRefreshInfo((Guid tokenId, bool RefreshSuccess)[] refreshes, CancellationToken ct)
+    public async Task<(Guid TokenId, int FailedAttempts)[]> UpdateRefreshInfo((Guid TokenId, bool RefreshSuccess)[] refreshes, CancellationToken ct)
     {
         using var connection = await connectionFactory.CreateConnection(ct);
 
@@ -121,15 +121,18 @@ public class GmailTokenRepository(IDbConnectionFactory connectionFactory) : IGma
                 failed_refreshes = CASE 
                     WHEN refresh_data.refresh_success THEN 0 
                     ELSE gt.failed_refreshes + 1 
-                END,
-                last_refresh_attempt = NOW()
-            FROM UNNEST(@Refreshes) AS refresh_data(token_id UUID, refresh_success BOOLEAN)
+                END
+            FROM (SELECT
+                UNNEST(@TokenIds) as token_id,
+                UNNEST(@RefreshSuccesses) as refresh_success
+            ) AS refresh_data
             WHERE gt.id = refresh_data.token_id
             RETURNING gt.id AS token_id, gt.failed_refreshes;
             """,
-            new
-            {
-                Refreshes = refreshes.Select(r => new { r.tokenId, r.RefreshSuccess }).ToArray()
+            new 
+            { 
+                TokenIds = refreshes.Select(x => x.TokenId).ToArray(),
+                RefreshSuccesses = refreshes.Select(x => x.RefreshSuccess).ToArray()
             });
     
         return result.ToArray();
