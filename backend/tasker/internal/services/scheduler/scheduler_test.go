@@ -623,6 +623,47 @@ func TestSchedule_FixedTaskStartBeyondWindow_EndNotBeforeStart(t *testing.T) {
 	}
 }
 
+// TestSchedule_FixedTaskBeyondWindow_DoesNotBlockInWindowSlots locks in the invariant the fix relies
+// on: a wall whose start lies beyond the window must occupy no in-window grid slots, so a co-scheduled
+// flexible task still lands at the very start of the window.
+func TestSchedule_FixedTaskBeyondWindow_DoesNotBlockInWindowSlots(t *testing.T) {
+	start := time.Date(2026, 1, 22, 9, 0, 0, 0, time.UTC)
+	window := 24 * time.Hour
+	fixedStart := time.Date(2026, 1, 23, 16, 0, 0, 0, time.UTC) // beyond the window end
+
+	tasks := []domain.Task{
+		{
+			ID:        "wall",
+			Duration:  60 * time.Minute,
+			StartTime: &fixedStart,
+			Priority:  1,
+		},
+		{
+			ID:       "flex",
+			Duration: 30 * time.Minute,
+			Priority: 1,
+		},
+	}
+
+	result := CalculateSchedule(tasks, start, window, time.UTC)
+
+	if len(result.Planned) != 2 {
+		t.Fatalf("Expected 2 planned tasks, got %d", len(result.Planned))
+	}
+
+	flex := findPlannedTask(result.Planned, "flex")
+	if flex == nil {
+		t.Fatal("flex not found in planned tasks")
+	}
+	// The out-of-window wall must not have marked any in-window slot busy, so flex takes slot 0.
+	if !flex.Start.Equal(start) {
+		t.Errorf("Expected flex to start at window start %v, got %v", start, flex.Start)
+	}
+	if !flex.End.Equal(start.Add(30 * time.Minute)) {
+		t.Errorf("Expected flex to end at %v, got %v", start.Add(30*time.Minute), flex.End)
+	}
+}
+
 func TestSchedule_ExactSlotBoundary(t *testing.T) {
 	start := time.Date(2026, 1, 22, 9, 0, 0, 0, time.UTC)
 	window := 1 * time.Hour
