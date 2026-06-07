@@ -128,6 +128,7 @@ func main() {
 			MaxEventCount:             clusterClosureConfig.MaxEventCount,
 			InactivityTimeout:         time.Duration(clusterClosureConfig.InactivityMinutes) * time.Minute,
 			BatchSize:                 clusterClosureConfig.BatchSize,
+			TaskDuplicateThreshold:    0.97,
 		}
 
 		generationSettingsService := settings.NewService(
@@ -253,6 +254,7 @@ func main() {
 			actionabilityService,
 			taskGenerationService,
 			userProfileSvc,
+			embeddingService,
 			postgresTxProvider,
 			app.Log,
 			generationSettingsService,

@@ -13,18 +13,17 @@ import (
 
 // TaskSnapshot holds a complete task record for human-readable report output.
 type TaskSnapshot struct {
-	ID               string     `json:"id,omitzero"`
-	UserID           string     `json:"user_id,omitzero"`
-	ClusterID        *string    `json:"cluster_id,omitzero"`
-	Title            string     `json:"title"`
-	Description      string     `json:"description"`
-	DurationMinutes  int        `json:"duration_minutes"`
-	Priority         int        `json:"priority"`
-	Deadline         *time.Time `json:"deadline,omitzero"`
-	StartTime        *time.Time `json:"start_time,omitzero"`
-	EndTime          *time.Time `json:"end_time,omitzero"`
-	Category         string     `json:"category"`
-	EvidenceEventIDs []string   `json:"evidence_event_ids,omitzero"`
+	ID              string     `json:"id,omitzero"`
+	UserID          string     `json:"user_id,omitzero"`
+	ClusterID       *string    `json:"cluster_id,omitzero"`
+	Title           string     `json:"title"`
+	Description     string     `json:"description"`
+	DurationMinutes int        `json:"duration_minutes"`
+	Priority        int        `json:"priority"`
+	Deadline        *time.Time `json:"deadline,omitzero"`
+	StartTime       *time.Time `json:"start_time,omitzero"`
+	EndTime         *time.Time `json:"end_time,omitzero"`
+	Category        string     `json:"category"`
 }
 
 type ClusterSnapshot struct {

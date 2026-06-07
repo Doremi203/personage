@@ -36,42 +36,40 @@ type adminPromptsUseCase interface {
 }
 
 type adminTaskItem struct {
-	ID               string     `json:"id"`
-	UserID           string     `json:"userId"`
-	ClusterID        *string    `json:"clusterId,omitzero"`
-	Title            string     `json:"title"`
-	Description      string     `json:"description"`
-	DurationMinutes  int        `json:"durationMinutes"`
-	Priority         int        `json:"priority"`
-	Deadline         *time.Time `json:"deadline,omitzero"`
-	StartTime        *time.Time `json:"startTime,omitzero"`
-	EndTime          *time.Time `json:"endTime,omitzero"`
-	Status           string     `json:"status"`
-	Category         string     `json:"category"`
-	EvidenceEventIDs []string   `json:"evidenceEventIds,omitzero"`
-	IsApproved       bool       `json:"isApproved"`
-	CreatedAt        time.Time  `json:"createdAt"`
-	UpdatedAt        time.Time  `json:"updatedAt"`
+	ID              string     `json:"id"`
+	UserID          string     `json:"userId"`
+	ClusterID       *string    `json:"clusterId,omitzero"`
+	Title           string     `json:"title"`
+	Description     string     `json:"description"`
+	DurationMinutes int        `json:"durationMinutes"`
+	Priority        int        `json:"priority"`
+	Deadline        *time.Time `json:"deadline,omitzero"`
+	StartTime       *time.Time `json:"startTime,omitzero"`
+	EndTime         *time.Time `json:"endTime,omitzero"`
+	Status          string     `json:"status"`
+	Category        string     `json:"category"`
+	IsApproved      bool       `json:"isApproved"`
+	CreatedAt       time.Time  `json:"createdAt"`
+	UpdatedAt       time.Time  `json:"updatedAt"`
 }
 
 func taskToAdminItem(t domain.Task) adminTaskItem {
 	return adminTaskItem{
-		ID:               t.ID.String(),
-		UserID:           t.UserID.String(),
-		ClusterID:        clusterIDStr(t.ClusterID),
-		Title:            t.Title,
-		Description:      t.Description,
-		DurationMinutes:  int(t.Duration.Minutes()),
-		Priority:         t.Priority,
-		Deadline:         t.Deadline,
-		StartTime:        t.StartTime,
-		EndTime:          t.EndTime,
-		Status:           string(t.Status),
-		Category:         string(t.Category),
-		EvidenceEventIDs: evidenceEventIDs(t.EvidenceEventIDs),
-		IsApproved:       t.IsApproved,
-		CreatedAt:        t.CreatedAt,
-		UpdatedAt:        t.UpdatedAt,
+		ID:              t.ID.String(),
+		UserID:          t.UserID.String(),
+		ClusterID:       clusterIDStr(t.ClusterID),
+		Title:           t.Title,
+		Description:     t.Description,
+		DurationMinutes: int(t.Duration.Minutes()),
+		Priority:        t.Priority,
+		Deadline:        t.Deadline,
+		StartTime:       t.StartTime,
+		EndTime:         t.EndTime,
+		Status:          string(t.Status),
+		Category:        string(t.Category),
+		IsApproved:      t.IsApproved,
+		CreatedAt:       t.CreatedAt,
+		UpdatedAt:       t.UpdatedAt,
 	}
 }
 

@@ -24,7 +24,7 @@ type repo struct {
 
 func (r *repo) GetGenerationSettings(ctx context.Context) (domain.GenerationSettings, error) {
 	query := `
-		SELECT min_similarity, closed_similarity_threshold, top_k, max_event_count, inactivity_minutes, batch_size, updated_at
+		SELECT min_similarity, closed_similarity_threshold, top_k, max_event_count, inactivity_minutes, batch_size, task_duplicate_threshold, updated_at
 		FROM generation_settings
 		WHERE id = 1
 	`
@@ -55,9 +55,10 @@ func (r *repo) UpdateGenerationSettings(
 		    max_event_count             = COALESCE($5, max_event_count),
 		    inactivity_minutes          = COALESCE($6, inactivity_minutes),
 		    batch_size                  = COALESCE($7, batch_size),
+		    task_duplicate_threshold    = COALESCE($8, task_duplicate_threshold),
 		    updated_at                  = $1
 		WHERE id = 1
-		RETURNING min_similarity, closed_similarity_threshold, top_k, max_event_count, inactivity_minutes, batch_size, updated_at
+		RETURNING min_similarity, closed_similarity_threshold, top_k, max_event_count, inactivity_minutes, batch_size, task_duplicate_threshold, updated_at
 	`
 
 	rows, err := r.client.Query(
@@ -70,6 +71,7 @@ func (r *repo) UpdateGenerationSettings(
 		update.MaxEventCount,
 		update.InactivityMinutes,
 		update.BatchSize,
+		update.TaskDuplicateThreshold,
 	)
 	if err != nil {
 		return domain.GenerationSettings{}, errors.WrapFail(err, "update generation settings")
@@ -91,6 +93,7 @@ type generationSettingsEntity struct {
 	MaxEventCount             int       `db:"max_event_count"`
 	InactivityMinutes         int       `db:"inactivity_minutes"`
 	BatchSize                 int       `db:"batch_size"`
+	TaskDuplicateThreshold    float64   `db:"task_duplicate_threshold"`
 	UpdatedAt                 time.Time `db:"updated_at"`
 }
 
@@ -102,6 +105,7 @@ func (e generationSettingsEntity) ToDomain() domain.GenerationSettings {
 		MaxEventCount:             e.MaxEventCount,
 		InactivityTimeout:         time.Duration(e.InactivityMinutes) * time.Minute,
 		BatchSize:                 e.BatchSize,
+		TaskDuplicateThreshold:    e.TaskDuplicateThreshold,
 		UpdatedAt:                 e.UpdatedAt,
 	}
 }

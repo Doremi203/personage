@@ -72,23 +72,23 @@ func PriorityFromInt(p int) TaskPriority {
 }
 
 type Task struct {
-	ID               TaskID
-	UserID           UserID
-	ClusterID        *ClusterID // nil for tasks not created from the AI pipeline
-	Title            string
-	Description      string
-	Duration         time.Duration
-	Priority         int
-	Deadline         *time.Time
-	StartTime        *time.Time
-	Date             *time.Time // best-effort Moscow-local day; planner uses it as a day box when StartTime is nil
-	EndTime          *time.Time
-	Status           TaskStatus
-	Category         TaskCategory
-	EvidenceEventIDs []EventID
-	IsApproved       bool // false when the task awaits manual moderation; hidden from task list reads
-	CreatedAt        time.Time
-	UpdatedAt        time.Time
+	ID          TaskID
+	UserID      UserID
+	ClusterID   *ClusterID // nil for tasks not created from the AI pipeline
+	Title       string
+	Description string
+	Duration    time.Duration
+	Priority    int
+	Deadline    *time.Time
+	StartTime   *time.Time
+	Date        *time.Time // best-effort Moscow-local day; planner uses it as a day box when StartTime is nil
+	EndTime     *time.Time
+	Status      TaskStatus
+	Category    TaskCategory
+	Embedding   []float32 // nil for old/manual tasks; populated for AI-generated tasks for dedup
+	IsApproved  bool      // false when the task awaits manual moderation; hidden from task list reads
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }
 
 const TimeSlotSize = 15 * time.Minute

@@ -21,6 +21,7 @@ func TestProcessClosableClustersUsesRuntimeSettings(t *testing.T) {
 		stubActionabilityService{},
 		stubTaskGenerationService{},
 		stubUserProfileService{},
+		stubEmbeddingService{},
 		stubTxProvider{},
 		log.Stub{},
 		stubSettingsProvider{settings: domain.GenerationSettings{
@@ -58,13 +59,14 @@ func TestProcessClusterFinalizesNonActionableCluster(t *testing.T) {
 		stubActionabilityService{result: domain.TaskGenerationDecision{ShouldGenerate: false, Reason: new("promo email")}},
 		stubTaskGenerationService{},
 		stubUserProfileService{profile: domain.UserProfile{Email: "owner@example.com", Name: "Owner"}},
+		stubEmbeddingService{embeddings: [][]float32{{0.1, 0.2, 0.3}}},
 		stubTxProvider{},
 		log.Stub{},
 		stubSettingsProvider{},
 		time.Now,
 	)
 
-	err := uc.processCluster(t.Context(), domain.Cluster{ID: "cluster-1", UserID: "user-1"})
+	err := uc.processCluster(t.Context(), domain.Cluster{ID: "cluster-1", UserID: "user-1"}, 0.97)
 	if err != nil {
 		t.Fatalf("processCluster returned error: %v", err)
 	}
@@ -109,13 +111,14 @@ func TestProcessClusterStoresGeneratedTask(t *testing.T) {
 			Category:        "work",
 		}},
 		stubUserProfileService{profile: domain.UserProfile{Email: "owner@example.com", Name: "Owner"}},
+		stubEmbeddingService{embeddings: [][]float32{{0.1, 0.2, 0.3}}},
 		stubTxProvider{},
 		log.Stub{},
 		stubSettingsProvider{},
 		time.Now,
 	)
 
-	err := uc.processCluster(t.Context(), domain.Cluster{ID: "cluster-1", UserID: "user-1"})
+	err := uc.processCluster(t.Context(), domain.Cluster{ID: "cluster-1", UserID: "user-1"}, 0.97)
 	if err != nil {
 		t.Fatalf("processCluster returned error: %v", err)
 	}
@@ -142,6 +145,120 @@ func TestProcessClusterStoresGeneratedTask(t *testing.T) {
 	}
 }
 
+func TestProcessClusterSkipsDuplicateGeneratedTask(t *testing.T) {
+	clusterRepo := &stubClusterRepo{}
+	taskRepo := &stubTaskRepo{
+		similarTaskID: "existing-task",
+		similarScore:  0.98,
+		similarFound:  true,
+	}
+	uc := NewUseCase(
+		clusterRepo,
+		stubEventRepo{events: []domain.Event{{ID: "event-1", ClusterID: "cluster-1"}}},
+		taskRepo,
+		stubModerationRepo{},
+		stubActionabilityService{result: domain.TaskGenerationDecision{ShouldGenerate: true}},
+		stubTaskGenerationService{result: domain.GeneratedTask{Title: "Reply to invite", Description: "Reply"}},
+		stubUserProfileService{profile: domain.UserProfile{Email: "owner@example.com", Name: "Owner"}},
+		stubEmbeddingService{embeddings: [][]float32{{0.1, 0.2, 0.3}}},
+		stubTxProvider{},
+		log.Stub{},
+		stubSettingsProvider{settings: domain.GenerationSettings{TaskDuplicateThreshold: 0.97}},
+		time.Now,
+	)
+
+	if err := uc.processCluster(t.Context(), domain.Cluster{ID: "cluster-1", UserID: "user-1"}, 0.97); err != nil {
+		t.Fatalf("processCluster returned error: %v", err)
+	}
+
+	if len(taskRepo.createdTasks) != 0 {
+		t.Fatalf("expected no tasks to be created for duplicate, got %d", len(taskRepo.createdTasks))
+	}
+
+	if len(clusterRepo.finalized) != 1 || clusterRepo.finalized[0].outcome != domain.ClusterGenerationOutcomeDuplicate {
+		t.Fatalf("expected duplicate finalize, got %#v", clusterRepo.finalized)
+	}
+
+	if clusterRepo.finalized[0].reason == nil || *clusterRepo.finalized[0].reason == "" {
+		t.Fatalf("expected a non-empty duplicate reason, got %#v", clusterRepo.finalized[0].reason)
+	}
+}
+
+func TestProcessClusterCreatesTaskWithEmbeddingWhenNotDuplicate(t *testing.T) {
+	clusterRepo := &stubClusterRepo{}
+	taskRepo := &stubTaskRepo{similarFound: false}
+	embedding := []float32{0.4, 0.5, 0.6}
+	uc := NewUseCase(
+		clusterRepo,
+		stubEventRepo{events: []domain.Event{{ID: "event-1", ClusterID: "cluster-1"}}},
+		taskRepo,
+		stubModerationRepo{},
+		stubActionabilityService{result: domain.TaskGenerationDecision{ShouldGenerate: true}},
+		stubTaskGenerationService{result: domain.GeneratedTask{Title: "Review PR", Description: "Review"}},
+		stubUserProfileService{profile: domain.UserProfile{Email: "owner@example.com", Name: "Owner"}},
+		stubEmbeddingService{embeddings: [][]float32{embedding}},
+		stubTxProvider{},
+		log.Stub{},
+		stubSettingsProvider{settings: domain.GenerationSettings{TaskDuplicateThreshold: 0.97}},
+		time.Now,
+	)
+
+	if err := uc.processCluster(t.Context(), domain.Cluster{ID: "cluster-1", UserID: "user-1"}, 0.97); err != nil {
+		t.Fatalf("processCluster returned error: %v", err)
+	}
+
+	if len(taskRepo.createdTasks) != 1 {
+		t.Fatalf("expected 1 created task, got %d", len(taskRepo.createdTasks))
+	}
+
+	if len(taskRepo.createdTasks[0].Embedding) != len(embedding) {
+		t.Fatalf("expected task embedding to be set, got %#v", taskRepo.createdTasks[0].Embedding)
+	}
+
+	if len(clusterRepo.finalized) != 1 || clusterRepo.finalized[0].outcome != domain.ClusterGenerationOutcomeTaskGenerated {
+		t.Fatalf("expected task_generated finalize, got %#v", clusterRepo.finalized)
+	}
+}
+
+func TestProcessClusterCreatesTaskWhenEmbeddingFails(t *testing.T) {
+	clusterRepo := &stubClusterRepo{}
+	taskRepo := &stubTaskRepo{}
+	uc := NewUseCase(
+		clusterRepo,
+		stubEventRepo{events: []domain.Event{{ID: "event-1", ClusterID: "cluster-1"}}},
+		taskRepo,
+		stubModerationRepo{},
+		stubActionabilityService{result: domain.TaskGenerationDecision{ShouldGenerate: true}},
+		stubTaskGenerationService{result: domain.GeneratedTask{Title: "Review PR", Description: "Review"}},
+		stubUserProfileService{profile: domain.UserProfile{Email: "owner@example.com", Name: "Owner"}},
+		stubEmbeddingService{embeddings: nil},
+		stubTxProvider{},
+		log.Stub{},
+		stubSettingsProvider{settings: domain.GenerationSettings{TaskDuplicateThreshold: 0.97}},
+		time.Now,
+	)
+
+	if err := uc.processCluster(t.Context(), domain.Cluster{ID: "cluster-1", UserID: "user-1"}, 0.97); err != nil {
+		t.Fatalf("processCluster returned error: %v", err)
+	}
+
+	if len(taskRepo.createdTasks) != 1 {
+		t.Fatalf("expected task to still be created when embedding fails, got %d", len(taskRepo.createdTasks))
+	}
+
+	if taskRepo.createdTasks[0].Embedding != nil {
+		t.Fatalf("expected nil embedding when embedding generation yields none, got %#v", taskRepo.createdTasks[0].Embedding)
+	}
+
+	if taskRepo.findSimilarCalls != 0 {
+		t.Fatalf("expected no dedup query when embedding fails, got %d calls", taskRepo.findSimilarCalls)
+	}
+
+	if len(clusterRepo.finalized) != 1 || clusterRepo.finalized[0].outcome != domain.ClusterGenerationOutcomeTaskGenerated {
+		t.Fatalf("expected task_generated finalize, got %#v", clusterRepo.finalized)
+	}
+}
+
 func TestProcessClusterMarksTaskUnapprovedWhenUserRequiresModeration(t *testing.T) {
 	clusterRepo := &stubClusterRepo{}
 	taskRepo := &stubTaskRepo{}
@@ -153,13 +270,14 @@ func TestProcessClusterMarksTaskUnapprovedWhenUserRequiresModeration(t *testing.
 		stubActionabilityService{result: domain.TaskGenerationDecision{ShouldGenerate: true}},
 		stubTaskGenerationService{result: domain.GeneratedTask{Title: "Reply to invite"}},
 		stubUserProfileService{profile: domain.UserProfile{Email: "owner@example.com", Name: "Owner"}},
+		stubEmbeddingService{embeddings: [][]float32{{0.1, 0.2, 0.3}}},
 		stubTxProvider{},
 		log.Stub{},
 		stubSettingsProvider{},
 		time.Now,
 	)
 
-	err := uc.processCluster(t.Context(), domain.Cluster{ID: "cluster-1", UserID: "user-1"})
+	err := uc.processCluster(t.Context(), domain.Cluster{ID: "cluster-1", UserID: "user-1"}, 0.97)
 	if err != nil {
 		t.Fatalf("processCluster returned error: %v", err)
 	}
@@ -185,13 +303,14 @@ func TestProcessClusterPassesUserProfileToTaskGenerator(t *testing.T) {
 		stubActionabilityService{result: domain.TaskGenerationDecision{ShouldGenerate: true, Reason: new("explicit task request")}},
 		taskGen,
 		stubUserProfileService{profile: domain.UserProfile{Email: "owner@example.com", Name: "Owner", ConnectedEmails: []string{"alt@example.com"}}},
+		stubEmbeddingService{embeddings: [][]float32{{0.1, 0.2, 0.3}}},
 		stubTxProvider{},
 		log.Stub{},
 		stubSettingsProvider{},
 		time.Now,
 	)
 
-	if err := uc.processCluster(t.Context(), domain.Cluster{ID: "cluster-1", UserID: "user-1"}); err != nil {
+	if err := uc.processCluster(t.Context(), domain.Cluster{ID: "cluster-1", UserID: "user-1"}, 0.97); err != nil {
 		t.Fatalf("processCluster returned error: %v", err)
 	}
 
@@ -212,13 +331,14 @@ func TestProcessClusterPassesUserProfileToClassifier(t *testing.T) {
 		actionability,
 		stubTaskGenerationService{},
 		stubUserProfileService{profile: domain.UserProfile{Email: "owner@example.com", Name: "Owner"}},
+		stubEmbeddingService{embeddings: [][]float32{{0.1, 0.2, 0.3}}},
 		stubTxProvider{},
 		log.Stub{},
 		stubSettingsProvider{},
 		time.Now,
 	)
 
-	if err := uc.processCluster(t.Context(), domain.Cluster{ID: "cluster-1", UserID: "user-1"}); err != nil {
+	if err := uc.processCluster(t.Context(), domain.Cluster{ID: "cluster-1", UserID: "user-1"}, 0.97); err != nil {
 		t.Fatalf("processCluster returned error: %v", err)
 	}
 
@@ -239,13 +359,14 @@ func TestProcessClusterDegradesWhenUserProfileLookupFails(t *testing.T) {
 		actionability,
 		stubTaskGenerationService{},
 		stubUserProfileService{err: domain.ErrUserProfileNotFound},
+		stubEmbeddingService{embeddings: [][]float32{{0.1, 0.2, 0.3}}},
 		stubTxProvider{},
 		log.Stub{},
 		stubSettingsProvider{},
 		time.Now,
 	)
 
-	if err := uc.processCluster(t.Context(), domain.Cluster{ID: "cluster-1", UserID: "user-1"}); err != nil {
+	if err := uc.processCluster(t.Context(), domain.Cluster{ID: "cluster-1", UserID: "user-1"}, 0.97); err != nil {
 		t.Fatalf("processCluster returned error: %v", err)
 	}
 
@@ -339,11 +460,21 @@ func (s *stubClusterRepo) RecoverStaleClusters(_ context.Context, threshold time
 
 type stubTaskRepo struct {
 	createdTasks []domain.Task
+
+	similarTaskID    domain.TaskID
+	similarScore     float64
+	similarFound     bool
+	similarErr       error
+	findSimilarCalls int
 }
 
 func (s *stubTaskRepo) CreateTask(_ context.Context, task domain.Task) error {
 	s.createdTasks = append(s.createdTasks, task)
 	return nil
+}
+func (s *stubTaskRepo) FindMostSimilarActiveTask(_ context.Context, _ domain.UserID, _ []float32) (domain.TaskID, float64, bool, error) {
+	s.findSimilarCalls++
+	return s.similarTaskID, s.similarScore, s.similarFound, s.similarErr
 }
 func (s *stubTaskRepo) GetTaskByID(context.Context, domain.TaskID, domain.UserID) (domain.Task, error) {
 	return domain.Task{}, nil
@@ -455,4 +586,13 @@ func (s stubModerationRepo) AddUser(context.Context, domain.UserID) error    { r
 func (s stubModerationRepo) RemoveUser(context.Context, domain.UserID) error { return nil }
 func (s stubModerationRepo) ListUsers(context.Context) ([]domain.UserID, error) {
 	return nil, nil
+}
+
+type stubEmbeddingService struct {
+	embeddings [][]float32
+	err        error
+}
+
+func (s stubEmbeddingService) GenerateEmbeddings(context.Context, []string) ([][]float32, error) {
+	return s.embeddings, s.err
 }

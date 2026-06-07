@@ -16,6 +16,7 @@ type GenerationSettings struct {
 	MaxEventCount             int
 	InactivityTimeout         time.Duration
 	BatchSize                 int
+	TaskDuplicateThreshold    float64
 	UpdatedAt                 time.Time
 }
 
@@ -26,6 +27,7 @@ type GenerationSettingsUpdate struct {
 	MaxEventCount             *int
 	InactivityMinutes         *int
 	BatchSize                 *int
+	TaskDuplicateThreshold    *float64
 }
 
 func (u GenerationSettingsUpdate) Validate() error {
@@ -69,6 +71,13 @@ func (u GenerationSettingsUpdate) Validate() error {
 			ErrInvalidGenerationSettings,
 			"batch_size must be >= 1 %s",
 			errors.Token("batch_size", *u.BatchSize),
+		)
+	}
+	if u.TaskDuplicateThreshold != nil && (*u.TaskDuplicateThreshold <= 0 || *u.TaskDuplicateThreshold > 1) {
+		return errors.WrapFailf(
+			ErrInvalidGenerationSettings,
+			"task_duplicate_threshold must be in (0,1] %s",
+			errors.Token("task_duplicate_threshold", *u.TaskDuplicateThreshold),
 		)
 	}
 	return nil

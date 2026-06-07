@@ -11,8 +11,8 @@ import (
 	"github.com/Doremi203/personage/backend/libs/go/postgres"
 	"github.com/Doremi203/personage/backend/libs/go/slices"
 	"github.com/Doremi203/personage/backend/tasker/internal/domain"
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/pgvector/pgvector-go"
 )
 
 func NewRepo(client postgres.Client) *repo {
@@ -41,7 +41,7 @@ func (r *repo) CreateTask(ctx context.Context, task domain.Task) error {
 			end_time,
 			status,
 			category,
-			evidence_event_ids,
+			embedding,
 			is_approved,
 			created_at,
 			updated_at
@@ -57,12 +57,13 @@ func (r *repo) CreateTask(ctx context.Context, task domain.Task) error {
 		clusterID = &s
 	}
 
-	evidenceEventIDs, err := evidenceUUIDs(task.EvidenceEventIDs)
-	if err != nil {
-		return errors.WrapFail(err, "parse evidence event ids")
+	var embedding *pgvector.Vector
+	if task.Embedding != nil {
+		v := pgvector.NewVector(task.Embedding)
+		embedding = &v
 	}
 
-	_, err = r.client.Exec(ctx, query,
+	_, err := r.client.Exec(ctx, query,
 		task.ID,
 		task.UserID,
 		clusterID,
@@ -76,7 +77,7 @@ func (r *repo) CreateTask(ctx context.Context, task domain.Task) error {
 		task.EndTime,
 		task.Status,
 		task.Category,
-		evidenceEventIDs,
+		embedding,
 		task.IsApproved,
 		task.CreatedAt,
 		task.UpdatedAt,
@@ -105,7 +106,7 @@ func (r *repo) GetTaskByID(ctx context.Context, taskID domain.TaskID, userID dom
 			end_time,
 			status,
 			category,
-			evidence_event_ids,
+			embedding,
 			is_approved,
 			created_at,
 			updated_at
@@ -146,7 +147,7 @@ func (r *repo) GetTasksByUserID(ctx context.Context, userID domain.UserID) ([]do
 			end_time,
 			status,
 			category,
-			evidence_event_ids,
+			embedding,
 			is_approved,
 			created_at,
 			updated_at
@@ -185,7 +186,7 @@ func (r *repo) GetTasksByStatus(ctx context.Context, userID domain.UserID, statu
 			end_time,
 			status,
 			category,
-			evidence_event_ids,
+			embedding,
 			is_approved,
 			created_at,
 			updated_at
@@ -229,7 +230,7 @@ func (r *repo) GetPlannedTasksInRange(
 			end_time,
 			status,
 			category,
-			evidence_event_ids,
+			embedding,
 			is_approved,
 			created_at,
 			updated_at
@@ -446,7 +447,7 @@ func (r *repo) UpdateTask(ctx context.Context, taskID domain.TaskID, userID doma
 			end_time,
 			status,
 			category,
-			evidence_event_ids,
+			embedding,
 			is_approved,
 			created_at,
 			updated_at
@@ -539,7 +540,7 @@ func (r *repo) ListTasks(ctx context.Context, filter domain.TaskFilter, paginati
 			end_time,
 			status,
 			category,
-			evidence_event_ids,
+			embedding,
 			is_approved,
 			created_at,
 			updated_at
@@ -564,24 +565,50 @@ func (r *repo) ListTasks(ctx context.Context, filter domain.TaskFilter, paginati
 	return slices.Map(entities, taskEntity.ToDomain), total, nil
 }
 
+func (r *repo) FindMostSimilarActiveTask(
+	ctx context.Context,
+	userID domain.UserID,
+	embedding []float32,
+) (domain.TaskID, float64, bool, error) {
+	query := `
+		SELECT task_id, 1 - (embedding <=> $1) AS similarity
+		FROM tasks
+		WHERE user_id = $2 AND embedding IS NOT NULL AND status <> 'completed'
+		ORDER BY embedding <=> $1
+		LIMIT 1
+	`
+
+	var taskID string
+	var similarity float64
+	err := r.client.QueryRow(ctx, query, pgvector.NewVector(embedding), userID).Scan(&taskID, &similarity)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "", 0, false, nil
+		}
+		return "", 0, false, errors.WrapFail(err, "query most similar active task")
+	}
+
+	return domain.TaskID(taskID), similarity, true, nil
+}
+
 type taskEntity struct {
-	TaskID           string      `db:"task_id"`
-	UserID           string      `db:"user_id"`
-	ClusterID        *string     `db:"cluster_id"`
-	Title            string      `db:"title"`
-	Description      string      `db:"description"`
-	DurationMinutes  int         `db:"duration_minutes"`
-	Priority         int         `db:"priority"`
-	Deadline         *time.Time  `db:"deadline"`
-	StartTime        *time.Time  `db:"start_time"`
-	Date             *time.Time  `db:"date"`
-	EndTime          *time.Time  `db:"end_time"`
-	Status           string      `db:"status"`
-	Category         string      `db:"category"`
-	EvidenceEventIDs []uuid.UUID `db:"evidence_event_ids"`
-	IsApproved       bool        `db:"is_approved"`
-	CreatedAt        time.Time   `db:"created_at"`
-	UpdatedAt        time.Time   `db:"updated_at"`
+	TaskID          string           `db:"task_id"`
+	UserID          string           `db:"user_id"`
+	ClusterID       *string          `db:"cluster_id"`
+	Title           string           `db:"title"`
+	Description     string           `db:"description"`
+	DurationMinutes int              `db:"duration_minutes"`
+	Priority        int              `db:"priority"`
+	Deadline        *time.Time       `db:"deadline"`
+	StartTime       *time.Time       `db:"start_time"`
+	Date            *time.Time       `db:"date"`
+	EndTime         *time.Time       `db:"end_time"`
+	Status          string           `db:"status"`
+	Category        string           `db:"category"`
+	Embedding       *pgvector.Vector `db:"embedding"`
+	IsApproved      bool             `db:"is_approved"`
+	CreatedAt       time.Time        `db:"created_at"`
+	UpdatedAt       time.Time        `db:"updated_at"`
 }
 
 func (e taskEntity) ToDomain() domain.Task {
@@ -591,41 +618,28 @@ func (e taskEntity) ToDomain() domain.Task {
 		clusterID = &cid
 	}
 
-	evidenceEventIDs := make([]domain.EventID, len(e.EvidenceEventIDs))
-	for i, evidenceID := range e.EvidenceEventIDs {
-		evidenceEventIDs[i] = domain.EventID(evidenceID.String())
+	var embedding []float32
+	if e.Embedding != nil {
+		embedding = e.Embedding.Slice()
 	}
 
 	return domain.Task{
-		ID:               domain.TaskID(e.TaskID),
-		UserID:           domain.UserID(e.UserID),
-		ClusterID:        clusterID,
-		Title:            e.Title,
-		Description:      e.Description,
-		Duration:         time.Duration(e.DurationMinutes) * time.Minute,
-		Priority:         e.Priority,
-		Deadline:         e.Deadline,
-		StartTime:        e.StartTime,
-		Date:             e.Date,
-		EndTime:          e.EndTime,
-		Status:           domain.TaskStatus(e.Status),
-		Category:         domain.TaskCategory(e.Category),
-		EvidenceEventIDs: evidenceEventIDs,
-		IsApproved:       e.IsApproved,
-		CreatedAt:        e.CreatedAt,
-		UpdatedAt:        e.UpdatedAt,
+		ID:          domain.TaskID(e.TaskID),
+		UserID:      domain.UserID(e.UserID),
+		ClusterID:   clusterID,
+		Title:       e.Title,
+		Description: e.Description,
+		Duration:    time.Duration(e.DurationMinutes) * time.Minute,
+		Priority:    e.Priority,
+		Deadline:    e.Deadline,
+		StartTime:   e.StartTime,
+		Date:        e.Date,
+		EndTime:     e.EndTime,
+		Status:      domain.TaskStatus(e.Status),
+		Category:    domain.TaskCategory(e.Category),
+		Embedding:   embedding,
+		IsApproved:  e.IsApproved,
+		CreatedAt:   e.CreatedAt,
+		UpdatedAt:   e.UpdatedAt,
 	}
-}
-
-func evidenceUUIDs(ids []domain.EventID) ([]uuid.UUID, error) {
-	parsed := make([]uuid.UUID, len(ids))
-	for i, id := range ids {
-		value, err := uuid.Parse(id.String())
-		if err != nil {
-			return nil, err
-		}
-		parsed[i] = value
-	}
-
-	return parsed, nil
 }

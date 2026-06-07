@@ -2,6 +2,7 @@ package taskgeneration
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/Doremi203/personage/backend/libs/go/errors"
@@ -19,6 +20,7 @@ func NewUseCase(
 	actionabilityService domain.ClusterClassificatorService,
 	taskGenService domain.TaskGenerationService,
 	userProfileService domain.UserProfileService,
+	embedder domain.EmbeddingService,
 	txProvider tx.Provider,
 	logger log.Logger,
 	settings domain.GenerationSettingsProvider,
@@ -32,6 +34,7 @@ func NewUseCase(
 		clusterClassificatorService: actionabilityService,
 		taskGenService:              taskGenService,
 		userProfileService:          userProfileService,
+		embedder:                    embedder,
 		txProvider:                  txProvider,
 		logger:                      logger,
 		settings:                    settings,
@@ -47,6 +50,7 @@ type UseCase struct {
 	clusterClassificatorService domain.ClusterClassificatorService
 	taskGenService              domain.TaskGenerationService
 	userProfileService          domain.UserProfileService
+	embedder                    domain.EmbeddingService
 	txProvider                  tx.Provider
 	logger                      log.Logger
 	settings                    domain.GenerationSettingsProvider
@@ -106,7 +110,7 @@ func (uc *UseCase) ProcessClosableClusters(ctx context.Context) error {
 	}
 
 	for _, cluster := range clusters {
-		if err = uc.processCluster(ctx, cluster); err != nil {
+		if err = uc.processCluster(ctx, cluster, cfg.TaskDuplicateThreshold); err != nil {
 			uc.logger.Error(errors.WrapFailf(
 				err,
 				"process cluster %s for user %s (skipping)",
@@ -119,7 +123,7 @@ func (uc *UseCase) ProcessClosableClusters(ctx context.Context) error {
 	return nil
 }
 
-func (uc *UseCase) processCluster(ctx context.Context, cluster domain.Cluster) error {
+func (uc *UseCase) processCluster(ctx context.Context, cluster domain.Cluster, duplicateThreshold float64) error {
 	uc.logger.Infof(
 		"processing cluster %s for user %s",
 		errors.Token("cluster_id", cluster.ID.String()),
@@ -260,6 +264,41 @@ func (uc *UseCase) processCluster(ctx context.Context, cluster domain.Cluster) e
 		errors.Token("is_approved", task.IsApproved),
 	)
 
+	embedding := uc.embedTask(ctx, cluster, task)
+	if embedding != nil {
+		similarTaskID, similarity, found, err := uc.taskRepo.FindMostSimilarActiveTask(ctx, cluster.UserID, embedding)
+		if err != nil {
+			return errors.WrapFailf(
+				err,
+				"find most similar active task for user %s for cluster %s",
+				errors.Token("user_id", cluster.UserID.String()),
+				errors.Token("cluster_id", cluster.ID.String()),
+			)
+		}
+
+		if found && similarity >= duplicateThreshold {
+			reason := fmt.Sprintf("duplicate of task %s (similarity=%.4f)", similarTaskID.String(), similarity)
+			uc.logger.Infof(
+				"cluster %s for user %s generated a duplicate of task %s (similarity=%s), skipping create",
+				errors.Token("cluster_id", cluster.ID.String()),
+				errors.Token("user_id", cluster.UserID.String()),
+				errors.Token("task_id", similarTaskID.String()),
+				errors.Token("similarity", similarity),
+			)
+			if err := uc.clusterRepo.FinalizeCluster(ctx, cluster.ID, domain.ClusterGenerationOutcomeDuplicate, &reason); err != nil {
+				return errors.WrapFailf(
+					err,
+					"finalize duplicate cluster %s for user %s",
+					errors.Token("cluster_id", cluster.ID.String()),
+					errors.Token("user_id", cluster.UserID.String()),
+				)
+			}
+			return nil
+		}
+
+		task.Embedding = embedding
+	}
+
 	err = uc.txProvider.RunWithTx(ctx, tx.IsolationReadCommitted, func(txCtx context.Context) error {
 		if err = uc.taskRepo.CreateTask(txCtx, task); err != nil {
 			return errors.WrapFailf(
@@ -295,4 +334,36 @@ func (uc *UseCase) processCluster(ctx context.Context, cluster domain.Cluster) e
 	)
 
 	return nil
+}
+
+// embedTask returns the embedding of the task's content, or nil when embedding
+// generation fails or yields no vector. A nil result means the task is created
+// without dedup rather than lost.
+func (uc *UseCase) embedTask(ctx context.Context, cluster domain.Cluster, task domain.Task) []float32 {
+	text := task.Title + "\n" + task.Description
+
+	embeddings, err := uc.embedder.GenerateEmbeddings(ctx, []string{text})
+	if err != nil {
+		uc.logger.Warn(errors.WrapFailf(
+			err,
+			"embed generated task %s for user %s for cluster %s (proceeding without dedup)",
+			errors.Token("task_id", task.ID.String()),
+			errors.Token("user_id", cluster.UserID.String()),
+			errors.Token("cluster_id", cluster.ID.String()),
+		))
+		return nil
+	}
+
+	if len(embeddings) == 0 {
+		uc.logger.Warn(errors.WrapFailf(
+			errors.Error("empty embeddings"),
+			"embed generated task %s for user %s for cluster %s (proceeding without dedup)",
+			errors.Token("task_id", task.ID.String()),
+			errors.Token("user_id", cluster.UserID.String()),
+			errors.Token("cluster_id", cluster.ID.String()),
+		))
+		return nil
+	}
+
+	return embeddings[0]
 }

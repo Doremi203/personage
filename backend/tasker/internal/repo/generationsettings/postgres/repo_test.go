@@ -25,6 +25,7 @@ func Test_repo_GetGenerationSettings_ReturnsSeededDefaults(t *testing.T) {
 			assert.Equal(t, 5, got.MaxEventCount)
 			assert.Equal(t, 5*time.Minute, got.InactivityTimeout)
 			assert.Equal(t, 10, got.BatchSize)
+			assert.InDelta(t, 0.97, got.TaskDuplicateThreshold, 1e-9)
 		},
 	)
 }
@@ -38,15 +39,18 @@ func Test_repo_UpdateGenerationSettings_PartialCoalesce(t *testing.T) {
 
 			newMinSimilarity := 0.42
 			newInactivityMinutes := 12
+			newTaskDuplicateThreshold := 0.85
 
 			updated, err := r.UpdateGenerationSettings(ctx, domain.GenerationSettingsUpdate{
-				MinSimilarity:     &newMinSimilarity,
-				InactivityMinutes: &newInactivityMinutes,
+				MinSimilarity:          &newMinSimilarity,
+				InactivityMinutes:      &newInactivityMinutes,
+				TaskDuplicateThreshold: &newTaskDuplicateThreshold,
 			})
 			require.NoError(t, err)
 
 			assert.InDelta(t, newMinSimilarity, updated.MinSimilarity, 1e-9)
 			assert.Equal(t, 12*time.Minute, updated.InactivityTimeout)
+			assert.InDelta(t, newTaskDuplicateThreshold, updated.TaskDuplicateThreshold, 1e-9)
 			// untouched fields keep their seeded defaults
 			assert.InDelta(t, 0.90, updated.ClosedSimilarityThreshold, 1e-9)
 			assert.Equal(t, 5, updated.TopK)
@@ -58,6 +62,7 @@ func Test_repo_UpdateGenerationSettings_PartialCoalesce(t *testing.T) {
 			require.NoError(t, err)
 			assert.InDelta(t, newMinSimilarity, got.MinSimilarity, 1e-9)
 			assert.Equal(t, 12*time.Minute, got.InactivityTimeout)
+			assert.InDelta(t, newTaskDuplicateThreshold, got.TaskDuplicateThreshold, 1e-9)
 		},
 	)
 }
