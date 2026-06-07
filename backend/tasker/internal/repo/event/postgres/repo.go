@@ -100,6 +100,36 @@ func (r *repo) GetEventsByClusterID(ctx context.Context, clusterID domain.Cluste
 	return slices.Map(entities, entity.ToDomain), nil
 }
 
+func (r *repo) GetEventsByUserID(ctx context.Context, userID domain.UserID, limit int) ([]domain.Event, error) {
+	query := `
+		SELECT
+			event_id,
+			user_id,
+			source,
+			occurred_at,
+			context,
+			cluster_id,
+			similarity
+		FROM events
+		WHERE user_id = $1
+		ORDER BY occurred_at DESC
+		LIMIT $2
+	`
+
+	rows, err := r.client.Query(ctx, query, userID, limit)
+	if err != nil {
+		return nil, errors.WrapFail(err, "get events by user id")
+	}
+	defer rows.Close()
+
+	entities, err := pgx.CollectRows(rows, pgx.RowToStructByName[entity])
+	if err != nil {
+		return nil, errors.WrapFail(err, "collect event rows")
+	}
+
+	return slices.Map(entities, entity.ToDomain), nil
+}
+
 func (r *repo) MaxSimilarityByClusters(
 	ctx context.Context,
 	clusterIDs []domain.ClusterID,

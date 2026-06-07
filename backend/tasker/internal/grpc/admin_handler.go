@@ -27,6 +27,7 @@ type adminClustersUseCase interface {
 	ListClustersForUser(ctx context.Context, userID domain.UserID) ([]domain.AdminClusterListItem, error)
 	GetCluster(ctx context.Context, clusterID domain.ClusterID) (domain.AdminClusterListItem, error)
 	ListClusterEvents(ctx context.Context, clusterID domain.ClusterID) ([]domain.Event, error)
+	ListEventsForUser(ctx context.Context, userID domain.UserID) ([]domain.Event, error)
 }
 
 type adminPromptsUseCase interface {

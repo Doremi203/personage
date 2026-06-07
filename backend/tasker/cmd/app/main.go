@@ -406,6 +406,7 @@ func main() {
 		app.AddHTTPHandler("GET /admin/users/{userId}/tasks/{taskId}", taskergrpc.NewAdminGetTaskHandler(adminUseCase, adminConfig.ApiKey))
 		app.AddHTTPHandler("PATCH /admin/users/{userId}/tasks/{taskId}", taskergrpc.NewAdminUpdateTaskHandler(adminUseCase, adminConfig.ApiKey))
 		app.AddHTTPHandler("POST /admin/users/{userId}/tasks/{taskId}/approve", taskergrpc.NewAdminApproveTaskHandler(adminUseCase, adminConfig.ApiKey))
+		app.AddHTTPHandler("GET /admin/users/{userId}/events", taskergrpc.NewAdminListUserEventsHandler(adminUseCase, adminConfig.ApiKey))
 		app.AddHTTPHandler("GET /admin/users/{userId}/clusters", taskergrpc.NewAdminListClustersHandler(adminUseCase, adminConfig.ApiKey))
 		app.AddHTTPHandler("GET /admin/users/{userId}/clusters/{clusterId}", taskergrpc.NewAdminGetClusterHandler(adminUseCase, adminConfig.ApiKey))
 		app.AddHTTPHandler("GET /admin/users/{userId}/clusters/{clusterId}/events", taskergrpc.NewAdminListClusterEventsHandler(adminUseCase, adminConfig.ApiKey))

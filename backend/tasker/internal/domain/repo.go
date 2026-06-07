@@ -16,6 +16,7 @@ var (
 type EventRepo interface {
 	UpsertEvent(ctx context.Context, event EventWithEmbedding) error
 	GetEventsByClusterID(ctx context.Context, clusterID ClusterID) ([]Event, error)
+	GetEventsByUserID(ctx context.Context, userID UserID, limit int) ([]Event, error)
 	DeleteEventsByClusterID(ctx context.Context, clusterID ClusterID) error
 	MaxSimilarityByClusters(ctx context.Context, clusterIDs []ClusterID, embedding []float32) (map[ClusterID]float64, error)
 }

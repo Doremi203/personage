@@ -239,6 +239,13 @@ export async function listAdminClusterEvents(
   return data.events ?? [];
 }
 
+export async function listAdminUserEvents(userId: string): Promise<AdminClusterEventItem[]> {
+  const data = await fetchAdmin<AdminClusterEventsResponse>(
+    `${TASKER_API_URL}/admin/users/${encodeURIComponent(userId)}/events`,
+  );
+  return data.events ?? [];
+}
+
 export interface AdminPromptItem {
   id: string;
   description: string;

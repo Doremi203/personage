@@ -9,16 +9,18 @@ import { AdminTaskDetailSheet } from '../mobile/AdminTaskDetailSheet';
 import { AdminTaskCreateSheet } from '../mobile/AdminTaskCreateSheet';
 import { AdminSendPushSheet } from '../mobile/AdminSendPushSheet';
 import { AdminUserClustersTab } from './AdminUserClustersTab';
+import { AdminUserEventsTab } from './AdminUserEventsTab';
 import { AdminUserNotificationsTab } from './AdminUserNotificationsTab';
 import { AdminClusterDetailSheet } from '../mobile/AdminClusterDetailSheet';
 
-export type AdminUserTab = 'tasks' | 'clusters' | 'notifications';
+export type AdminUserTab = 'tasks' | 'clusters' | 'events' | 'notifications';
 
-const TAB_ORDER: AdminUserTab[] = ['tasks', 'clusters', 'notifications'];
+const TAB_ORDER: AdminUserTab[] = ['tasks', 'clusters', 'events', 'notifications'];
 
 const TAB_LABELS: Record<AdminUserTab, string> = {
   tasks: 'Задачи',
   clusters: 'Кластеры',
+  events: 'События',
   notifications: 'Уведомления',
 };
 
@@ -279,6 +281,13 @@ export function AdminUserTasksScreen({ userId, activeTab, onBack, onChangeTab }:
 
         {activeTab === 'clusters' && (
           <AdminUserClustersTab
+            userId={userId}
+            onOpenTask={(taskId) => void openTaskFromCluster(taskId)}
+          />
+        )}
+
+        {activeTab === 'events' && (
+          <AdminUserEventsTab
             userId={userId}
             onOpenTask={(taskId) => void openTaskFromCluster(taskId)}
           />
