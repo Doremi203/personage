@@ -108,7 +108,7 @@ public class StateTrackingService(
     private IOAuthRepositoryBase GetOAuthRepository(ServiceTypeModel oauthServiceType)
     {
         var invalidServiceException = new ArgumentOutOfRangeException(nameof(oauthServiceType), oauthServiceType,
-            $@"{oauthServiceType} is not an oauth service type valid");
+            $@"'{oauthServiceType}' is not a valid OAuth service type.");
         IOAuthRepositoryBase oauthRepository = oauthServiceType switch
         {
             ServiceTypeModel.Unknown => throw invalidServiceException,
