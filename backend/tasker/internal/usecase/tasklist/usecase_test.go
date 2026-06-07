@@ -206,13 +206,17 @@ func TestUseCase_PostponeTask(t *testing.T) {
 	}
 
 	existing := domain.Task{
-		ID:     domain.TaskID(testTaskID),
-		UserID: domain.UserID(testUserID),
-		Status: domain.TaskStatusPlanned,
-		Title:  "title",
+		ID:        domain.TaskID(testTaskID),
+		UserID:    domain.UserID(testUserID),
+		Status:    domain.TaskStatusPlanned,
+		Title:     "title",
+		StartTime: new(time.Date(2026, 5, 23, 21, 0, 0, 0, time.UTC)),
+		EndTime:   new(time.Date(2026, 5, 23, 21, 30, 0, 0, time.UTC)),
 	}
 	want := existing
 	want.Status = domain.TaskStatusUnplanned
+	want.StartTime = nil
+	want.EndTime = nil
 
 	tests := []struct {
 		name    string
@@ -222,14 +226,14 @@ func TestUseCase_PostponeTask(t *testing.T) {
 		wantErr require.ErrorAssertionFunc
 	}{
 		{
-			name: "success",
+			name: "success clears slot and unplans",
 			args: args{taskID: testTaskID, userID: testUserID},
 			setup: func(m mocks, a args) {
 				m.taskRepo.EXPECT().
 					GetTaskByID(gomock.Any(), domain.TaskID(a.taskID), domain.UserID(a.userID)).
 					Return(existing, nil)
 				m.taskRepo.EXPECT().
-					UpdateTaskStatus(gomock.Any(), domain.TaskID(a.taskID), domain.TaskStatusUnplanned).
+					UnscheduleTask(gomock.Any(), domain.TaskID(a.taskID)).
 					Return(nil)
 			},
 			want:    want,
@@ -247,14 +251,14 @@ func TestUseCase_PostponeTask(t *testing.T) {
 			wantErr: require.Error,
 		},
 		{
-			name: "UpdateTaskStatus error wraps",
+			name: "UnscheduleTask error wraps",
 			args: args{taskID: testTaskID, userID: testUserID},
 			setup: func(m mocks, a args) {
 				m.taskRepo.EXPECT().
 					GetTaskByID(gomock.Any(), domain.TaskID(a.taskID), domain.UserID(a.userID)).
 					Return(existing, nil)
 				m.taskRepo.EXPECT().
-					UpdateTaskStatus(gomock.Any(), domain.TaskID(a.taskID), domain.TaskStatusUnplanned).
+					UnscheduleTask(gomock.Any(), domain.TaskID(a.taskID)).
 					Return(assert.AnError)
 			},
 			want:    domain.Task{},

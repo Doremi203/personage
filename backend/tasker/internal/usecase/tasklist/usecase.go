@@ -80,10 +80,12 @@ func (uc *UseCase) PostponeTask(ctx context.Context, taskID string, userID strin
 		return domain.Task{}, errors.WrapFail(err, "postpone task")
 	}
 
-	if err := uc.taskRepo.UpdateTaskStatus(ctx, domain.TaskID(taskID), domain.TaskStatusUnplanned); err != nil {
+	if err := uc.taskRepo.UnscheduleTask(ctx, domain.TaskID(taskID)); err != nil {
 		return domain.Task{}, errors.WrapFail(err, "postpone task")
 	}
 	task.Status = domain.TaskStatusUnplanned
+	task.StartTime = nil
+	task.EndTime = nil
 
 	return task, nil
 }

@@ -342,6 +342,28 @@ func (r *repo) UpdateTaskStatus(ctx context.Context, taskID domain.TaskID, statu
 	return nil
 }
 
+func (r *repo) UnscheduleTask(ctx context.Context, taskID domain.TaskID) error {
+	query := `
+		UPDATE tasks
+		SET status = $1,
+			start_time = NULL,
+			end_time = NULL,
+			updated_at = NOW()
+		WHERE task_id = $2
+	`
+
+	result, err := r.client.Exec(ctx, query, domain.TaskStatusUnplanned, taskID)
+	if err != nil {
+		return errors.WrapFail(err, "unschedule task")
+	}
+
+	if result.RowsAffected() == 0 {
+		return errors.Errorf("task not found %v", errors.Token("task_id", taskID))
+	}
+
+	return nil
+}
+
 func (r *repo) DeleteTask(ctx context.Context, taskID domain.TaskID) error {
 	query := `DELETE FROM tasks WHERE task_id = $1`
 

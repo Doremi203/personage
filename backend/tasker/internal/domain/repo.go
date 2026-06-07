@@ -71,6 +71,9 @@ type TaskRepo interface {
 	GetUsersWithPlannedTasks(ctx context.Context) ([]UserID, error)
 	UpdateTaskSchedule(ctx context.Context, taskID TaskID, startTime time.Time, endTime time.Time, status TaskStatus) error
 	UpdateTaskStatus(ctx context.Context, taskID TaskID, status TaskStatus) error
+	// UnscheduleTask reverts a task to 'unplanned' and clears its start/end slot,
+	// so a postponed task stops occupying a calendar slot and can be re-planned.
+	UnscheduleTask(ctx context.Context, taskID TaskID) error
 	UpdateTask(ctx context.Context, taskID TaskID, userID UserID, update TaskUpdate) (Task, error)
 	DeleteTask(ctx context.Context, taskID TaskID) error
 	ListTasks(ctx context.Context, filter TaskFilter, pagination Pagination) ([]Task, int, error)
