@@ -11,6 +11,42 @@ import (
 	"github.com/Doremi203/personage/backend/tasker/internal/domain"
 )
 
+func TestProcessClosableClustersUsesRuntimeSettings(t *testing.T) {
+	clusterRepo := &stubClusterRepo{}
+	uc := NewUseCase(
+		clusterRepo,
+		stubEventRepo{},
+		&stubTaskRepo{},
+		stubModerationRepo{},
+		stubActionabilityService{},
+		stubTaskGenerationService{},
+		stubUserProfileService{},
+		stubTxProvider{},
+		log.Stub{},
+		stubSettingsProvider{settings: domain.GenerationSettings{
+			MaxEventCount:     9,
+			InactivityTimeout: 7 * time.Minute,
+			BatchSize:         3,
+		}},
+		time.Now,
+	)
+
+	if err := uc.ProcessClosableClusters(t.Context()); err != nil {
+		t.Fatalf("ProcessClosableClusters returned error: %v", err)
+	}
+
+	if clusterRepo.recoverThreshold != 7*time.Minute {
+		t.Fatalf("expected recover threshold 7m, got %v", clusterRepo.recoverThreshold)
+	}
+	if len(clusterRepo.findClosableArgs) != 1 {
+		t.Fatalf("expected 1 FindClosableClusters call, got %d", len(clusterRepo.findClosableArgs))
+	}
+	call := clusterRepo.findClosableArgs[0]
+	if call.maxEventCount != 9 || call.inactivityDuration != 7*time.Minute || call.limit != 3 {
+		t.Fatalf("settings not threaded into FindClosableClusters: %#v", call)
+	}
+}
+
 func TestProcessClusterFinalizesNonActionableCluster(t *testing.T) {
 	clusterRepo := &stubClusterRepo{}
 	taskRepo := &stubTaskRepo{}
@@ -24,8 +60,7 @@ func TestProcessClusterFinalizesNonActionableCluster(t *testing.T) {
 		stubUserProfileService{profile: domain.UserProfile{Email: "owner@example.com", Name: "Owner"}},
 		stubTxProvider{},
 		log.Stub{},
-		5,
-		time.Minute,
+		stubSettingsProvider{},
 		time.Now,
 	)
 
@@ -76,8 +111,7 @@ func TestProcessClusterStoresGeneratedTask(t *testing.T) {
 		stubUserProfileService{profile: domain.UserProfile{Email: "owner@example.com", Name: "Owner"}},
 		stubTxProvider{},
 		log.Stub{},
-		5,
-		time.Minute,
+		stubSettingsProvider{},
 		time.Now,
 	)
 
@@ -121,8 +155,7 @@ func TestProcessClusterMarksTaskUnapprovedWhenUserRequiresModeration(t *testing.
 		stubUserProfileService{profile: domain.UserProfile{Email: "owner@example.com", Name: "Owner"}},
 		stubTxProvider{},
 		log.Stub{},
-		5,
-		time.Minute,
+		stubSettingsProvider{},
 		time.Now,
 	)
 
@@ -154,8 +187,7 @@ func TestProcessClusterPassesUserProfileToTaskGenerator(t *testing.T) {
 		stubUserProfileService{profile: domain.UserProfile{Email: "owner@example.com", Name: "Owner", ConnectedEmails: []string{"alt@example.com"}}},
 		stubTxProvider{},
 		log.Stub{},
-		5,
-		time.Minute,
+		stubSettingsProvider{},
 		time.Now,
 	)
 
@@ -182,8 +214,7 @@ func TestProcessClusterPassesUserProfileToClassifier(t *testing.T) {
 		stubUserProfileService{profile: domain.UserProfile{Email: "owner@example.com", Name: "Owner"}},
 		stubTxProvider{},
 		log.Stub{},
-		5,
-		time.Minute,
+		stubSettingsProvider{},
 		time.Now,
 	)
 
@@ -210,8 +241,7 @@ func TestProcessClusterDegradesWhenUserProfileLookupFails(t *testing.T) {
 		stubUserProfileService{err: domain.ErrUserProfileNotFound},
 		stubTxProvider{},
 		log.Stub{},
-		5,
-		time.Minute,
+		stubSettingsProvider{},
 		time.Now,
 	)
 
@@ -251,9 +281,17 @@ type finalizeCall struct {
 	reason  *string
 }
 
+type findClosableCall struct {
+	maxEventCount      int
+	inactivityDuration time.Duration
+	limit              int
+}
+
 type stubClusterRepo struct {
-	finalized       []finalizeCall
-	updatedStatuses []domain.ClusterStatus
+	finalized        []finalizeCall
+	updatedStatuses  []domain.ClusterStatus
+	findClosableArgs []findClosableCall
+	recoverThreshold time.Duration
 }
 
 func (s *stubClusterRepo) FindSimilarClusters(context.Context, domain.UserID, []float32, int) ([]domain.ClusterWithSimilarity, error) {
@@ -263,7 +301,12 @@ func (s *stubClusterRepo) FindSimilarClosedClusters(context.Context, domain.User
 	return nil, nil
 }
 func (s *stubClusterRepo) UpsertCluster(context.Context, domain.Cluster) error { return nil }
-func (s *stubClusterRepo) FindClosableClusters(context.Context, int, time.Duration, int) ([]domain.Cluster, error) {
+func (s *stubClusterRepo) FindClosableClusters(_ context.Context, maxEventCount int, inactivityDuration time.Duration, limit int) ([]domain.Cluster, error) {
+	s.findClosableArgs = append(s.findClosableArgs, findClosableCall{
+		maxEventCount:      maxEventCount,
+		inactivityDuration: inactivityDuration,
+		limit:              limit,
+	})
 	return nil, nil
 }
 func (s *stubClusterRepo) UpdateClusterStatus(_ context.Context, _ domain.ClusterID, status domain.ClusterStatus) error {
@@ -289,7 +332,8 @@ func (s *stubClusterRepo) GetAdminClusterByID(context.Context, domain.ClusterID)
 	return domain.AdminClusterListItem{}, nil
 }
 func (s *stubClusterRepo) DeleteCluster(context.Context, domain.ClusterID) error { return nil }
-func (s *stubClusterRepo) RecoverStaleClusters(context.Context, time.Duration) (int, error) {
+func (s *stubClusterRepo) RecoverStaleClusters(_ context.Context, threshold time.Duration) (int, error) {
+	s.recoverThreshold = threshold
 	return 0, nil
 }
 
@@ -389,6 +433,14 @@ type stubTxProvider struct{}
 
 func (stubTxProvider) RunWithTx(ctx context.Context, _ tx.Isolation, op func(context.Context) error) error {
 	return op(ctx)
+}
+
+type stubSettingsProvider struct {
+	settings domain.GenerationSettings
+}
+
+func (s stubSettingsProvider) GenerationSettings(context.Context) (domain.GenerationSettings, error) {
+	return s.settings, nil
 }
 
 type stubModerationRepo struct {

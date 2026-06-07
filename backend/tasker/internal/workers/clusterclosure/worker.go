@@ -9,21 +9,19 @@ import (
 )
 
 type Worker struct {
-	useCase   *taskgeneration.UseCase
-	batchSize int
-	logger    log.Logger
+	useCase *taskgeneration.UseCase
+	logger  log.Logger
 }
 
-func NewWorker(useCase *taskgeneration.UseCase, batchSize int, logger log.Logger) *Worker {
+func NewWorker(useCase *taskgeneration.UseCase, logger log.Logger) *Worker {
 	return &Worker{
-		useCase:   useCase,
-		batchSize: batchSize,
-		logger:    logger,
+		useCase: useCase,
+		logger:  logger,
 	}
 }
 
 func (w *Worker) Process(ctx context.Context) error {
-	err := w.useCase.ProcessClosableClusters(ctx, w.batchSize)
+	err := w.useCase.ProcessClosableClusters(ctx)
 	if err != nil {
 		return errors.WrapFail(err, "process closable clusters")
 	}

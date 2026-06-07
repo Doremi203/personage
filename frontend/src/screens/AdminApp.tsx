@@ -4,9 +4,10 @@ import { AdminLoginScreen } from './AdminLoginScreen';
 import { AdminUsersScreen } from './AdminUsersScreen';
 import { AdminUserTasksScreen, type AdminUserTab } from './AdminUserTasksScreen';
 import { AdminPromptsScreen } from './AdminPromptsScreen';
+import { AdminGenerationSettingsScreen } from './AdminGenerationSettingsScreen';
 
 interface AdminRoute {
-  view: 'users' | 'user' | 'prompts';
+  view: 'users' | 'user' | 'prompts' | 'generation-settings';
   userId?: string;
   tab?: AdminUserTab;
 }
@@ -17,6 +18,9 @@ function parseLocation(): AdminRoute {
   const path = window.location.pathname;
   if (path === '/admin/prompts' || path === '/admin/prompts/') {
     return { view: 'prompts' };
+  }
+  if (path === '/admin/generation-settings' || path === '/admin/generation-settings/') {
+    return { view: 'generation-settings' };
   }
   const match = USER_PATH_RE.exec(path);
   if (match) {
@@ -65,12 +69,21 @@ export function AdminApp() {
     setRoute({ view: 'prompts' });
   }, []);
 
+  const goToGenerationSettings = useCallback(() => {
+    window.history.pushState({}, '', '/admin/generation-settings');
+    setRoute({ view: 'generation-settings' });
+  }, []);
+
   if (!hasKey) {
     return <AdminLoginScreen />;
   }
 
   if (route.view === 'prompts') {
     return <AdminPromptsScreen onBack={goToUsers} />;
+  }
+
+  if (route.view === 'generation-settings') {
+    return <AdminGenerationSettingsScreen onBack={goToUsers} />;
   }
 
   if (route.view === 'user' && route.userId) {
@@ -84,5 +97,11 @@ export function AdminApp() {
     );
   }
 
-  return <AdminUsersScreen onSelect={(userId) => goToUser(userId)} onOpenPrompts={goToPrompts} />;
+  return (
+    <AdminUsersScreen
+      onSelect={(userId) => goToUser(userId)}
+      onOpenPrompts={goToPrompts}
+      onOpenGenerationSettings={goToGenerationSettings}
+    />
+  );
 }

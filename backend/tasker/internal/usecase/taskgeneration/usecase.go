@@ -21,8 +21,7 @@ func NewUseCase(
 	userProfileService domain.UserProfileService,
 	txProvider tx.Provider,
 	logger log.Logger,
-	maxEventCount int,
-	inactivityTimeout time.Duration,
+	settings domain.GenerationSettingsProvider,
 	clock func() time.Time,
 ) *UseCase {
 	return &UseCase{
@@ -35,8 +34,7 @@ func NewUseCase(
 		userProfileService:          userProfileService,
 		txProvider:                  txProvider,
 		logger:                      logger,
-		maxEventCount:               maxEventCount,
-		inactivityTimeout:           inactivityTimeout,
+		settings:                    settings,
 		clock:                       clock,
 	}
 }
@@ -51,13 +49,17 @@ type UseCase struct {
 	userProfileService          domain.UserProfileService
 	txProvider                  tx.Provider
 	logger                      log.Logger
-	maxEventCount               int
-	inactivityTimeout           time.Duration
+	settings                    domain.GenerationSettingsProvider
 	clock                       func() time.Time
 }
 
-func (uc *UseCase) ProcessClosableClusters(ctx context.Context, batchSize int) error {
-	recovered, err := uc.clusterRepo.RecoverStaleClusters(ctx, uc.inactivityTimeout)
+func (uc *UseCase) ProcessClosableClusters(ctx context.Context) error {
+	cfg, err := uc.settings.GenerationSettings(ctx)
+	if err != nil {
+		return errors.WrapFail(err, "load generation settings")
+	}
+
+	recovered, err := uc.clusterRepo.RecoverStaleClusters(ctx, cfg.InactivityTimeout)
 	if err != nil {
 		return errors.WrapFail(err, "recover stale processing clusters")
 	}
@@ -71,9 +73,9 @@ func (uc *UseCase) ProcessClosableClusters(ctx context.Context, batchSize int) e
 	err = uc.txProvider.RunWithTx(ctx, tx.IsolationReadCommitted, func(txCtx context.Context) error {
 		clusters, err = uc.clusterRepo.FindClosableClusters(
 			txCtx,
-			uc.maxEventCount,
-			uc.inactivityTimeout,
-			batchSize,
+			cfg.MaxEventCount,
+			cfg.InactivityTimeout,
+			cfg.BatchSize,
 		)
 		if err != nil {
 			return errors.WrapFail(err, "find closable clusters")

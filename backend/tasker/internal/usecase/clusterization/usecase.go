@@ -18,33 +18,27 @@ func NewUseCase(
 	eventsRepo domain.EventRepo,
 	clusterRepo domain.ClusterRepo,
 	pauseRepo domain.ProcessingPauseRepo,
-	minSimilarity float64,
-	closedSimilarityThreshold float64,
-	topK int,
+	settings domain.GenerationSettingsProvider,
 	clock func() time.Time,
 ) *UseCase {
 	return &UseCase{
-		txProvider:                txProvider,
-		logger:                    logger,
-		embedder:                  embedder,
-		eventsRepo:                eventsRepo,
-		clusterRepo:               clusterRepo,
-		pauseRepo:                 pauseRepo,
-		minSimilarity:             minSimilarity,
-		closedSimilarityThreshold: closedSimilarityThreshold,
-		topK:                      topK,
-		clock:                     clock,
+		txProvider:  txProvider,
+		logger:      logger,
+		embedder:    embedder,
+		eventsRepo:  eventsRepo,
+		clusterRepo: clusterRepo,
+		pauseRepo:   pauseRepo,
+		settings:    settings,
+		clock:       clock,
 	}
 }
 
 type UseCase struct {
-	embedder                  domain.EmbeddingService
-	eventsRepo                domain.EventRepo
-	clusterRepo               domain.ClusterRepo
-	pauseRepo                 domain.ProcessingPauseRepo
-	minSimilarity             float64
-	closedSimilarityThreshold float64
-	topK                      int
+	embedder    domain.EmbeddingService
+	eventsRepo  domain.EventRepo
+	clusterRepo domain.ClusterRepo
+	pauseRepo   domain.ProcessingPauseRepo
+	settings    domain.GenerationSettingsProvider
 
 	txProvider tx.Provider
 	logger     log.Logger
@@ -100,7 +94,17 @@ func (uc *UseCase) ProcessEvent(ctx context.Context, e domain.Event) error {
 		Embedding: embedding,
 	}
 
-	closedClusters, err := uc.clusterRepo.FindSimilarClosedClusters(ctx, e.UserID, embedding, uc.topK)
+	cfg, err := uc.settings.GenerationSettings(ctx)
+	if err != nil {
+		return errors.WrapFailf(
+			err,
+			"load generation settings for event %s for user %s",
+			errors.Token("event_id", e.ID.String()),
+			errors.Token("user_id", e.UserID.String()),
+		)
+	}
+
+	closedClusters, err := uc.clusterRepo.FindSimilarClosedClusters(ctx, e.UserID, embedding, cfg.TopK)
 	if err != nil {
 		return errors.WrapFailf(
 			err,
@@ -109,7 +113,7 @@ func (uc *UseCase) ProcessEvent(ctx context.Context, e domain.Event) error {
 			errors.Token("user_id", e.UserID.String()),
 		)
 	}
-	if len(closedClusters) > 0 && closedClusters[0].Similarity >= uc.closedSimilarityThreshold {
+	if len(closedClusters) > 0 && closedClusters[0].Similarity >= cfg.ClosedSimilarityThreshold {
 		uc.logger.Infof(
 			"skip event %s for user %s as near-duplicate of closed cluster %s with similarity %s",
 			errors.Token("event_id", e.ID.String()),
@@ -120,7 +124,7 @@ func (uc *UseCase) ProcessEvent(ctx context.Context, e domain.Event) error {
 		return nil
 	}
 
-	similarClusters, err := uc.clusterRepo.FindSimilarClusters(ctx, e.UserID, embedding, uc.topK)
+	similarClusters, err := uc.clusterRepo.FindSimilarClusters(ctx, e.UserID, embedding, cfg.TopK)
 	if err != nil {
 		return errors.WrapFailf(
 			err,
@@ -171,7 +175,7 @@ func (uc *UseCase) ProcessEvent(ctx context.Context, e domain.Event) error {
 
 	var chosenCluster domain.Cluster
 	var attachedToExisting bool
-	if hasBestCandidate && bestMaxSimilarity >= uc.minSimilarity {
+	if hasBestCandidate && bestMaxSimilarity >= cfg.MinSimilarity {
 		chosenCluster = bestCandidate.Cluster
 		eventWithEmbedding.Similarity = bestMaxSimilarity
 		chosenCluster.AddEvent(eventWithEmbedding, uc.clock())
