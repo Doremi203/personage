@@ -293,6 +293,7 @@ public class Program
         services.Configure<PostboxSettings>(configuration.GetSection(nameof(PostboxSettings)));
         services.Configure<AdminSettings>(configuration.GetSection(nameof(AdminSettings)));
         services.Configure<TelegramAuthGrpcSettings>(configuration.GetSection(nameof(TelegramAuthGrpcSettings)));
+        services.Configure<ExternalClientOptions>(configuration.GetSection(nameof(ExternalClientOptions)));
     }
 
     private static void AddCors(IServiceCollection services, ConfigurationManager configuration)

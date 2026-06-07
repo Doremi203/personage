@@ -1,6 +1,8 @@
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Personage.Auth.DataAccess.Interfaces.Repositories;
 using Personage.Auth.DataAccess.Models;
+using Personage.Auth.Domain.Configuration;
 using Personage.Auth.Domain.Exceptions;
 using Personage.Auth.Domain.Exceptions.Base;
 using Personage.Auth.Domain.Interfaces;
@@ -19,7 +21,8 @@ public class StateTrackingService(
     IGoogleCalendarTokenRepository googleCalendarTokenRepository,
     IGoogleOAuthService googleOAuthService,
     IUserRepository userRepository,
-    ILogger<StateTrackingService> logger
+    ILogger<StateTrackingService> logger,
+    IOptions<ExternalClientOptions> externalClientOptions
 ) : IStateTrackingService
 {
     private const int TokenExpirationThresholdMinutes = 5;
@@ -52,33 +55,12 @@ public class StateTrackingService(
         var users = await userRepository.GetUsersGmailProcessedBeforeMoment(
             processedUntilMoment, batchSize, ct);
 
-        var expiringTokens = users
-            .Where(x => x.Token.ExpiresAt <= DateTime.UtcNow.AddMinutes(TokenExpirationThresholdMinutes))
-            .ToList();
-
-        var refreshTasks = expiringTokens.Select(async expiringToken =>
-        {
-            try
-            {
-                await RefreshTokenAndUpdate(expiringToken, ct);
-                return (Success: true, User: expiringToken);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex,
-                    "Failed to refresh Gmail token for user {UserEmail}",
-                    expiringToken.UserEmail);
-                return (Success: false, User: expiringToken);
-            }
-        });
-
-        var results = await Task.WhenAll(refreshTasks);
-        var refreshFailed = results.Where(r => !r.Success).Select(r => r.User).ToList();
+        var failedRefreshUsers = await RefreshExpiringTokensAndRemoveFailed(users, ServiceTypeModel.Gmail, ct);
 
         return new GetUsersForProcessingResponseModel
         {
             Users = users
-                .Except(refreshFailed)
+                .Except(failedRefreshUsers)
                 .Select(user => MapOAuthUser(user, ServiceTypeModel.Gmail))
                 .ToArray()
         };
@@ -112,22 +94,96 @@ public class StateTrackingService(
     {
         var users = await userRepository.GetUsersGoogleCalendarProcessedBeforeMoment(
             processedUntilMoment, batchSize, ct);
+        var failedRefreshUsers = await RefreshExpiringTokensAndRemoveFailed(users, ServiceTypeModel.GoogleCalendar, ct);
+        
         return new GetUsersForProcessingResponseModel
         {
             Users = users
-                .Select(user => MapOAuthUser(user, serviceType: ServiceTypeModel.GoogleCalendar))
+                .Except(failedRefreshUsers)
+                .Select(user => MapOAuthUser(user, ServiceTypeModel.GoogleCalendar))
                 .ToArray()
         };
     }
 
-    private async Task RefreshTokenAndUpdate(UserWithToken user, CancellationToken ct)
+    private IOAuthRepositoryBase GetOAuthRepository(ServiceTypeModel oauthServiceType)
+    {
+        var invalidServiceException = new ArgumentOutOfRangeException(nameof(oauthServiceType), oauthServiceType,
+            $@"{oauthServiceType} is not an oauth service type valid");
+        IOAuthRepositoryBase oauthRepository = oauthServiceType switch
+        {
+            ServiceTypeModel.Unknown => throw invalidServiceException,
+            ServiceTypeModel.Gmail => gmailTokenRepository,
+            ServiceTypeModel.Telegram => throw invalidServiceException,
+            ServiceTypeModel.GoogleCalendar => googleCalendarTokenRepository,
+            _ => throw invalidServiceException
+        };
+
+        return oauthRepository;
+    }
+    
+    private async Task<List<UserWithToken>> RefreshExpiringTokensAndRemoveFailed(
+        UserWithToken[] users,
+        ServiceTypeModel oauthServiceType,
+        CancellationToken ct
+    )
+    {
+        var expiringTokens = users
+            .Where(x => x.Token.ExpiresAt <= DateTime.UtcNow.AddMinutes(TokenExpirationThresholdMinutes))
+            .ToList();
+        
+        var refreshTasks = expiringTokens.Select(async expiringToken =>
+        {
+            try
+            {
+                await RefreshTokenAndUpdate(expiringToken, oauthServiceType, ct);
+                return (Success: true, User: expiringToken);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex,
+                    "Failed to refresh token of kind {ServiceKind} for user {UserEmail}",
+                    oauthServiceType, expiringToken.UserEmail);
+                return (Success: false, User: expiringToken);
+            }
+        });
+
+        var results = await Task.WhenAll(refreshTasks);
+        var refreshFailed = results.Where(r => !r.Success).Select(r => r.User).ToList();
+
+        var oauthRepository = GetOAuthRepository(oauthServiceType);
+        var failedAttemptsInfo = await oauthRepository
+            .UpdateRefreshInfo(results
+                    .Select(x => (x.User.Token.TokenId, x.Success))
+                    .ToArray(),
+                ct
+            );
+
+        var maxAllowedRefreshAttempts = externalClientOptions.Value.MaxRefreshRetryAttempts;
+        var tokensToRemove = failedAttemptsInfo
+            .Where(token => token.FailedAttempts > maxAllowedRefreshAttempts)
+            .Select(token => token.TokenId)
+            .ToArray();
+
+        if (tokensToRemove.Length > 0)
+        {
+            logger.LogError("Unable to refresh tokens of kind {ServiceKind}: {@TokensToRemove}. Removing tokens...", 
+                oauthServiceType,
+                tokensToRemove);
+            await oauthRepository.RemoveTokens(tokensToRemove, ct);
+        }
+
+        return refreshFailed;
+    }
+    
+    private async Task RefreshTokenAndUpdate(UserWithToken user, ServiceTypeModel oauthServiceType, CancellationToken ct)
     {
         var refreshedToken = await googleOAuthService.RefreshToken(
             user.Token.RefreshToken, ct);
 
         var newRefreshToken = refreshedToken.RefreshToken ?? user.Token.RefreshToken;
 
-        await gmailTokenRepository.UpdateToken(
+        var oauthRepository = GetOAuthRepository(oauthServiceType);
+        await oauthRepository.UpdateToken(
             user.Token.TokenId,
             refreshedToken.AccessToken,
             newRefreshToken,

@@ -90,4 +90,70 @@ public class GoogleCalendarTokenRepository(IDbConnectionFactory connectionFactor
                 userId
             });
     }
+
+    public async Task RemoveTokens(Guid[] tokenIds, CancellationToken ct)
+    {
+        using var connection = await connectionFactory.CreateConnection(ct);
+
+        await connection.ExecuteAsync(
+            """
+            --GoogleCalendarTokenRepository.RemoveTokens
+            DELETE FROM calendar_token
+            WHERE id = any(@tokenIds);
+            """,
+            new
+            {
+                tokenIds
+            });
+    }
+    
+    public async Task UpdateToken(Guid tokenId, string accessToken, string refreshToken, DateTime expiresAt, CancellationToken ct)
+    {
+        using var connection = await connectionFactory.CreateConnection(ct);
+
+        await connection.ExecuteAsync(
+            """
+            --GoogleCalendarTokenRepository.UpdateToken
+            UPDATE calendar_token
+            SET
+                access_token = @accessToken,
+                refresh_token = @refreshToken,
+                expires_at = @expiresAt
+            WHERE
+                id = @tokenId;
+            """,
+            new
+            {
+                accessToken,
+                refreshToken,
+                expiresAt,
+                tokenId
+            });
+    }
+
+    public async Task<(Guid TokenId, int FailedAttempts)[]> UpdateRefreshInfo((Guid tokenId, bool RefreshSuccess)[] refreshes, CancellationToken ct)
+    {
+        using var connection = await connectionFactory.CreateConnection(ct);
+
+        var result = await connection.QueryAsync<(Guid TokenId, int FailedAttempts)>(
+            """
+            --GoogleCalendarTokenRepository.UpdateRefreshInfo
+            UPDATE calendar_token AS ct
+            SET
+                failed_refreshes = CASE 
+                    WHEN refresh_data.refresh_success THEN 0 
+                    ELSE ct.failed_refreshes + 1 
+                END,
+                last_refresh_attempt = NOW()
+            FROM UNNEST(@Refreshes) AS refresh_data(token_id UUID, refresh_success BOOLEAN)
+            WHERE ct.id = refresh_data.token_id
+            RETURNING ct.id AS token_id, ct.failed_refreshes;
+            """,
+            new
+            {
+                Refreshes = refreshes.Select(r => new { r.tokenId, r.RefreshSuccess }).ToArray()
+            });
+        
+        return result.ToArray();
+    }
 }
