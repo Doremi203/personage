@@ -129,12 +129,12 @@ public class GmailTokenRepository(IDbConnectionFactory connectionFactory) : IGma
             WHERE gt.id = refresh_data.token_id
             RETURNING gt.id AS token_id, gt.failed_refreshes;
             """,
-            new 
-            { 
+            new
+            {
                 TokenIds = refreshes.Select(x => x.TokenId).ToArray(),
                 RefreshSuccesses = refreshes.Select(x => x.RefreshSuccess).ToArray()
             });
-    
+
         return result.ToArray();
     }
 

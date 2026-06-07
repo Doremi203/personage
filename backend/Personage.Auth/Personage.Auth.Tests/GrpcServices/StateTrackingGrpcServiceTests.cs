@@ -144,6 +144,58 @@ public class StateTrackingGrpcServiceTests : TestClassBase
     }
 
     [TestMethod]
+    public async Task GetUsersForProcessing_TokenRefreshKeepsFailing_ShouldIncrementCounterAndRemoveTokenAfterThreshold()
+    {
+        //arrange
+        const int notProcessedForMinutesThreshold = 15;
+        // matches ExternalClientOptions:MaxRefreshRetryAttempts in appsettings.Testing.json
+        const int maxRefreshRetryAttempts = 3;
+
+        var processedTimestamp = DateTime.UtcNow
+            .AddMinutes(-notProcessedForMinutesThreshold - Random.Shared.Next(5, 100));
+        // token expires within the 5-minute refresh threshold, so it is always refreshed
+        var expiringSoon = DateTime.UtcNow.AddMinutes(1);
+
+        var user = await TestUserRepository.CreateUserWithToken(processedTimestamp, expiringSoon);
+        Cleaner.AddCleanAction(async () => await TestCleaners.DeleteUser(user.UserId));
+
+        var factory = (TestApplicationFactory)Factory;
+        var handlerMock = factory.HttpMessageHandlerMock;
+
+        // every refresh attempt fails
+        handlerMock.SetupSendAsync(
+            "https://oauth2.googleapis.com/token",
+            HttpMethod.Post,
+            JsonSerializer.Serialize(new { error = "temporarily_unavailable" }),
+            statusCode: System.Net.HttpStatusCode.BadRequest);
+
+        async Task TriggerRefreshAttempt() =>
+            await StateTrackingGrpcClient.GetUsersForProcessingAsync(
+                new GetUsersForProcessingRequest
+                {
+                    BatchSize = 10000,
+                    MinSecondsSinceLastProcess = notProcessedForMinutesThreshold * 60,
+                    ServiceType = ServiceType.Gmail
+                }, cancellationToken: CancellationToken.None);
+
+        //act + assert: failures below the threshold increment the counter but keep the token
+        for (var attempt = 1; attempt < maxRefreshRetryAttempts; ++attempt)
+        {
+            await TriggerRefreshAttempt();
+
+            var state = await TestUserRepository.GetGmailTokenState(user.UserId);
+            state.Exists.Should().BeTrue();
+            state.FailedRefreshes.Should().Be(attempt);
+        }
+
+        // the attempt that reaches the threshold removes the token
+        await TriggerRefreshAttempt();
+
+        var finalState = await TestUserRepository.GetGmailTokenState(user.UserId);
+        finalState.Exists.Should().BeFalse();
+    }
+
+    [TestMethod]
     public async Task MarkUsersAsProcessed_ShouldMarkUsersAsProcessed()
     {
         //arrange

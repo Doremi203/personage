@@ -95,7 +95,7 @@ public class StateTrackingService(
         var users = await userRepository.GetUsersGoogleCalendarProcessedBeforeMoment(
             processedUntilMoment, batchSize, ct);
         var failedRefreshUsers = await RefreshExpiringTokensAndRemoveFailed(users, ServiceTypeModel.GoogleCalendar, ct);
-        
+
         return new GetUsersForProcessingResponseModel
         {
             Users = users
@@ -120,7 +120,7 @@ public class StateTrackingService(
 
         return oauthRepository;
     }
-    
+
     private async Task<List<UserWithToken>> RefreshExpiringTokensAndRemoveFailed(
         UserWithToken[] users,
         ServiceTypeModel oauthServiceType,
@@ -130,7 +130,7 @@ public class StateTrackingService(
         var expiringTokens = users
             .Where(x => x.Token.ExpiresAt <= DateTime.UtcNow.AddMinutes(TokenExpirationThresholdMinutes))
             .ToList();
-        
+
         var refreshTasks = expiringTokens.Select(async expiringToken =>
         {
             try
@@ -162,13 +162,13 @@ public class StateTrackingService(
 
         var maxAllowedRefreshAttempts = externalClientOptions.Value.MaxRefreshRetryAttempts;
         var tokensToRemove = failedAttemptsInfo
-            .Where(token => token.FailedAttempts > maxAllowedRefreshAttempts)
+            .Where(token => token.FailedAttempts >= maxAllowedRefreshAttempts)
             .Select(token => token.TokenId)
             .ToArray();
 
         if (tokensToRemove.Length > 0)
         {
-            logger.LogError("Unable to refresh tokens of kind {ServiceKind}: {@TokensToRemove}. Removing tokens...", 
+            logger.LogError("Unable to refresh tokens of kind {ServiceKind}: {@TokensToRemove}. Removing tokens...",
                 oauthServiceType,
                 tokensToRemove);
             await oauthRepository.RemoveTokens(tokensToRemove, ct);
@@ -176,7 +176,7 @@ public class StateTrackingService(
 
         return refreshFailed;
     }
-    
+
     private async Task RefreshTokenAndUpdate(UserWithToken user, ServiceTypeModel oauthServiceType, CancellationToken ct)
     {
         var refreshedToken = await googleOAuthService.RefreshToken(

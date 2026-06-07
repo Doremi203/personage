@@ -106,7 +106,7 @@ public class GoogleCalendarTokenRepository(IDbConnectionFactory connectionFactor
                 tokenIds
             });
     }
-    
+
     public async Task UpdateToken(Guid tokenId, string accessToken, string refreshToken, DateTime expiresAt, CancellationToken ct)
     {
         using var connection = await connectionFactory.CreateConnection(ct);
@@ -156,7 +156,7 @@ public class GoogleCalendarTokenRepository(IDbConnectionFactory connectionFactor
                 TokenIds = refreshes.Select(x => x.TokenId).ToArray(),
                 RefreshSuccesses = refreshes.Select(x => x.RefreshSuccess).ToArray()
             });
-        
+
         return result.ToArray();
     }
 }
