@@ -336,7 +336,7 @@ func main() {
 		}
 
 		schedulingConfig := SchedulingConfig{
-			WindowHours: 24,
+			WindowHours: 168,
 			Interval:    30 * time.Second,
 		}
 		err = app.Config.ReadSection(ctx, "scheduling", &schedulingConfig)

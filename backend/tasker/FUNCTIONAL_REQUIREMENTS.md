@@ -506,7 +506,7 @@ planned   → unplanned  (отложена пользователем)
 **Параметры:**
 
 - Размер временного слота: 15 минут
-- Окно планирования: 24 часа (настраивается через `scheduling.windowHours`)
+- Окно планирования: 168 часов (7 дней; настраивается через `scheduling.windowHours`)
 - Интервал запуска воркера: 30 секунд (настраивается через `scheduling.interval`)
 - Может быть полностью отключено: `scheduling.disabled: true`
 
@@ -916,7 +916,7 @@ cluster-closure:
 
 ```yaml
 scheduling:
-  windowHours: <int>          # По умолчанию: 24
+  windowHours: <int>          # По умолчанию: 168 (7 дней)
   interval: <duration>        # По умолчанию: 30s
   disabled: <bool>            # По умолчанию: false
 ```

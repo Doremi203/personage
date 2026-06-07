@@ -41,7 +41,7 @@ cluster-closure:
   batchSize: 10
 
 scheduling:
-  windowHours: 24
+  windowHours: 168
   interval: 30s
 
 notifications:
