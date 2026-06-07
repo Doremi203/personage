@@ -54,6 +54,9 @@ func (s *Service) GenerationSettings(ctx context.Context) (domain.GenerationSett
 	value, err := s.repo.GetGenerationSettings(ctx)
 	if err != nil {
 		if s.hasCached {
+			// Back off for a full TTL so an outage does not make every call hit the DB.
+			s.expiresAt = s.clock().Add(s.ttl)
+			s.logger.Warn(errors.WrapFail(err, "refresh generation settings, serving stale cached value"))
 			return s.cached, nil
 		}
 		s.logger.Error(errors.WrapFail(err, "load generation settings, using defaults"))
@@ -69,7 +72,9 @@ func (s *Service) GenerationSettings(ctx context.Context) (domain.GenerationSett
 func (s *Service) Invalidate() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.hasCached = false
+	// Expire immediately but keep the cached value so a failed refresh can still
+	// fall back to the last known settings instead of injected defaults.
+	s.expiresAt = time.Time{}
 }
 
 func (s *Service) lookup() (domain.GenerationSettings, bool) {
