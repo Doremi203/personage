@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  AlarmClock,
   BookOpen,
   Briefcase,
   CalendarClock,
+  CalendarOff,
   CheckCheck,
   Calendar as CalendarIcon,
   Inbox,
@@ -44,7 +46,7 @@ import {
   type ApiTaskItem,
   type UpdateTaskPatch,
 } from '../utils/taskerService';
-import { RU_MONTHS_GEN, startOfDay, toApiDateParam } from '../utils/dateFormat';
+import { formatDateTimeLabel, formatDeadlineLabel, toApiDateParam } from '../utils/dateFormat';
 
 type Filter = 'today' | 'upcoming' | 'inbox' | 'done';
 type CategoryFilter = 'all' | Category;
@@ -63,6 +65,15 @@ const CATEGORY_CHIPS: CategoryChipItem<CategoryFilter>[] = [
   { id: 'study',    label: 'Учёба',   icon: BookOpen },
 ];
 
+// Что показывать на карточке во временной строке — три РАЗНЫХ смысла:
+//  - scheduled: задача стоит в расписании (показываем слот «когда делать»);
+//  - deadline:  слота нет, но есть крайний срок (показываем «Дедлайн …»);
+//  - none:      ни слота, ни срока — «Без даты».
+type TaskWhen =
+  | { kind: 'scheduled'; label: string }
+  | { kind: 'deadline'; label: string; overdue: boolean }
+  | { kind: 'none' };
+
 interface Task {
   id: string;
   title: string;
@@ -70,26 +81,24 @@ interface Task {
   status: 'unplanned' | 'planned' | 'completed';
   priority: Priority;
   category: Category;
-  deadline: string;        // pre-formatted Russian display string
-  deadlineDate?: Date;     // raw Date for sorting
+  when: TaskWhen;
   raw: ApiTaskItem;        // kept for the detail sheet
 }
 
-function formatDeadline(iso: string | undefined): string {
-  if (!iso) return 'Без даты';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return 'Без даты';
-  const today = startOfDay(new Date());
-  const tomorrow = new Date(today);
-  tomorrow.setDate(today.getDate() + 1);
-  const day = startOfDay(d);
-  const hh = String(d.getHours()).padStart(2, '0');
-  const mm = String(d.getMinutes()).padStart(2, '0');
-  const time = `${hh}:${mm}`;
-  if (day.getTime() === today.getTime())    return `Сегодня, ${time}`;
-  if (day.getTime() === tomorrow.getTime()) return `Завтра, ${time}`;
-  const sameYear = d.getFullYear() === today.getFullYear();
-  return `${d.getDate()} ${RU_MONTHS_GEN[d.getMonth()]}${sameYear ? '' : ' ' + d.getFullYear()}`;
+function describeWhen(t: ApiTaskItem, status: Task['status']): TaskWhen {
+  const scheduled = status === 'planned' || status === 'completed';
+  if (scheduled && t.startTime) {
+    const d = new Date(t.startTime);
+    if (!Number.isNaN(d.getTime())) return { kind: 'scheduled', label: formatDateTimeLabel(d) };
+  }
+  if (t.deadline) {
+    const d = new Date(t.deadline);
+    if (!Number.isNaN(d.getTime())) {
+      const overdue = status !== 'completed' && d.getTime() < Date.now();
+      return { kind: 'deadline', label: formatDeadlineLabel(d), overdue };
+    }
+  }
+  return { kind: 'none' };
 }
 
 function mapStatus(status: string): Task['status'] {
@@ -111,24 +120,20 @@ function mapCategory(category: string): Category {
 }
 
 function mapApiTask(t: ApiTaskItem): Task {
-  const deadlineSource = t.deadline ?? t.startTime;
-  const dl = deadlineSource ? new Date(deadlineSource) : undefined;
+  const status = mapStatus(t.status);
   return {
     id: t.id,
     title: t.title,
     description: t.description,
-    status: mapStatus(t.status),
+    status,
     priority: mapPriority(t.priority),
     category: mapCategory(t.category),
-    deadline: formatDeadline(deadlineSource),
-    deadlineDate: dl && !Number.isNaN(dl.getTime()) ? dl : undefined,
+    when: describeWhen(t, status),
     raw: t,
   };
 }
 
 function toDetailTask(task: Task): DetailTask {
-  const start = task.raw.startTime ?? task.raw.deadline;
-  const end   = task.raw.endTime   ?? task.raw.deadline;
   return {
     id: task.id,
     title: task.title,
@@ -136,10 +141,9 @@ function toDetailTask(task: Task): DetailTask {
     status: task.status,
     priority: task.priority,
     category: task.category,
-    startLabel: start ? formatDeadline(start) : '—',
-    endLabel:   end   ? formatDeadline(end)   : '—',
     startISO: task.raw.startTime,
     endISO:   task.raw.endTime,
+    deadlineISO: task.raw.deadline,
   };
 }
 
@@ -371,13 +375,7 @@ function TaskListCard({ task, onClick }: TaskListCardProps) {
         display: 'flex', alignItems: 'center', gap: 10, paddingLeft: 34,
         flexWrap: 'wrap',
       }}>
-        <span style={{
-          display: 'inline-flex', alignItems: 'center', gap: 5,
-          fontSize: 12, color: T.ink3, fontWeight: 500,
-        }}>
-          <CalendarIcon size={12} strokeWidth={1.8} />
-          {task.deadline}
-        </span>
+        <WhenLabel when={task.when} />
         <span style={{
           display: 'inline-flex', alignItems: 'center', gap: 5,
           fontSize: 12, color: T.ink3, fontWeight: 500,
@@ -387,6 +385,36 @@ function TaskListCard({ task, onClick }: TaskListCardProps) {
         </span>
       </div>
     </button>
+  );
+}
+
+function WhenLabel({ when }: { when: TaskWhen }) {
+  const base = {
+    display: 'inline-flex' as const, alignItems: 'center' as const, gap: 5,
+    fontSize: 12, fontWeight: 500,
+  };
+  if (when.kind === 'scheduled') {
+    return (
+      <span style={{ ...base, color: T.ink3 }}>
+        <CalendarIcon size={12} strokeWidth={1.8} />
+        {when.label}
+      </span>
+    );
+  }
+  if (when.kind === 'deadline') {
+    const color = when.overdue ? T.danger : T.amberInk;
+    return (
+      <span style={{ ...base, color, fontWeight: 600 }}>
+        <AlarmClock size={12} strokeWidth={1.9} />
+        Дедлайн: {when.label}
+      </span>
+    );
+  }
+  return (
+    <span style={{ ...base, color: T.ink4 }}>
+      <CalendarOff size={12} strokeWidth={1.8} />
+      Без даты
+    </span>
   );
 }
 
