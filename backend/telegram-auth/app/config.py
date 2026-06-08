@@ -48,6 +48,15 @@ class Settings(BaseSettings):
     TELEGRAM_API_HASH: str | None = None
     TELEGRAM_API_ID: str | None = None
 
+    # Session identity shown in Telegram's "Active sessions" list.
+    # Note: the app name ("exporter") comes from the my.telegram.org app
+    # registration tied to TELEGRAM_API_ID and cannot be overridden here.
+    TELEGRAM_DEVICE_MODEL: str = Field('Personage', env='TELEGRAM_DEVICE_MODEL')
+    TELEGRAM_SYSTEM_VERSION: str = Field('1.0', env='TELEGRAM_SYSTEM_VERSION')
+    TELEGRAM_APP_VERSION: str = Field('1.0', env='TELEGRAM_APP_VERSION')
+    TELEGRAM_LANG_CODE: str = Field('ru', env='TELEGRAM_LANG_CODE')
+    TELEGRAM_SYSTEM_LANG_CODE: str = Field('ru', env='TELEGRAM_SYSTEM_LANG_CODE')
+
     class Config:
         env_file = '.env'
         case_sensitive = True

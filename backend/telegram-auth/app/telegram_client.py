@@ -16,7 +16,16 @@ class TelegramClientManager:
         self.client_locks: Dict[str, asyncio.Lock] = {}
 
     async def create_client(self, login_id: str) -> TelegramClient:
-        client = TelegramClient(StringSession(), settings.TELEGRAM_API_ID, settings.TELEGRAM_API_HASH)
+        client = TelegramClient(
+            StringSession(),
+            settings.TELEGRAM_API_ID,
+            settings.TELEGRAM_API_HASH,
+            device_model=settings.TELEGRAM_DEVICE_MODEL,
+            system_version=settings.TELEGRAM_SYSTEM_VERSION,
+            app_version=settings.TELEGRAM_APP_VERSION,
+            lang_code=settings.TELEGRAM_LANG_CODE,
+            system_lang_code=settings.TELEGRAM_SYSTEM_LANG_CODE,
+        )
         await client.connect()
 
         self.active_clients[login_id] = client
