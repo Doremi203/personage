@@ -34,7 +34,7 @@ from externalClients.telegram.models.UserTelegramFetchResult import UserTelegram
 
 class TelegramProcessingService(ITelegramProcessingService):
     USERS_FOR_PROCESSING_BATCH_SIZE = 5
-    SECONDS_SINCE_LAST_PROCESS = 5 * 60
+    SECONDS_SINCE_LAST_PROCESS = 70  # seconds; matches the segmentation silence window
 
     # Seen-message dedup cache retention. Duplicates arise within minutes (the
     # same conversation re-fetched on consecutive polling cycles), so a few days
