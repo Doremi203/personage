@@ -41,6 +41,11 @@ class TelegramChatsServicer(telegram_chats_pb2_grpc.TelegramChatsServiceServicer
             settings.TELEGRAM_API_ID,
             settings.TELEGRAM_API_HASH,
             flood_sleep_threshold=0,
+            device_model=settings.TELEGRAM_DEVICE_MODEL,
+            system_version=settings.TELEGRAM_SYSTEM_VERSION,
+            app_version=settings.TELEGRAM_APP_VERSION,
+            lang_code=settings.TELEGRAM_LANG_CODE,
+            system_lang_code=settings.TELEGRAM_SYSTEM_LANG_CODE,
         )
 
         try:
